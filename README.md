@@ -27,13 +27,24 @@ renames). Version numbers current as of writing; check <https://fabricmc.net/dev
 
 ## Building
 
+The only thing you need installed is **Java 21** (free from <https://adoptium.net> — pick
+Temurin 21). The Gradle wrapper in this repo downloads everything else automatically —
+Gradle itself, the Fabric toolchain, Minecraft, mappings — on the first run. No manual
+maven setup; the URLs in `settings.gradle`/`build.gradle` tell it where to download from.
+
 ```bash
-# with a local Gradle 8.10+ install (or generate a wrapper: gradle wrapper)
-gradle build
+git clone https://github.com/chopper5thdoctor-cyber/EnderdragonAnthro.git
+cd EnderdragonAnthro
+
+./gradlew build        # Windows: gradlew.bat build
 # jar lands in build/libs/
+
+./gradlew runClient    # launches a dev Minecraft client with the mod loaded
 ```
 
-Requires Java 21. Run in dev with `gradle runClient`.
+The first build downloads roughly 1–2 GB and can take 5–15 minutes; later builds are
+fast. Alternatively, open the folder in IntelliJ IDEA (Community is fine) and it will
+import the Gradle project and offer run buttons for the same tasks.
 
 ## Keybinds (rebindable)
 
