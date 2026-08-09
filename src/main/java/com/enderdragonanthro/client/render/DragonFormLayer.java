@@ -50,19 +50,22 @@ public class DragonFormLayer extends RenderLayer<AbstractClientPlayer, PlayerMod
         if (!DragonHud.isDragonForm(player)) {
             return;
         }
+        // whole model is authored at 4x and drawn at 1/4 for head-grade
+        // texel density; the canon head's native units ARE the 4x space
+        poseStack.pushPose();
+        poseStack.scale(HEAD_SCALE, HEAD_SCALE, HEAD_SCALE);
         this.model.copyPose(getParentModel());
         VertexConsumer bodyBuffer = buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));
         this.model.render(poseStack, bodyBuffer, light);
 
-        // canon head rides the head bone: scale 1/4 and seat the skull on the neck
         poseStack.pushPose();
         this.model.applyHeadTransform(poseStack);
-        poseStack.translate(0.0F, -0.25F, 0.0F);
-        poseStack.scale(HEAD_SCALE, HEAD_SCALE, HEAD_SCALE);
+        poseStack.translate(0.0F, -1.0F, 0.0F);
         this.canonHead.render(poseStack,
                 buffers.getBuffer(RenderType.entityCutoutNoCull(DRAGON_TEXTURE)), light);
         this.canonHead.render(poseStack,
                 buffers.getBuffer(RenderType.eyes(DRAGON_EYES_TEXTURE)), light);
+        poseStack.popPose();
         poseStack.popPose();
     }
 }

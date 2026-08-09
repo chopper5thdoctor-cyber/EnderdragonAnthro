@@ -15,22 +15,24 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 
 /**
- * The anthro dragon — full replacement model (vanilla body hidden by
- * PlayerBodyHideMixin).
+ * The anthro dragon body, authored at 4x scale on a 512x512 sheet and
+ * rendered at 1/4 by DragonFormLayer. Box UV pins one texel per model
+ * unit, so authoring big and rendering small quadruples texel density —
+ * the same trick that makes the canon head (16 units -> 1 block) crisp.
+ * At 4x there is room for real anatomy: traps, delts, pecs, abs,
+ * biceps, triceps, forearms, hands, quads, calves, feet, plus the
+ * cheek horns and crown spike rows from the reference art.
  *
- * The head is the canon Ender Dragon head, copied from the vanilla dragon
- * model at 1/4 size (its 16-unit skull = 1 block = 4 units at our 4.44x
- * render scale): square skull, wide flat snout in the lower half of the
- * face, nostrils on top of the snout, hinged jaw, and the two upright
- * horn nubs. All cubes are integer-sized for crisp pixel mapping, and
- * left/right parts are exact mirrors.
- *
- * The six top-level parts keep vanilla player pivots and copy their poses
- * each frame, so every vanilla animation drives this body.
+ * The six top-level parts still ride the vanilla player skeleton;
+ * copyPose scales the copied pivot offsets by 4 to match the authoring
+ * scale (rotations copy unchanged).
  */
 public class DragonFormModel {
     public static final ModelLayerLocation LAYER =
             new ModelLayerLocation(EnderdragonAnthro.id("dragon_form"), "main");
+
+    /** Authoring scale: model units are 4x final units. */
+    public static final float AUTHOR_SCALE = 4.0F;
 
     private final ModelPart root;
     private final ModelPart head;
@@ -54,86 +56,121 @@ public class DragonFormModel {
         MeshDefinition mesh = new MeshDefinition();
         PartDefinition root = mesh.getRoot();
 
-        // ---- head: neck only — the skull/snout/jaw are the canon dragon head
-        // (CanonDragonHeadModel), rendered by DragonFormLayer onto this part's
-        // pose with the vanilla dragon textures ----
-        root.addOrReplaceChild("head", CubeListBuilder.create()
-                        .texOffs(64, 0).addBox(-1.5F, -2.0F, -1.5F, 3.0F, 2.0F, 3.0F),  // neck
+        // ---- head: neck + cheek horns + crown spikes (skull itself is the
+        // canon head, rendered by DragonFormLayer on this bone) ----
+        PartDefinition head = root.addOrReplaceChild("head", CubeListBuilder.create()
+                        .texOffs(0, 0).addBox(-6.0F, -8.0F, -6.0F, 12.0F, 8.0F, 12.0F),  // neck
                 PartPose.offset(0.0F, 0.0F, 0.0F));
+        head.addOrReplaceChild("cheek_horn_right", CubeListBuilder.create()
+                        .texOffs(48, 0).addBox(-2.0F, -2.0F, 0.0F, 4.0F, 4.0F, 18.0F),
+                PartPose.offsetAndRotation(-8.0F, -12.0F, 2.0F, 0.55F, -0.35F, 0.0F));
+        head.addOrReplaceChild("cheek_horn_left", CubeListBuilder.create()
+                        .texOffs(48, 0).addBox(-2.0F, -2.0F, 0.0F, 4.0F, 4.0F, 18.0F),
+                PartPose.offsetAndRotation(8.0F, -12.0F, 2.0F, 0.55F, 0.35F, 0.0F));
+        head.addOrReplaceChild("crown_spike_right", CubeListBuilder.create()
+                        .texOffs(96, 0).addBox(-1.5F, -1.5F, 0.0F, 3.0F, 3.0F, 10.0F),
+                PartPose.offsetAndRotation(-3.6F, -24.0F, 3.2F, 0.75F, -0.15F, 0.0F));
+        head.addOrReplaceChild("crown_spike_left", CubeListBuilder.create()
+                        .texOffs(96, 0).addBox(-1.5F, -1.5F, 0.0F, 3.0F, 3.0F, 10.0F),
+                PartPose.offsetAndRotation(3.6F, -24.0F, 3.2F, 0.75F, 0.15F, 0.0F));
+        head.addOrReplaceChild("nape_spike_right", CubeListBuilder.create()
+                        .texOffs(96, 0).addBox(-1.5F, -1.5F, 0.0F, 3.0F, 3.0F, 10.0F),
+                PartPose.offsetAndRotation(-5.6F, -18.0F, 6.4F, 0.9F, -0.3F, 0.0F));
+        head.addOrReplaceChild("nape_spike_left", CubeListBuilder.create()
+                        .texOffs(96, 0).addBox(-1.5F, -1.5F, 0.0F, 3.0F, 3.0F, 10.0F),
+                PartPose.offsetAndRotation(5.6F, -18.0F, 6.4F, 0.9F, 0.3F, 0.0F));
 
-        // ---- body: chest / waist / hips, spine spikes, folded wings, tail ----
+        // ---- body: traps, chest with 3D pecs, waist with ab plate, hips,
+        // spine spikes, wings, tail ----
         PartDefinition body = root.addOrReplaceChild("body", CubeListBuilder.create()
-                        .texOffs(0, 16).addBox(-5.0F, 0.0F, -2.5F, 10.0F, 5.0F, 5.0F)    // chest
-                        .texOffs(32, 16).addBox(-4.0F, 5.0F, -2.0F, 8.0F, 4.0F, 4.0F)    // waist
-                        .texOffs(58, 16).addBox(-4.0F, 9.0F, -2.5F, 8.0F, 3.0F, 5.0F)    // hips
-                        .texOffs(86, 16).addBox(-0.5F, 0.5F, 2.6F, 1.0F, 1.0F, 1.0F)     // spine spikes
-                        .texOffs(86, 16).addBox(-0.5F, 2.5F, 2.6F, 1.0F, 1.0F, 1.0F)
-                        .texOffs(86, 16).addBox(-0.5F, 4.5F, 2.4F, 1.0F, 1.0F, 1.0F)
-                        .texOffs(86, 16).addBox(-0.5F, 6.5F, 2.2F, 1.0F, 1.0F, 1.0F),
+                        .texOffs(168, 72).addBox(-14.0F, -2.0F, -4.0F, 10.0F, 6.0F, 8.0F)   // trap R
+                        .texOffs(168, 72).addBox(4.0F, -2.0F, -4.0F, 10.0F, 6.0F, 8.0F)     // trap L
+                        .texOffs(0, 72).addBox(-20.0F, 0.0F, -10.0F, 40.0F, 20.0F, 20.0F)   // chest
+                        .texOffs(124, 72).addBox(-18.0F, 2.0F, -13.0F, 16.0F, 12.0F, 4.0F)  // pec R
+                        .texOffs(124, 72).addBox(2.0F, 2.0F, -13.0F, 16.0F, 12.0F, 4.0F)    // pec L
+                        .texOffs(208, 72).addBox(-16.0F, 20.0F, -8.0F, 32.0F, 16.0F, 16.0F) // waist
+                        .texOffs(308, 72).addBox(-10.0F, 20.0F, -11.0F, 20.0F, 16.0F, 4.0F) // ab plate
+                        .texOffs(0, 120).addBox(-16.0F, 36.0F, -10.0F, 32.0F, 12.0F, 20.0F) // hips
+                        .texOffs(260, 0).addBox(-2.0F, 2.0F, 10.4F, 4.0F, 4.0F, 4.0F)       // spine spikes
+                        .texOffs(260, 0).addBox(-2.0F, 10.0F, 10.4F, 4.0F, 4.0F, 4.0F)
+                        .texOffs(260, 0).addBox(-2.0F, 18.0F, 9.6F, 4.0F, 4.0F, 4.0F)
+                        .texOffs(260, 0).addBox(-2.0F, 26.0F, 8.8F, 4.0F, 4.0F, 4.0F),
                 PartPose.offset(0.0F, 0.0F, 0.0F));
         body.addOrReplaceChild("wing_right", CubeListBuilder.create()
-                        .texOffs(78, 0).addBox(-0.5F, -0.5F, 0.0F, 1.0F, 1.0F, 6.0F)     // wing bone
-                        .texOffs(94, 0).addBox(-0.5F, 0.5F, 0.0F, 1.0F, 9.0F, 6.0F),     // folded membrane
-                PartPose.offsetAndRotation(-3.8F, 1.0F, 2.2F, 0.1F, 0.9F, -0.08F));
+                        .texOffs(128, 0).addBox(-2.0F, -2.0F, 0.0F, 4.0F, 4.0F, 24.0F)      // wing bone
+                        .texOffs(192, 0).addBox(-2.0F, 2.0F, 0.0F, 4.0F, 40.0F, 28.0F),     // membrane
+                PartPose.offsetAndRotation(-15.2F, 4.0F, 8.8F, 0.1F, 0.9F, -0.08F));
         body.addOrReplaceChild("wing_left", CubeListBuilder.create()
-                        .texOffs(78, 0).addBox(-0.5F, -0.5F, 0.0F, 1.0F, 1.0F, 6.0F)
-                        .texOffs(94, 0).addBox(-0.5F, 0.5F, 0.0F, 1.0F, 9.0F, 6.0F),
-                PartPose.offsetAndRotation(3.8F, 1.0F, 2.2F, 0.1F, -0.9F, 0.08F));
+                        .texOffs(128, 0).addBox(-2.0F, -2.0F, 0.0F, 4.0F, 4.0F, 24.0F)
+                        .texOffs(192, 0).addBox(-2.0F, 2.0F, 0.0F, 4.0F, 40.0F, 28.0F),
+                PartPose.offsetAndRotation(15.2F, 4.0F, 8.8F, 0.1F, -0.9F, 0.08F));
         PartDefinition tail1 = body.addOrReplaceChild("tail1", CubeListBuilder.create()
-                        .texOffs(0, 32).addBox(-1.5F, -1.5F, 0.0F, 3.0F, 3.0F, 7.0F)
-                        .texOffs(58, 32).addBox(-0.5F, -2.3F, 1.5F, 1.0F, 1.0F, 4.0F),   // spike ridge
-                PartPose.offsetAndRotation(0.0F, 11.0F, 1.5F, -0.9F, 0.0F, 0.0F));
+                        .texOffs(108, 120).addBox(-6.0F, -6.0F, 0.0F, 12.0F, 12.0F, 28.0F)
+                        .texOffs(320, 120).addBox(-2.0F, -9.2F, 6.0F, 4.0F, 4.0F, 16.0F),   // spike ridge
+                PartPose.offsetAndRotation(0.0F, 44.0F, 6.0F, -0.9F, 0.0F, 0.0F));
         PartDefinition tail2 = tail1.addOrReplaceChild("tail2", CubeListBuilder.create()
-                        .texOffs(24, 32).addBox(-1.0F, -1.0F, 0.0F, 2.0F, 2.0F, 6.0F)
-                        .texOffs(58, 32).addBox(-0.5F, -1.8F, 1.0F, 1.0F, 1.0F, 4.0F),
-                PartPose.offsetAndRotation(0.0F, 0.0F, 6.6F, 0.42F, 0.0F, 0.0F));
+                        .texOffs(192, 120).addBox(-4.0F, -4.0F, 0.0F, 8.0F, 8.0F, 24.0F)
+                        .texOffs(320, 120).addBox(-2.0F, -7.2F, 4.0F, 4.0F, 4.0F, 16.0F),
+                PartPose.offsetAndRotation(0.0F, 0.0F, 26.4F, 0.42F, 0.0F, 0.0F));
         tail2.addOrReplaceChild("tail3", CubeListBuilder.create()
-                        .texOffs(42, 32).addBox(-0.5F, -0.5F, 0.0F, 1.0F, 1.0F, 6.0F),
-                PartPose.offsetAndRotation(0.0F, 0.0F, 5.6F, 0.3F, 0.0F, 0.0F));
+                        .texOffs(260, 120).addBox(-2.0F, -2.0F, 0.0F, 4.0F, 4.0F, 24.0F),
+                PartPose.offsetAndRotation(0.0F, 0.0F, 22.4F, 0.3F, 0.0F, 0.0F));
 
-        // ---- arms: shoulder, forearm, three claw fingers (exact mirrors) ----
+        // ---- arms: delt, upper arm with bicep + tricep, forearm, hand, claws ----
         root.addOrReplaceChild("right_arm", CubeListBuilder.create()
-                        .texOffs(0, 48).addBox(-4.5F, -2.0F, -2.5F, 5.0F, 5.0F, 5.0F)    // shoulder
-                        .texOffs(24, 48).addBox(-4.0F, 3.0F, -2.0F, 4.0F, 7.0F, 4.0F)    // forearm
-                        .texOffs(44, 48).addBox(-3.8F, 9.5F, -2.2F, 1.0F, 2.0F, 1.0F)    // claws
-                        .texOffs(44, 48).addBox(-2.5F, 9.5F, -2.2F, 1.0F, 2.0F, 1.0F)
-                        .texOffs(44, 48).addBox(-1.2F, 9.5F, -2.2F, 1.0F, 2.0F, 1.0F),
-                PartPose.offset(-5.0F, 2.0F, 0.0F));
+                        .texOffs(0, 164).addBox(-18.0F, -10.0F, -9.0F, 18.0F, 12.0F, 18.0F)  // delt
+                        .texOffs(76, 164).addBox(-16.0F, 2.0F, -8.0F, 16.0F, 14.0F, 16.0F)   // upper arm
+                        .texOffs(144, 164).addBox(-14.0F, 3.0F, -11.0F, 10.0F, 10.0F, 4.0F)  // bicep (front)
+                        .texOffs(176, 164).addBox(-14.0F, 2.0F, 7.0F, 10.0F, 12.0F, 4.0F)    // tricep (back)
+                        .texOffs(208, 164).addBox(-15.0F, 16.0F, -7.5F, 14.0F, 18.0F, 15.0F) // forearm
+                        .texOffs(268, 164).addBox(-14.5F, 34.0F, -7.0F, 13.0F, 8.0F, 14.0F)  // hand
+                        .texOffs(324, 164).addBox(-13.6F, 41.0F, -8.4F, 4.0F, 7.0F, 4.0F)    // claws
+                        .texOffs(324, 164).addBox(-10.0F, 41.0F, -8.4F, 4.0F, 7.0F, 4.0F)
+                        .texOffs(324, 164).addBox(-6.4F, 41.0F, -8.4F, 4.0F, 7.0F, 4.0F),
+                PartPose.offset(-20.0F, 8.0F, 0.0F));
         root.addOrReplaceChild("left_arm", CubeListBuilder.create()
-                        .texOffs(0, 48).addBox(-0.5F, -2.0F, -2.5F, 5.0F, 5.0F, 5.0F)
-                        .texOffs(24, 48).addBox(0.0F, 3.0F, -2.0F, 4.0F, 7.0F, 4.0F)
-                        .texOffs(44, 48).addBox(2.8F, 9.5F, -2.2F, 1.0F, 2.0F, 1.0F)
-                        .texOffs(44, 48).addBox(1.5F, 9.5F, -2.2F, 1.0F, 2.0F, 1.0F)
-                        .texOffs(44, 48).addBox(0.2F, 9.5F, -2.2F, 1.0F, 2.0F, 1.0F),
-                PartPose.offset(5.0F, 2.0F, 0.0F));
+                        .texOffs(0, 164).addBox(0.0F, -10.0F, -9.0F, 18.0F, 12.0F, 18.0F)
+                        .texOffs(76, 164).addBox(0.0F, 2.0F, -8.0F, 16.0F, 14.0F, 16.0F)
+                        .texOffs(144, 164).addBox(4.0F, 3.0F, -11.0F, 10.0F, 10.0F, 4.0F)
+                        .texOffs(176, 164).addBox(4.0F, 2.0F, 7.0F, 10.0F, 12.0F, 4.0F)
+                        .texOffs(208, 164).addBox(1.0F, 16.0F, -7.5F, 14.0F, 18.0F, 15.0F)
+                        .texOffs(268, 164).addBox(1.5F, 34.0F, -7.0F, 13.0F, 8.0F, 14.0F)
+                        .texOffs(324, 164).addBox(2.4F, 41.0F, -8.4F, 4.0F, 7.0F, 4.0F)
+                        .texOffs(324, 164).addBox(6.0F, 41.0F, -8.4F, 4.0F, 7.0F, 4.0F)
+                        .texOffs(324, 164).addBox(9.6F, 41.0F, -8.4F, 4.0F, 7.0F, 4.0F),
+                PartPose.offset(20.0F, 8.0F, 0.0F));
 
-        // ---- legs: thigh, calf, three toe claws ----
-        root.addOrReplaceChild("right_leg", CubeListBuilder.create()
-                        .texOffs(52, 48).addBox(-2.0F, 0.0F, -2.0F, 4.0F, 6.0F, 4.0F)    // thigh
-                        .texOffs(72, 48).addBox(-2.0F, 6.0F, -2.0F, 4.0F, 6.0F, 4.0F)    // calf
-                        .texOffs(92, 48).addBox(-1.7F, 10.5F, -3.4F, 1.0F, 1.5F, 1.5F)   // toe claws
-                        .texOffs(92, 48).addBox(-0.5F, 10.5F, -3.4F, 1.0F, 1.5F, 1.5F)
-                        .texOffs(92, 48).addBox(0.7F, 10.5F, -3.4F, 1.0F, 1.5F, 1.5F),
-                PartPose.offset(-1.9F, 12.0F, 0.0F));
-        root.addOrReplaceChild("left_leg", CubeListBuilder.create()
-                        .texOffs(52, 48).addBox(-2.0F, 0.0F, -2.0F, 4.0F, 6.0F, 4.0F)
-                        .texOffs(72, 48).addBox(-2.0F, 6.0F, -2.0F, 4.0F, 6.0F, 4.0F)
-                        .texOffs(92, 48).addBox(-1.7F, 10.5F, -3.4F, 1.0F, 1.5F, 1.5F)
-                        .texOffs(92, 48).addBox(-0.5F, 10.5F, -3.4F, 1.0F, 1.5F, 1.5F)
-                        .texOffs(92, 48).addBox(0.7F, 10.5F, -3.4F, 1.0F, 1.5F, 1.5F),
-                PartPose.offset(1.9F, 12.0F, 0.0F));
+        // ---- legs: thigh with quad, calf with calf bump, foot, toe claws ----
+        CubeListBuilder leg = CubeListBuilder.create()
+                .texOffs(0, 200).addBox(-9.0F, 0.0F, -9.0F, 18.0F, 22.0F, 18.0F)     // thigh
+                .texOffs(76, 200).addBox(-7.0F, 2.0F, -11.5F, 14.0F, 12.0F, 4.0F)    // quad (front)
+                .texOffs(116, 200).addBox(-8.0F, 22.0F, -8.0F, 16.0F, 16.0F, 16.0F)  // calf
+                .texOffs(184, 200).addBox(-6.5F, 23.0F, 6.5F, 13.0F, 10.0F, 4.0F)    // calf bump (back)
+                .texOffs(220, 200).addBox(-8.0F, 40.0F, -14.4F, 16.0F, 8.0F, 20.0F)  // foot
+                .texOffs(296, 200).addBox(-7.2F, 42.0F, -17.0F, 4.0F, 6.0F, 4.0F)    // toe claws
+                .texOffs(296, 200).addBox(-2.0F, 42.0F, -17.0F, 4.0F, 6.0F, 4.0F)
+                .texOffs(296, 200).addBox(3.2F, 42.0F, -17.0F, 4.0F, 6.0F, 4.0F);
+        root.addOrReplaceChild("right_leg", leg, PartPose.offset(-7.6F, 48.0F, 0.0F));
+        root.addOrReplaceChild("left_leg", leg, PartPose.offset(7.6F, 48.0F, 0.0F));
 
-        return LayerDefinition.create(mesh, 128, 128);
+        return LayerDefinition.create(mesh, 512, 512);
     }
 
-    /** Ride the vanilla skeleton: every pose the player strikes, the dragon strikes. */
+    /** Ride the vanilla skeleton; pivot offsets scale up to authoring space. */
     public void copyPose(PlayerModel<AbstractClientPlayer> playerModel) {
-        this.head.copyFrom(playerModel.head);
-        this.body.copyFrom(playerModel.body);
-        this.rightArm.copyFrom(playerModel.rightArm);
-        this.leftArm.copyFrom(playerModel.leftArm);
-        this.rightLeg.copyFrom(playerModel.rightLeg);
-        this.leftLeg.copyFrom(playerModel.leftLeg);
+        copyScaled(this.head, playerModel.head);
+        copyScaled(this.body, playerModel.body);
+        copyScaled(this.rightArm, playerModel.rightArm);
+        copyScaled(this.leftArm, playerModel.leftArm);
+        copyScaled(this.rightLeg, playerModel.rightLeg);
+        copyScaled(this.leftLeg, playerModel.leftLeg);
+    }
+
+    private static void copyScaled(ModelPart target, ModelPart source) {
+        target.copyFrom(source);
+        target.x = source.x * AUTHOR_SCALE;
+        target.y = source.y * AUTHOR_SCALE;
+        target.z = source.z * AUTHOR_SCALE;
     }
 
     public void render(PoseStack poseStack, VertexConsumer buffer, int light) {
