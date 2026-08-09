@@ -89,6 +89,10 @@ public final class CrystalHealing {
                     && player.getHealth() < player.getMaxHealth()) {
                 player.heal(1.0F);
             }
+            // the crystal sustains the whole dragon: hunger refills too, 1/s
+            if (level.getGameTime() % 20 == 0 && player.getFoodData().needsFood()) {
+                player.getFoodData().eat(1, 0.4F);
+            }
         }
     }
 

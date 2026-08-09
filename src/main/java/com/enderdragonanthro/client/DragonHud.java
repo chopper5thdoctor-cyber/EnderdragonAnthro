@@ -57,16 +57,17 @@ public final class DragonHud {
     }
 
     /** The scale modifier is synced to the client, so it doubles as the form flag. */
-    private static boolean isDragon(LocalPlayer player) {
+    public static boolean isDragonForm(net.minecraft.world.entity.player.Player player) {
         AttributeInstance scale = player.getAttribute(Attributes.SCALE);
         return scale != null && scale.getModifier(EnderdragonAnthro.id("dragon_scale")) != null;
     }
 
     public static void render(GuiGraphics graphics) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.options.hideGui || !isDragon(mc.player)) {
+        if (mc.player == null || mc.options.hideGui || !isDragonForm(mc.player)) {
             return;
         }
+        renderOwnBossBar(graphics, mc.player, mc);
         int x = 8;
         int y = graphics.guiHeight() - CHIP - 8;
 
@@ -96,6 +97,24 @@ public final class DragonHud {
 
             x += CHIP + GAP;
         }
+    }
+
+    /** Your own dragon boss bar, palette-styled, top center like the real fight. */
+    private static void renderOwnBossBar(GuiGraphics graphics, LocalPlayer player, Minecraft mc) {
+        int barWidth = 182;
+        int x = (graphics.guiWidth() - barWidth) / 2;
+        int y = 12;
+        float fraction = Mth.clamp(player.getHealth() / player.getMaxHealth(), 0.0F, 1.0F);
+
+        graphics.fill(x - 1, y - 1, x + barWidth + 1, y + 6, BORDER);
+        graphics.fill(x, y, x + barWidth, y + 5, 0xFF141414);
+        int filled = (int) (fraction * barWidth);
+        if (filled > 0) {
+            graphics.fill(x, y, x + filled, y + 5, 0xFFCC00FA);
+            graphics.fill(x, y, x + filled, y + 2, 0xFFE079FA);
+        }
+        graphics.drawCenteredString(mc.font, "Ender Dragon",
+                graphics.guiWidth() / 2, y - 11, 0xFFE079FA);
     }
 
     private static void drawBorder(GuiGraphics graphics, int x, int y, int color) {

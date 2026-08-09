@@ -3,6 +3,7 @@ package com.enderdragonanthro;
 import com.enderdragonanthro.ability.AbilityAction;
 import com.enderdragonanthro.ability.CrystalHealing;
 import com.enderdragonanthro.ability.DragonAbilities;
+import com.enderdragonanthro.ability.EndermanAffection;
 import com.enderdragonanthro.boss.DragonBossBars;
 import com.enderdragonanthro.network.AbilityActionPayload;
 import com.enderdragonanthro.transform.DragonFormManager;
@@ -52,6 +53,7 @@ public class EnderdragonAnthro implements ModInitializer {
             DragonFormManager.tick(server);
             DragonAbilities.tick(server);
             CrystalHealing.tick(server);
+            EndermanAffection.tick(server);
             DragonBossBars.tick(server);
         });
 

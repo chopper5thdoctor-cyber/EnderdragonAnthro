@@ -17,7 +17,7 @@ Full design rationale, canon reference data, and the honest list of complication
 | Abilities: Breath `R`, Fireball `G`, Wing Buffet `V`, Charge `C`, wing flight (double-jump) | code complete |
 | Body resilience (`dmg/4 + 1`), status-effect immunity, fire/lava immunity | code complete |
 | Pink boss bar shown to nearby players | code complete |
-| Anthro model + canon-palette texture (M2) | not started |
+| Anthro model + canon-palette texture (M2) | first pass in game: scale-suit, muzzle, horns, folded wings, tail, plated chest |
 | Config presets Canon / Balanced (M5) | not started |
 
 **Not yet compiled**: this scaffold was written in a sandbox that cannot reach

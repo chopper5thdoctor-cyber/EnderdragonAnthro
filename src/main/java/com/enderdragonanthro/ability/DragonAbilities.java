@@ -3,6 +3,7 @@ package com.enderdragonanthro.ability;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -60,6 +61,15 @@ public final class DragonAbilities {
     }
 
     public static void tick(MinecraftServer server) {
+        // Automatic charge: a sprinting dragon is a charging dragon — anything
+        // it runs (or fly-sprints) into takes canon charge damage, no key needed.
+        // The knockback throws victims clear, which naturally prevents re-hits.
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (DragonFormManager.isDragon(player) && player.isSprinting()) {
+                chargeContactDamage(player);
+            }
+        }
+
         Iterator<Map.Entry<UUID, Integer>> it = ACTIVE_CHARGES.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, Integer> entry = it.next();
@@ -72,11 +82,14 @@ public final class DragonAbilities {
             entry.setValue(ticksLeft - 1);
             // Sustained propulsion: a single impulse gets eaten by ground
             // friction before the client feels it, so push every tick for the
-            // first phase of the dash (steerable — reads the live look vector)
+            // first phase of the dash (steerable — reads the live look vector).
+            // The motion packet is sent directly: the entity-tracker relay
+            // (hurtMarked) can drop self-motion for players depending on tick
+            // ordering, which made the dash silently do nothing.
             if (ticksLeft > 4) {
                 Vec3 look = player.getLookAngle();
                 player.setDeltaMovement(look.x * 1.8, look.y * 0.9 + 0.1, look.z * 1.8);
-                player.hurtMarked = true;
+                player.connection.send(new ClientboundSetEntityMotionPacket(player));
             }
             chargeContactDamage(player);
         }
