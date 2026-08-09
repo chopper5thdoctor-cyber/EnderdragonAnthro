@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.enderdragonanthro.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "LivingEntityEffectImmunityMixin",
+    "PlayerDamageResilienceMixin",
+    "PlayerFireImmunityMixin",
+    "PlayerTransformDataMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

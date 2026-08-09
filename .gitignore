@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+build/
+out/
+classes/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# Fabric/Loom
+run/
+remappedSrc/
+
+# Vanilla game assets must never be committed (Mojang EULA — see DESIGN.md 5.4 #20)
+*.png.vanilla
+reference-assets/

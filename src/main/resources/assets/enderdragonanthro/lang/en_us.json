@@ -1,0 +1,9 @@
+{
+  "category.enderdragonanthro": "Enderdragon Anthro",
+  "key.enderdragonanthro.transform": "Transform (Dragon ⇄ Human)",
+  "key.enderdragonanthro.breath": "Dragon's Breath",
+  "key.enderdragonanthro.fireball": "Dragon Fireball",
+  "key.enderdragonanthro.buffet": "Wing Buffet",
+  "key.enderdragonanthro.charge": "Dragon Charge",
+  "message.enderdragonanthro.cooldown": "Ability recharging (%s s)"
+}

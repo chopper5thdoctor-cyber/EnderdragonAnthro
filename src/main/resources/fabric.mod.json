@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "enderdragonanthro",
+  "version": "${version}",
+  "name": "Enderdragon Anthro",
+  "description": "Become an anthropomorphic Ender Dragon: canon height, palette, abilities on keybinds, boss bar, 200 HP — while keeping every player mechanic.",
+  "authors": [],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.enderdragonanthro.EnderdragonAnthro"
+    ],
+    "client": [
+      "com.enderdragonanthro.client.EnderdragonAnthroClient"
+    ]
+  },
+  "mixins": [
+    "enderdragonanthro.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21.1",
+    "java": ">=21"
+  }
+}
