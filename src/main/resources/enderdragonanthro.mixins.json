@@ -9,6 +9,9 @@
     "PlayerDamageResilienceMixin",
     "PlayerTransformDataMixin"
   ],
+  "client": [
+    "PlayerBodyHideMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
