@@ -5,6 +5,7 @@
   "mixins": [
     "EntityFireImmunityMixin",
     "LivingEntityEffectImmunityMixin",
+    "LivingEntityTargetabilityMixin",
     "PlayerDamageResilienceMixin",
     "PlayerTransformDataMixin"
   ],

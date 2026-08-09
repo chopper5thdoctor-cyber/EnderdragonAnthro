@@ -113,6 +113,7 @@ Upright, bipedal, humanoid silhouette — a person-shaped dragon, not a dragon o
 | Fall damage | Reduced (safe-fall +10) | `generic.safe_fall_distance` |
 | Reach | Scaled so you can reach your own feet | `generic.block_interaction_range`, `generic.entity_interaction_range` |
 | Melee | Bare hand hits for the canon head-charge 10 + heavy knockback | `generic.attack_damage` +9, `generic.attack_knockback` |
+| Mob aggro | No mob targets you (canon: nothing is hostile to the dragon) — includes retaliation, warden, piglins, and enderman stares | `canBeSeenAsEnemy` hook |
 | Stride | Fully proportional: movement speed and jump scale with the 4.44× frame | `generic.movement_speed` ×4.44, `generic.jump_strength` |
 
 ### 4.2 Abilities → default keybinds
