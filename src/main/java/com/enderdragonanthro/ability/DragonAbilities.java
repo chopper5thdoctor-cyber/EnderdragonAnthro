@@ -68,7 +68,16 @@ public final class DragonAbilities {
                 it.remove();
                 continue;
             }
-            entry.setValue(entry.getValue() - 1);
+            int ticksLeft = entry.getValue();
+            entry.setValue(ticksLeft - 1);
+            // Sustained propulsion: a single impulse gets eaten by ground
+            // friction before the client feels it, so push every tick for the
+            // first phase of the dash (steerable — reads the live look vector)
+            if (ticksLeft > 4) {
+                Vec3 look = player.getLookAngle();
+                player.setDeltaMovement(look.x * 1.8, look.y * 0.9 + 0.1, look.z * 1.8);
+                player.hurtMarked = true;
+            }
             chargeContactDamage(player);
         }
     }
@@ -126,10 +135,10 @@ public final class DragonAbilities {
     }
 
     private static void beginCharge(ServerPlayer player) {
-        Vec3 look = player.getLookAngle();
-        player.setDeltaMovement(look.scale(2.5));
-        player.hurtMarked = true;
-        ACTIVE_CHARGES.put(player.getUUID(), 10);
+        ACTIVE_CHARGES.put(player.getUUID(), 12);
+        player.serverLevel().playSound(null, player.blockPosition(),
+                net.minecraft.sounds.SoundEvents.ENDER_DRAGON_GROWL,
+                net.minecraft.sounds.SoundSource.PLAYERS, 1.5F, 1.4F);
     }
 
     private static void chargeContactDamage(ServerPlayer player) {

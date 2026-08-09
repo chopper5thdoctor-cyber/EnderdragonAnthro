@@ -1,6 +1,7 @@
 package com.enderdragonanthro;
 
 import com.enderdragonanthro.ability.AbilityAction;
+import com.enderdragonanthro.ability.CrystalHealing;
 import com.enderdragonanthro.ability.DragonAbilities;
 import com.enderdragonanthro.boss.DragonBossBars;
 import com.enderdragonanthro.network.AbilityActionPayload;
@@ -48,7 +49,9 @@ public class EnderdragonAnthro implements ModInitializer {
                 DragonFormManager.onRespawn(newPlayer));
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
+            DragonFormManager.tick(server);
             DragonAbilities.tick(server);
+            CrystalHealing.tick(server);
             DragonBossBars.tick(server);
         });
 

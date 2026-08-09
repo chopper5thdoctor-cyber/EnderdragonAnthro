@@ -124,7 +124,7 @@ All server-authoritative with cooldowns; client sends intent packets only.
 | `V` | **Wing Buffet** | AoE around the player: canon wing damage (3/5/7 by difficulty) + massive knockback/launch. 10 s cooldown. |
 | `C` (hold) | **Charge** | Forward dash; entities hit take canon head damage (6/10/15) + strong knockback. 8 s cooldown. |
 | `Space` ×2 | **Flight** | Wing flight: hold jump to climb, powered flight like slow-fall + elytra hybrid. Config: free flight vs stamina-limited. |
-| `X` | **Crystal Link** (passive toggle) | Within 32 blocks of an End crystal, a beam links to you and heals 2 HP/s. Anyone popping your crystal deals you 10 damage. |
+| — (passive, always on) | **Crystal Link** | Within 32 blocks of an End crystal, the crystal beams at you and heals 2 HP/s (canon rate). Anyone popping your linked crystal deals you 10 damage. |
 | `B` | **Block Break wake** (config-gated, off by default) | While charging/flying, break `#dragon_immune`-exempt blocks in your path. Pure grief potential — server config. |
 | `Y` | **Transform** | Toggle human ⇄ dragon form (also available as an item/ritual later). |
 
