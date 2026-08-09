@@ -54,19 +54,12 @@ public class DragonFormModel {
         MeshDefinition mesh = new MeshDefinition();
         PartDefinition root = mesh.getRoot();
 
-        // ---- head: the canon dragon head at 1/4 scale ----
-        PartDefinition head = root.addOrReplaceChild("head", CubeListBuilder.create()
-                        .texOffs(64, 0).addBox(-1.5F, -2.0F, -1.5F, 3.0F, 2.0F, 3.0F)   // neck
-                        .texOffs(0, 0).addBox(-2.0F, -6.0F, -2.5F, 4.0F, 4.0F, 4.0F)    // skull
-                        .texOffs(16, 0).addBox(-1.5F, -4.5F, -6.5F, 3.0F, 2.0F, 4.0F)   // snout (upper lip)
-                        .texOffs(56, 0).addBox(-1.2F, -5.0F, -6.2F, 1.0F, 0.5F, 1.0F)   // nostril R (on top)
-                        .texOffs(56, 0).addBox(0.2F, -5.0F, -6.2F, 1.0F, 0.5F, 1.0F)    // nostril L
-                        .texOffs(48, 0).addBox(-1.8F, -7.5F, -0.5F, 1.0F, 2.0F, 2.0F)   // horn nub R (canon "scale")
-                        .texOffs(48, 0).addBox(0.8F, -7.5F, -0.5F, 1.0F, 2.0F, 2.0F),   // horn nub L
+        // ---- head: neck only — the skull/snout/jaw are the canon dragon head
+        // (CanonDragonHeadModel), rendered by DragonFormLayer onto this part's
+        // pose with the vanilla dragon textures ----
+        root.addOrReplaceChild("head", CubeListBuilder.create()
+                        .texOffs(64, 0).addBox(-1.5F, -2.0F, -1.5F, 3.0F, 2.0F, 3.0F),  // neck
                 PartPose.offset(0.0F, 0.0F, 0.0F));
-        head.addOrReplaceChild("jaw", CubeListBuilder.create()
-                        .texOffs(32, 0).addBox(-1.5F, -0.2F, -4.0F, 3.0F, 1.0F, 4.0F),
-                PartPose.offsetAndRotation(0.0F, -2.5F, -2.5F, 0.15F, 0.0F, 0.0F));
 
         // ---- body: chest / waist / hips, spine spikes, folded wings, tail ----
         PartDefinition body = root.addOrReplaceChild("body", CubeListBuilder.create()
@@ -145,5 +138,10 @@ public class DragonFormModel {
 
     public void render(PoseStack poseStack, VertexConsumer buffer, int light) {
         this.root.render(poseStack, buffer, light, OverlayTexture.NO_OVERLAY);
+    }
+
+    /** Applies the head bone's current pose so the canon head can ride it. */
+    public void applyHeadTransform(PoseStack poseStack) {
+        this.head.translateAndRotate(poseStack);
     }
 }
