@@ -49,21 +49,24 @@ The dragon is Minecraft's only multi-part entity. Its 8 sub-hitboxes
 
 ## 2. Canon color palette & anatomy (the art bible)
 
-All colors come from the vanilla textures:
-`assets/minecraft/textures/entity/enderdragon/dragon.png` (base) and
-`dragon_eyes.png` (emissive layer). Hexes below are representative samples —
-**final skins must be sampled from the actual PNGs**, not invented.
+All colors below are **pixel-sampled from the actual vanilla textures**
+(`assets/minecraft/textures/entity/enderdragon/dragon.png`, `dragon_eyes.png`,
+`dragon_fireball.png`, version 1.21.11).
 
-| Region | Canon color | Approx. hex |
+| Region | Canon color | Sampled hex |
 |---|---|---|
-| Body scales | Near-black with subtle noise | `#0B0B0B`–`#1C1C1C` |
-| Scale highlights / edge light | Dark gray | `#2B2B2E` |
-| Wing membrane / underbelly | Desaturated dark gray | `#433F43`–`#575357` |
-| Horns, claws, tail spikes | Charcoal gray, lighter tips | `#3A3A3A` → `#6E6E6E` |
-| **Eyes (emissive)** | Glowing magenta-purple | iris `#B313C1`, glow `#E079FA` |
-| Mouth interior / nostrils | Muted dusky pink-gray | `#6B4A55` |
-| Dragon's Breath / fireball particle | Purple | `#CC00FA` family |
+| Body scales (head, back, limbs, tail top) | Near-black with subtle noise | `#0E0E0E`–`#1C1C1C` (dominant `#1A1A1A`/`#1C1C1C`) |
+| Wing membrane | **Darkest tone in the sheet** — darker than the body | `#0A0A0A`–`#0F0F0F` |
+| Horns, claws, dorsal/tail spikes | Mid charcoal gray | `#474747`–`#626262` |
+| **Belly plates — the countershade** | Light noisy gray plating on the underside | `#696969`–`#8A8A8A` |
+| Wing-bone struts | Same light gray family as belly plates | `#696969`–`#858585` |
+| **Eyes (emissive)** | Glowing magenta-purple | edge `#9600BC`, core `#CC00FA`, bloom `#E079FA` |
+| Mouth interior | Same magenta family as the eye bloom | `#E079FA` |
+| Dragon's Breath / fireball VFX | Purple ramp | `#592463`, `#9C49AF`, `#DC75FA`, `#F3C5FF` |
 | Boss bar | Pink/magenta | vanilla `BossBarColor.PINK` |
+
+**Countershading rule:** canon value ordering is `wing membrane (darkest) < body scales <
+horns/claws < belly plates (lightest)`. Every anthro texture must preserve that ordering.
 
 ### Canon anatomy to preserve
 
@@ -83,7 +86,8 @@ Upright, bipedal, humanoid silhouette — a person-shaped dragon, not a dragon o
 | Feature | Anthro design decision |
 |---|---|
 | **Height** | Same as the canon dragon's hitbox height: **8 blocks tall** standing. (Player is 1.8 → scale factor ≈ **4.44×** via the vanilla `generic.scale` attribute.) |
-| **Color** | Canon palette above, unchanged. Near-black scales, gray membrane accents on the chest/underside, emissive magenta-purple eyes rendered on a glow layer exactly like `dragon_eyes.png`. |
+| **Color** | Canon palette above, unchanged. Near-black scales everywhere; emissive magenta-purple eyes rendered on a glow layer exactly like `dragon_eyes.png`. |
+| **Countershading** | The dragon's light-gray belly plating (`#696969`–`#8A8A8A`) translates to the anthro **front torso**: segmented plates over the **pecs and down the abs** (chest and belly), continuing up the **throat/under-jaw** and down the **tail underside** to the tip, plus the palm side of the wrists. On an upright biped the countershade faces *forward*, not down — the back, shoulders, and outer limbs stay near-black scale. Plate seams follow muscle rows (pec line, ab segments) so the canon "plated underbelly" reads as anatomy. |
 | **Snout** | Keep a true muzzle — shortened ~30% from canon proportions so first-person view and eating/drinking animations read correctly, but with the canon nostril nubs and jaw line. Not a flat human face. |
 | **Horns** | Both canon skull horns, swept back, charcoal with lighter tips; scaled to head. |
 | **Wings** | Back-mounted (scapula-anchored), canon bone-and-membrane structure. **Folded** while walking (else they'd add ~6 blocks of visual width); spread only for flight/glide/buffet animations. Cosmetic only — no wing hitbox (see complications). |
@@ -200,6 +204,11 @@ chat, advancements, death/respawn (keep inventory rules untouched).
 19. **Animation retargeting.** Every vanilla pose (swim, crawl, sneak, sleep, bow-draw,
       shield, eating) must be re-authored on the anthro rig; missed ones will T-pose. This is
     the single biggest art workload in the mod.
+20. **Vanilla textures cannot be redistributed.** Mojang's EULA forbids shipping game
+    assets, so `dragon.png` etc. must never be committed to this repo or bundled in the
+    jar. The anthro skin is an **original texture painted with the sampled palette**
+    (section 2); anything reused verbatim (fireball, breath particles, sounds) is
+    referenced by resource location at runtime — the game already has them.
 
 ### 5.5 Version/platform decision
 
