@@ -6,10 +6,10 @@ package com.enderdragonanthro.ability;
  */
 public enum AbilityAction {
     TRANSFORM(0),
-    BREATH(160),
-    FIREBALL(120),
-    BUFFET(200),
-    CHARGE(160);
+    BREATH(80),
+    FIREBALL(60),
+    BUFFET(100),
+    CHARGE(80);
 
     public final int cooldownTicks;
 

@@ -6,6 +6,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
 
@@ -26,20 +27,25 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         register("charge", GLFW.GLFW_KEY_C, AbilityAction.CHARGE);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            DragonHud.tick();
             if (client.player == null) {
                 return;
             }
             keys.forEach((key, action) -> {
                 while (key.consumeClick()) {
+                    DragonHud.notePress(action);
                     ClientPlayNetworking.send(new AbilityActionPayload(action));
                 }
             });
         });
+
+        HudRenderCallback.EVENT.register((graphics, tickDelta) -> DragonHud.render(graphics));
     }
 
     private void register(String name, int defaultKey, AbilityAction action) {
         KeyMapping mapping = KeyBindingHelper.registerKeyBinding(
                 new KeyMapping("key.enderdragonanthro." + name, defaultKey, CATEGORY));
         keys.put(mapping, action);
+        DragonHud.addChip(mapping, action);
     }
 }

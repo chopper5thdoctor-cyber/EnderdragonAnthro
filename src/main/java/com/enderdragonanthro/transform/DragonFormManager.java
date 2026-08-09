@@ -48,12 +48,17 @@ public final class DragonFormManager {
                     AttributeModifier.Operation.ADD_VALUE),
             new Mod(id("dragon_entity_reach"), Attributes.ENTITY_INTERACTION_RANGE, 8.0,
                     AttributeModifier.Operation.ADD_VALUE),
-            // giant stride: 2.5x walk/sprint speed. Full proportionality (4.44x)
-            // outruns elytra flight; 2.5x reads as a proportional stride in-game
-            new Mod(id("dragon_speed"), Attributes.MOVEMENT_SPEED, 1.5,
+            // fully proportional stride: speed scales with the 4.44x frame
+            new Mod(id("dragon_speed"), Attributes.MOVEMENT_SPEED, SCALE_FACTOR - 1.0,
                     AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL),
             // base 0.42 -> 0.60: hops ~2.5 blocks, proportional to leg length
             new Mod(id("dragon_jump"), Attributes.JUMP_STRENGTH, 0.18,
+                    AttributeModifier.Operation.ADD_VALUE),
+            // canon head-hit is 10 on Normal: bare fist 1 -> 10
+            new Mod(id("dragon_attack"), Attributes.ATTACK_DAMAGE, 9.0,
+                    AttributeModifier.Operation.ADD_VALUE),
+            // dragon hits launch people
+            new Mod(id("dragon_attack_knockback"), Attributes.ATTACK_KNOCKBACK, 1.5,
                     AttributeModifier.Operation.ADD_VALUE)
     );
 

@@ -112,6 +112,8 @@ Upright, bipedal, humanoid silhouette — a person-shaped dragon, not a dragon o
 | Step height | 2.5 blocks | `generic.step_height` |
 | Fall damage | Reduced (safe-fall +10) | `generic.safe_fall_distance` |
 | Reach | Scaled so you can reach your own feet | `generic.block_interaction_range`, `generic.entity_interaction_range` |
+| Melee | Bare hand hits for the canon head-charge 10 + heavy knockback | `generic.attack_damage` +9, `generic.attack_knockback` |
+| Stride | Fully proportional: movement speed and jump scale with the 4.44× frame | `generic.movement_speed` ×4.44, `generic.jump_strength` |
 
 ### 4.2 Abilities → default keybinds
 
@@ -119,10 +121,10 @@ All server-authoritative with cooldowns; client sends intent packets only.
 
 | Key | Ability | Behavior (mirrors canon) |
 |---|---|---|
-| `R` | **Dragon's Breath** | Exhale a cone; spawns lingering Harming-II-style purple `AreaEffectCloud`s at the impact area. ~3 s channel, 8 s cooldown. |
-| `G` | **Dragon Fireball** | Fires the actual `minecraft:dragon_fireball` projectile; impact deposits a harming cloud. 6 s cooldown. |
-| `V` | **Wing Buffet** | AoE around the player: canon wing damage (3/5/7 by difficulty) + massive knockback/launch. 10 s cooldown. |
-| `C` (hold) | **Charge** | Forward dash; entities hit take canon head damage (6/10/15) + strong knockback. 8 s cooldown. |
+| `R` | **Dragon's Breath** | Exhale a cone; spawns lingering Harming-II-style purple `AreaEffectCloud`s at the impact area. 4 s cooldown. |
+| `G` | **Dragon Fireball** | Fires the actual `minecraft:dragon_fireball` projectile; impact deposits a harming cloud. 3 s cooldown. |
+| `V` | **Wing Buffet** | AoE around the player: canon wing damage (3/5/7 by difficulty) + massive knockback/launch. 5 s cooldown. |
+| `C` (hold) | **Charge** | Forward dash; entities hit take canon head damage (6/10/15) + strong knockback. 4 s cooldown. |
 | `Space` ×2 | **Flight** | Wing flight: hold jump to climb, powered flight like slow-fall + elytra hybrid. Config: free flight vs stamina-limited. |
 | — (passive, always on) | **Crystal Link** | Within 32 blocks of an End crystal, the crystal beams at you and heals 2 HP/s (canon rate). Anyone popping your linked crystal deals you 10 damage. |
 | `B` | **Block Break wake** (config-gated, off by default) | While charging/flying, break `#dragon_immune`-exempt blocks in your path. Pure grief potential — server config. |
