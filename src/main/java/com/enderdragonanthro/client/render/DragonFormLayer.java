@@ -60,7 +60,9 @@ public class DragonFormLayer extends RenderLayer<AbstractClientPlayer, PlayerMod
 
         poseStack.pushPose();
         this.model.applyHeadTransform(poseStack);
-        poseStack.translate(0.0F, -1.0F, 0.0F);
+        // seat the skull on top of the neck: the canon skull spans +/-8 about
+        // its own origin and the neck's top face is at y=-8 in authoring space
+        poseStack.translate(0.0F, -16.0F, 0.0F);
         this.canonHead.render(poseStack,
                 buffers.getBuffer(RenderType.entityCutoutNoCull(DRAGON_TEXTURE)), light);
         this.canonHead.render(poseStack,

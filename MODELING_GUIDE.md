@@ -10,9 +10,26 @@ browser). The standard editor for Minecraft models.
 
 ## Project setup
 
+Easiest start: open **`art/dragon_form.bbmodel`** from this repo — it is the
+current in-game model, already rigged correctly, with the texture embedded.
+Sculpt on top of it rather than starting from scratch.
+
+Starting fresh instead:
+
 - File → New → **Modded Entity** (this is the Java-edition entity format the
   mod uses — do NOT pick "Generic Model" or "Bedrock Entity").
-- Texture size: **128×128** (256×256 also fine — say which when you hand it over).
+- Texture size: **512×512**.
+
+## Scale: the model is authored at 4×
+
+Box UV pins exactly one texel per model unit, so the model is built at 4× and
+rendered at ¼ — that is what gives the body the same texel density as the canon
+head. Practical consequences:
+
+- The model stands **96 units** tall (feet y=0, neck joint y=96), not 24.
+- Vanilla player pivots are multiplied by 4 (see the table below).
+- 16 model units = 1 rendered block-quarter; the canon dragon skull (16³) comes
+  out as a true 1:1 dragon head.
 
 ## The rig contract (this is what makes animations work)
 
@@ -26,12 +43,12 @@ six named bones every frame. Walking, sneaking, swimming, arm swings — all fre
 
    | Group | Pivot (x, y, z) |
    |---|---|
-   | `head` | 0, 24, 0 |
-   | `body` | 0, 24, 0 |
-   | `right_arm` | -5, 22, 0 |
-   | `left_arm` | 5, 22, 0 |
-   | `right_leg` | -1.9, 12, 0 |
-   | `left_leg` | 1.9, 12, 0 |
+   | `head` | 0, 96, 0 |
+   | `body` | 0, 96, 0 |
+   | `right_arm` | -20, 88, 0 |
+   | `left_arm` | 20, 88, 0 |
+   | `right_leg` | -7.6, 48, 0 |
+   | `left_leg` | 7.6, 48, 0 |
 
 3. **Everything else goes inside those six.** Muzzle, jaw, horns → children of
    `head`. Wings, tail (chain the segments: tail1 → tail2 → tail3), spine
@@ -40,10 +57,13 @@ six named bones every frame. Walking, sneaking, swimming, arm swings — all fre
 4. **Cubes only** — no mesh/poly modeling (the Modded Entity format enforces this).
 5. **Rotate groups, not loose cubes.** If a cube needs an angle, put it in its
    own child group and rotate the group.
-6. Feet at y=0, standing height ~30 units. In-game giant size comes from the
-   4.44× scale attribute, so model at vanilla-ish proportions and it will tower
-   correctly. (Reference: the current code model's skull is 4 units = a 1:1
-   canon dragon head at final scale.)
+6. Feet at y=0, neck joint at y=96. In-game giant size comes from the 4.44×
+   scale attribute — model at these proportions and it will tower correctly.
+7. **`canon_head_REFERENCE` is not editable geometry.** The skull, upper lip
+   and jaw are the real Ender Dragon head, drawn at runtime from the player's
+   own vanilla `dragon.png` (plus the emissive `dragon_eyes.png` pass). Those
+   cubes exist in the project only so you can see the head while sculpting;
+   they are ignored on the way back in. Keep the space around them clear.
 
 ## Palette
 
