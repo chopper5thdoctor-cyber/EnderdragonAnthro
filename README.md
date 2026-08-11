@@ -42,6 +42,18 @@ cd EnderdragonAnthro
 ./gradlew runClient    # launches a dev Minecraft client with the mod loaded
 ```
 
+On Windows, `run.bat` does the same as `gradlew.bat runClient` and then cleans
+up after itself. If a stray "OpenJDK Platform Binary" ever keeps the folder
+locked, `unlock.bat` clears it — it only stops Java processes whose command
+line points at this folder, so other Java apps are untouched.
+
+The Gradle daemon and file-system watching are both disabled in
+`gradle.properties`; they are the two things that normally keep a JVM alive
+after the console closes and hold handles on the project directory.
+
+Iterating? `git pull` updates in place and avoids the delete-and-re-download
+cycle entirely.
+
 The first build downloads roughly 1–2 GB and can take 5–15 minutes; later builds are
 fast. Alternatively, open the folder in IntelliJ IDEA (Community is fine) and it will
 import the Gradle project and offer run buttons for the same tasks.
