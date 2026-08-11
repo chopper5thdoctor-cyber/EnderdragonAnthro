@@ -128,6 +128,15 @@ def convert(path):
             lines.append(f'        {parent_var}.addOrReplaceChild("{name}", {cl},\n'
                          f"                {pose});")
 
+    res = bb.get("resolution", {"width": 512, "height": 512})
+    for e in bb["elements"]:
+        u, v = e["uv_offset"]
+        w, h, d = [e["to"][i] - e["from"][i] for i in range(3)]
+        fw, fh = 2 * (w + d), d + h
+        if u < 0 or v < 0 or u + fw > res["width"] or v + fh > res["height"]:
+            print(f"  WARNING: {e['name']} unwrap runs off the sheet at uv({u},{v}) "
+                  f"— those faces sample clamped pixels in game")
+
     roots = {groups[n["uuid"]].get("name"): n for n in bb["outliner"]}
     missing = [r for r in ROOTS if r not in roots]
     if missing:
@@ -148,7 +157,6 @@ def convert(path):
                      f"{{{v[0]:.3f}F, {v[1]:.3f}F, {v[2]:.3f}F}};" for k, v in pivots.items())
     vanilla = "\n".join(f"    private static final float[] V_{k.upper()} = "
                         f"{{{v[0]}F, {v[1]}F, {v[2]}F}};" for k, v in VANILLA_PIVOTS.items())
-    res = bb.get("resolution", {"width": 512, "height": 512})
 
     java = TEMPLATE.format(base=base, vanilla=vanilla, parts="\n".join(lines),
                            tw=res["width"], th=res["height"])

@@ -78,7 +78,7 @@ public class DragonFormModel {
 
         // ---- head ----
         PartDefinition head = root.addOrReplaceChild("head", CubeListBuilder.create()
-                        .texOffs(0, 22).addBox(-8.000F, -8.000F, -6.000F, 16.000F, 8.000F, 14.000F),
+                        .texOffs(-2, 20).addBox(-8.000F, -8.000F, -8.000F, 16.000F, 14.000F, 16.000F),
                 PartPose.offset(0.000F, -13.000F, 0.000F));
         head.addOrReplaceChild("head_spin", CubeListBuilder.create()
                         .texOffs(284, 384).addBox(-2.000F, -3.000F, -3.000F, 4.000F, 6.000F, 6.000F),
@@ -162,7 +162,7 @@ public class DragonFormModel {
                         .texOffs(0, 120).addBox(-16.000F, 36.000F, -10.000F, 32.000F, 12.000F, 20.000F),
                 PartPose.offset(0.000F, -13.000F, 0.000F));
         body.addOrReplaceChild("body_spin", CubeListBuilder.create()
-                        .texOffs(222, 85).addBox(-10.500F, -3.500F, -5.500F, 21.000F, 19.000F, 11.000F),
+                        .texOffs(219, 85).addBox(-10.500F, -3.500F, -5.500F, 24.000F, 19.000F, 11.000F),
                 PartPose.offsetAndRotation(-13.284F, -0.781F, 2.685F, -0.0000F, 0.0858F, -0.2967F));
         body.addOrReplaceChild("body_spin_", CubeListBuilder.create()
                         .texOffs(215, 78).addBox(-8.000F, -3.500F, -5.500F, 16.000F, 12.000F, 18.000F),
@@ -183,7 +183,7 @@ public class DragonFormModel {
                         .texOffs(72, 384).addBox(-2.000F, -3.500F, -3.500F, 4.000F, 7.000F, 7.000F),
                 PartPose.offsetAndRotation(0.000F, 28.000F, 8.679F, -0.7854F, 0.0000F, -0.0000F));
         body.addOrReplaceChild("body_spin_______", CubeListBuilder.create()
-                        .mirror(true).texOffs(222, 85).addBox(-10.500F, -3.500F, -5.500F, 21.000F, 19.000F, 11.000F),
+                        .mirror(true).texOffs(222, 85).addBox(-13.500F, -3.500F, -5.500F, 24.000F, 19.000F, 11.000F),
                 PartPose.offsetAndRotation(13.284F, -0.781F, 2.685F, -0.0000F, -0.0858F, 0.2967F));
         PartDefinition tail1 = body.addOrReplaceChild("tail1", CubeListBuilder.create()
                         .texOffs(108, 120).addBox(-6.000F, -6.000F, 0.000F, 12.000F, 12.000F, 28.000F),
