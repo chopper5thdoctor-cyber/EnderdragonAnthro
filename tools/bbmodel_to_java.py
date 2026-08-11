@@ -80,16 +80,26 @@ def convert(path):
         # A ModelPart's cubes are axis-aligned within it, so a cube that carries
         # its own rotation in Blockbench cannot live in this part's cube list —
         # it becomes a one-cube child part pivoted on the cube's own origin.
-        boxes, spun = [], []
+        # mirror_uv flips a cube's texture horizontally. Two cubes mirrored in
+        # world space share one UV region, so without this the asymmetric art
+        # (wing membranes especially) lands reversed on one side.
+        boxes, spun, mirrored = [], [], False
         for e in cubes:
             u, v = e["uv_offset"]
             (x, y, z), (w, h, d) = jbox(e)
             tex = f".texOffs({int(round(u))}, {int(round(v))})"
+            want = bool(e.get("mirror_uv"))
             if any(abs(t) > 1e-9 for t in e.get("rotation", [0, 0, 0])):
-                spun.append((e, tex, (x, y, z), (w, h, d)))
+                spun.append((e, tex, (x, y, z), (w, h, d), want))
             else:
-                boxes.append(f"{tex}.addBox({x - piv[0]:.3f}F, {y - piv[1]:.3f}F, "
+                prefix = ""
+                if want != mirrored:
+                    prefix = f".mirror({'true' if want else 'false'})"
+                    mirrored = want
+                boxes.append(f"{prefix}{tex}.addBox({x - piv[0]:.3f}F, {y - piv[1]:.3f}F, "
                              f"{z - piv[2]:.3f}F, {w:.3f}F, {h:.3f}F, {d:.3f}F)")
+        if mirrored:
+            boxes.append(".mirror(false)")
         cl = "CubeListBuilder.create()" if not boxes else \
             "CubeListBuilder.create()\n" + "\n".join(" " * 24 + b for b in boxes)
         pose = (f"PartPose.offset({off[0]:.3f}F, {off[1]:.3f}F, {off[2]:.3f}F)"
@@ -100,10 +110,11 @@ def convert(path):
             var = ident(name)
             lines.append(f'        PartDefinition {var} = {parent_var}.addOrReplaceChild("{name}", {cl},\n'
                          f"                {pose});")
-            for e, tex, (x, y, z), (w, h, d) in spun:
+            for e, tex, (x, y, z), (w, h, d), want in spun:
                 o = jpivot(e.get("origin", [0, 0, 0]))
                 r = jrot(e["rotation"])
                 sub = ident(f"{name}_spin")
+                tex = (".mirror(true)" if want else "") + tex
                 lines.append(
                     f'        {var}.addOrReplaceChild("{sub}", CubeListBuilder.create()\n'
                     f"                        {tex}.addBox({x - o[0]:.3f}F, {y - o[1]:.3f}F, "

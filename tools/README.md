@@ -25,6 +25,7 @@ Conversions applied:
 | cube from/to (absolute) | `addBox` offset relative to its own part's pivot |
 | rotation (degrees) | radians; `x` and `z` negated, `y` kept (see below) |
 | a cube with its OWN rotation | wrapped in a one-cube child part pivoted on that cube's origin |
+| `mirror_uv` on a cube | `.mirror(true)` / `.mirror(false)` around it in the cube list |
 | `canon_head_REFERENCE` | renamed `skull` — it is real geometry now |
 | root `wing_left` / `wing_right` | re-parented under `body` |
 
@@ -33,6 +34,13 @@ Conversions applied:
 Java model space is Blockbench's with Y flipped, so a part's rotation must
 satisfy `R_java = M · R_bb · M` for `M = diag(1,-1,1)`. Conjugating each axis
 by `M` gives `Rx(-x)`, `Ry(+y)`, `Rz(-z)` — X and Z flip, Y is unchanged.
+
+### Mirrored UV
+
+Two cubes mirrored in world space normally share one UV region, and box UV
+always runs `u` along the cube's `+x`. Without honouring `mirror_uv`,
+asymmetric art lands reversed on one side — the wing membranes are the
+obvious casualty.
 
 ### Per-cube rotation
 

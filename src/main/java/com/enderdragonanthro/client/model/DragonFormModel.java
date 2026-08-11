@@ -109,18 +109,18 @@ public class DragonFormModel {
                         .texOffs(82, 128).addBox(-2.000F, -2.000F, -5.000F, 4.000F, 4.000F, 10.000F),
                 PartPose.offsetAndRotation(1.017F, -4.268F, -4.681F, -0.3054F, -0.5672F, -0.0000F));
         nape_spike_right.addOrReplaceChild("nape_spike_right_spin_", CubeListBuilder.create()
-                        .texOffs(96, 0).addBox(-1.500F, -1.500F, -5.000F, 3.000F, 3.000F, 10.000F),
+                        .mirror(true).texOffs(96, 0).addBox(-1.500F, -1.500F, -5.000F, 3.000F, 3.000F, 10.000F),
                 PartPose.offsetAndRotation(-3.562F, -1.370F, 2.508F, -0.3054F, -0.5672F, -0.0000F));
         PartDefinition crown_spike_left = head.addOrReplaceChild("crown_spike_left", CubeListBuilder.create(),
                 PartPose.offsetAndRotation(5.189F, -20.000F, 9.749F, 0.2563F, -0.1652F, 0.0870F));
         crown_spike_left.addOrReplaceChild("crown_spike_left_spin", CubeListBuilder.create()
-                        .texOffs(97, 0).addBox(-2.500F, -2.000F, -5.000F, 5.000F, 4.000F, 10.000F),
+                        .mirror(true).texOffs(97, 0).addBox(-2.500F, -2.000F, -5.000F, 5.000F, 4.000F, 10.000F),
                 PartPose.offsetAndRotation(-1.625F, -7.270F, -2.493F, 0.2883F, 0.1298F, -0.1320F));
         crown_spike_left.addOrReplaceChild("crown_spike_left_spin_", CubeListBuilder.create()
-                        .texOffs(49, 131).addBox(-3.000F, -2.500F, -2.500F, 6.000F, 5.000F, 5.000F),
+                        .mirror(true).texOffs(49, 131).addBox(-3.000F, -2.500F, -2.500F, 6.000F, 5.000F, 5.000F),
                 PartPose.offsetAndRotation(-2.109F, -5.408F, -7.400F, 0.4204F, 0.1402F, -0.1206F));
         crown_spike_left.addOrReplaceChild("crown_spike_left_spin__", CubeListBuilder.create()
-                        .texOffs(248, 384).addBox(-2.000F, -1.500F, -6.500F, 4.000F, 3.000F, 13.000F),
+                        .mirror(true).texOffs(248, 384).addBox(-2.000F, -1.500F, -6.500F, 4.000F, 3.000F, 13.000F),
                 PartPose.offsetAndRotation(-0.883F, -8.680F, 4.136F, 0.1137F, 0.1298F, -0.1320F));
         PartDefinition nape_spike_left = head.addOrReplaceChild("nape_spike_left", CubeListBuilder.create(),
                 PartPose.offsetAndRotation(5.600F, -16.000F, 6.400F, 0.9001F, -0.3000F, -0.0000F));
@@ -148,10 +148,10 @@ public class DragonFormModel {
         PartDefinition nape_spike_right2 = head.addOrReplaceChild("nape_spike_right2", CubeListBuilder.create(),
                 PartPose.offsetAndRotation(-5.600F, -16.000F, 6.400F, 0.9001F, 0.3000F, -0.0000F));
         nape_spike_right2.addOrReplaceChild("nape_spike_right2_spin", CubeListBuilder.create()
-                        .texOffs(96, 0).addBox(-1.500F, -1.500F, -5.000F, 3.000F, 3.000F, 10.000F),
+                        .mirror(true).texOffs(96, 0).addBox(-1.500F, -1.500F, -5.000F, 3.000F, 3.000F, 10.000F),
                 PartPose.offsetAndRotation(-3.562F, -0.497F, 2.022F, -0.3054F, -0.5672F, -0.0000F));
         nape_spike_right2.addOrReplaceChild("nape_spike_right2_spin_", CubeListBuilder.create()
-                        .texOffs(81, 127).addBox(-2.000F, -2.000F, -5.000F, 4.000F, 4.000F, 10.000F),
+                        .mirror(true).texOffs(81, 127).addBox(-2.000F, -2.000F, -5.000F, 4.000F, 4.000F, 10.000F),
                 PartPose.offsetAndRotation(1.017F, -3.394F, -5.167F, -0.3054F, -0.5672F, -0.0000F));
 
         // ---- body ----
@@ -168,7 +168,7 @@ public class DragonFormModel {
                         .texOffs(215, 78).addBox(-8.000F, -3.500F, -5.500F, 16.000F, 12.000F, 18.000F),
                 PartPose.offsetAndRotation(-14.559F, 26.548F, -2.539F, -0.0000F, 0.0000F, -1.8282F));
         body.addOrReplaceChild("body_spin__", CubeListBuilder.create()
-                        .texOffs(222, 85).addBox(-8.000F, -3.500F, -5.500F, 16.000F, 12.000F, 18.000F),
+                        .mirror(true).texOffs(222, 85).addBox(-8.000F, -3.500F, -5.500F, 16.000F, 12.000F, 18.000F),
                 PartPose.offsetAndRotation(14.559F, 26.548F, -2.539F, -0.0000F, 0.0000F, 1.8282F));
         body.addOrReplaceChild("body_spin___", CubeListBuilder.create()
                         .texOffs(0, 384).addBox(-2.000F, -3.500F, -3.500F, 4.000F, 7.000F, 7.000F),
@@ -183,7 +183,7 @@ public class DragonFormModel {
                         .texOffs(72, 384).addBox(-2.000F, -3.500F, -3.500F, 4.000F, 7.000F, 7.000F),
                 PartPose.offsetAndRotation(0.000F, 28.000F, 8.679F, -0.7854F, 0.0000F, -0.0000F));
         body.addOrReplaceChild("body_spin_______", CubeListBuilder.create()
-                        .texOffs(222, 85).addBox(-10.500F, -3.500F, -5.500F, 21.000F, 19.000F, 11.000F),
+                        .mirror(true).texOffs(222, 85).addBox(-10.500F, -3.500F, -5.500F, 21.000F, 19.000F, 11.000F),
                 PartPose.offsetAndRotation(13.284F, -0.781F, 2.685F, -0.0000F, -0.0858F, 0.2967F));
         PartDefinition tail1 = body.addOrReplaceChild("tail1", CubeListBuilder.create()
                         .texOffs(108, 120).addBox(-6.000F, -6.000F, 0.000F, 12.000F, 12.000F, 28.000F),
@@ -233,17 +233,19 @@ public class DragonFormModel {
         PartDefinition left_arm = root.addOrReplaceChild("left_arm", CubeListBuilder.create()
                         .texOffs(76, 164).addBox(1.000F, -1.000F, -8.000F, 16.000F, 17.000F, 16.000F)
                         .texOffs(208, 164).addBox(2.000F, 16.000F, -7.500F, 14.000F, 18.000F, 15.000F)
-                        .texOffs(268, 164).addBox(0.500F, 32.000F, -7.000F, 15.000F, 14.000F, 14.000F),
+                        .mirror(true).texOffs(268, 164).addBox(0.500F, 32.000F, -7.000F, 15.000F, 14.000F, 14.000F)
+                        .mirror(false),
                 PartPose.offset(20.000F, -5.000F, 2.000F));
         left_arm.addOrReplaceChild("left_arm_spin", CubeListBuilder.create()
-                        .texOffs(172, 384).addBox(-9.500F, -6.000F, -9.000F, 19.000F, 12.000F, 18.000F),
+                        .mirror(true).texOffs(172, 384).addBox(-9.500F, -6.000F, -9.000F, 19.000F, 12.000F, 18.000F),
                 PartPose.offsetAndRotation(6.726F, -1.708F, 0.000F, -0.0000F, 0.0000F, 0.4800F));
 
         // ---- right_leg ----
         PartDefinition right_leg = root.addOrReplaceChild("right_leg", CubeListBuilder.create()
                         .texOffs(2, 200).addBox(-9.000F, 0.000F, -9.000F, 16.000F, 29.000F, 18.000F)
                         .texOffs(116, 200).addBox(-9.000F, 29.000F, -8.000F, 16.000F, 24.000F, 16.000F)
-                        .texOffs(222, 202).addBox(-9.000F, 53.000F, -9.400F, 16.000F, 8.000F, 18.000F),
+                        .mirror(true).texOffs(222, 202).addBox(-9.000F, 53.000F, -9.400F, 16.000F, 8.000F, 18.000F)
+                        .mirror(false),
                 PartPose.offset(-7.600F, 35.000F, 0.000F));
         right_leg.addOrReplaceChild("right_leg_spin", CubeListBuilder.create()
                         .texOffs(222, 202).addBox(-8.000F, -5.000F, -9.000F, 16.000F, 8.000F, 18.000F),
@@ -262,16 +264,17 @@ public class DragonFormModel {
         PartDefinition left_leg = root.addOrReplaceChild("left_leg", CubeListBuilder.create()
                         .texOffs(0, 200).addBox(-7.000F, 0.000F, -9.000F, 16.000F, 29.000F, 18.000F)
                         .texOffs(116, 200).addBox(-7.000F, 29.000F, -8.000F, 16.000F, 24.000F, 16.000F)
-                        .texOffs(222, 202).addBox(-7.000F, 53.000F, -9.400F, 16.000F, 8.000F, 18.000F),
+                        .mirror(true).texOffs(222, 202).addBox(-7.000F, 53.000F, -9.400F, 16.000F, 8.000F, 18.000F)
+                        .mirror(false),
                 PartPose.offset(7.600F, 35.000F, 0.000F));
         left_leg.addOrReplaceChild("left_leg_spin", CubeListBuilder.create()
-                        .texOffs(296, 200).addBox(-1.000F, -3.000F, -2.000F, 4.000F, 9.000F, 4.000F),
+                        .mirror(true).texOffs(296, 200).addBox(-1.000F, -3.000F, -2.000F, 4.000F, 9.000F, 4.000F),
                 PartPose.offsetAndRotation(-5.200F, 58.000F, -15.000F, -1.2217F, 0.0000F, -0.0000F));
         left_leg.addOrReplaceChild("left_leg_spin_", CubeListBuilder.create()
-                        .texOffs(296, 200).addBox(-1.000F, -3.000F, -2.000F, 4.000F, 9.000F, 4.000F),
+                        .mirror(true).texOffs(296, 200).addBox(-1.000F, -3.000F, -2.000F, 4.000F, 9.000F, 4.000F),
                 PartPose.offsetAndRotation(5.200F, 58.000F, -15.000F, -1.2217F, 0.0000F, -0.0000F));
         left_leg.addOrReplaceChild("left_leg_spin__", CubeListBuilder.create()
-                        .texOffs(296, 200).addBox(-1.000F, -3.000F, -2.000F, 4.000F, 9.000F, 4.000F),
+                        .mirror(true).texOffs(296, 200).addBox(-1.000F, -3.000F, -2.000F, 4.000F, 9.000F, 4.000F),
                 PartPose.offsetAndRotation(0.000F, 58.000F, -15.000F, -1.2217F, 0.0000F, -0.0000F));
         left_leg.addOrReplaceChild("left_leg_spin___", CubeListBuilder.create()
                         .texOffs(222, 202).addBox(-8.000F, -5.000F, -9.000F, 16.000F, 8.000F, 18.000F),
@@ -279,12 +282,14 @@ public class DragonFormModel {
 
         // ---- wings: re-parented onto body so they follow the torso ----
         PartDefinition wing_right = body.addOrReplaceChild("wing_right", CubeListBuilder.create()
-                        .texOffs(0, 300).addBox(-56.000F, -4.000F, -4.000F, 56.000F, 8.000F, 8.000F)
-                        .texOffs(0, 320).addBox(-56.000F, 0.000F, 4.000F, 56.000F, 0.000F, 56.000F),
+                        .mirror(true).texOffs(0, 300).addBox(-56.000F, -4.000F, -4.000F, 56.000F, 8.000F, 8.000F)
+                        .texOffs(0, 320).addBox(-56.000F, 0.000F, 4.000F, 56.000F, 0.000F, 56.000F)
+                        .mirror(false),
                 PartPose.offsetAndRotation(-16.000F, 6.000F, 8.000F, -1.3355F, 0.8951F, 0.3530F));
         wing_right.addOrReplaceChild("wing_tip_right", CubeListBuilder.create()
-                        .texOffs(132, 300).addBox(-56.000F, -2.000F, -2.000F, 56.000F, 4.000F, 4.000F)
-                        .texOffs(256, 320).addBox(-56.000F, 0.000F, 2.000F, 56.000F, 0.000F, 56.000F),
+                        .mirror(true).texOffs(132, 300).addBox(-56.000F, -2.000F, -2.000F, 56.000F, 4.000F, 4.000F)
+                        .texOffs(256, 320).addBox(-56.000F, 0.000F, 2.000F, 56.000F, 0.000F, 56.000F)
+                        .mirror(false),
                 PartPose.offset(-56.000F, 0.000F, 0.000F));
         PartDefinition wing_left = body.addOrReplaceChild("wing_left", CubeListBuilder.create()
                         .texOffs(0, 300).addBox(0.000F, -4.000F, -4.000F, 56.000F, 8.000F, 8.000F)
