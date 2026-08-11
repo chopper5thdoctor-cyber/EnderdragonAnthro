@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+"""Convert art/dragon_form.bbmodel into the mod's model class and textures.
+
+Usage:  python3 tools/bbmodel_to_java.py [art/dragon_form.bbmodel]
+
+See tools/README.md for the coordinate conventions applied.
+"""
+import base64
+import io
+import json
+import math
+import os
+import re
+import sys
+
+from PIL import Image
+
+GROUND = 96.0          # bb y of the model's foot plane in the authoring rig
+ROOTS = ("head", "body", "right_arm", "left_arm", "right_leg", "left_leg")
+RENAME = {"canon_head_REFERENCE": "skull", "ref_jaw": "jaw"}
+VANILLA_PIVOTS = {
+    "head": (0.0, 0.0, 0.0), "body": (0.0, 0.0, 0.0),
+    "right_arm": (-5.0, 2.0, 0.0), "left_arm": (5.0, 2.0, 0.0),
+    "right_leg": (-1.9, 12.0, 0.0), "left_leg": (1.9, 12.0, 0.0),
+}
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+JAVA_OUT = os.path.join(HERE, "src/main/java/com/enderdragonanthro/client/model/DragonFormModel.java")
+TEX_DIR = os.path.join(HERE, "src/main/resources/assets/enderdragonanthro/textures/entity")
+
+
+def jy(v):
+    return GROUND - v
+
+
+def jpivot(o):
+    return (round(o[0], 4), round(jy(o[1]), 4), round(o[2], 4))
+
+
+def jrot(r):
+    """Blockbench degrees -> Java radians. Inverse of the exporter: x,y negated."""
+    return (round(-math.radians(r[0]), 4),
+            round(-math.radians(r[1]), 4),
+            round(math.radians(r[2]), 4))
+
+
+def jbox(e):
+    f, t = e["from"], e["to"]
+    return ((round(f[0], 4), round(jy(t[1]), 4), round(f[2], 4)),
+            tuple(round(t[i] - f[i], 4) for i in range(3)))
+
+
+def convert(path):
+    bb = json.load(open(path))
+    groups = {g["uuid"]: g for g in bb.get("groups", [])}
+    els = {e["uuid"]: e for e in bb["elements"]}
+    lines, used = [], set()
+
+    def ident(name):
+        s = re.sub(r"\W", "_", name)
+        s = s[0].lower() + s[1:]
+        while s in used:
+            s += "_"
+        used.add(s)
+        return s
+
+    def emit(node, parent_var, parent_pivot):
+        g = groups.get(node["uuid"], {})
+        name = RENAME.get(g.get("name", "?"), g.get("name", "?"))
+        piv = jpivot(g.get("origin", [0, 0, 0]))
+        rot = jrot(g.get("rotation", [0, 0, 0]))
+        off = tuple(round(piv[i] - parent_pivot[i], 4) for i in range(3))
+        cubes = [els[c] for c in node.get("children", []) if isinstance(c, str) and c in els]
+        kids = [c for c in node.get("children", []) if not isinstance(c, str)]
+
+        boxes = []
+        for e in cubes:
+            u, v = e["uv_offset"]
+            (x, y, z), (w, h, d) = jbox(e)
+            boxes.append(f".texOffs({int(round(u))}, {int(round(v))})"
+                         f".addBox({x - piv[0]:.3f}F, {y - piv[1]:.3f}F, {z - piv[2]:.3f}F, "
+                         f"{w:.3f}F, {h:.3f}F, {d:.3f}F)")
+        cl = "CubeListBuilder.create()" if not boxes else \
+            "CubeListBuilder.create()\n" + "\n".join(" " * 24 + b for b in boxes)
+        pose = (f"PartPose.offset({off[0]:.3f}F, {off[1]:.3f}F, {off[2]:.3f}F)"
+                if rot == (0.0, 0.0, 0.0) else
+                f"PartPose.offsetAndRotation({off[0]:.3f}F, {off[1]:.3f}F, {off[2]:.3f}F, "
+                f"{rot[0]:.4f}F, {rot[1]:.4f}F, {rot[2]:.4f}F)")
+        if kids:
+            var = ident(name)
+            lines.append(f'        PartDefinition {var} = {parent_var}.addOrReplaceChild("{name}", {cl},\n'
+                         f"                {pose});")
+            for k in kids:
+                emit(k, var, piv)
+        else:
+            lines.append(f'        {parent_var}.addOrReplaceChild("{name}", {cl},\n'
+                         f"                {pose});")
+
+    roots = {groups[n["uuid"]].get("name"): n for n in bb["outliner"]}
+    missing = [r for r in ROOTS if r not in roots]
+    if missing:
+        sys.exit(f"ERROR: model is missing required root group(s): {missing}")
+
+    for nm in ROOTS:
+        lines.append(f"\n        // ---- {nm} ----")
+        emit(roots[nm], "root", (0.0, 0.0, 0.0))
+    body_pivot = jpivot(groups[roots["body"]["uuid"]]["origin"])
+    wings = [w for w in ("wing_right", "wing_left") if w in roots]
+    if wings:
+        lines.append("\n        // ---- wings: re-parented onto body so they follow the torso ----")
+        for nm in wings:
+            emit(roots[nm], "body", body_pivot)
+
+    pivots = {nm: jpivot(groups[roots[nm]["uuid"]]["origin"]) for nm in ROOTS}
+    base = "\n".join(f"    private static final float[] BASE_{k.upper()} = "
+                     f"{{{v[0]:.3f}F, {v[1]:.3f}F, {v[2]:.3f}F}};" for k, v in pivots.items())
+    vanilla = "\n".join(f"    private static final float[] V_{k.upper()} = "
+                        f"{{{v[0]}F, {v[1]}F, {v[2]}F}};" for k, v in VANILLA_PIVOTS.items())
+    res = bb.get("resolution", {"width": 512, "height": 512})
+
+    java = TEMPLATE.format(base=base, vanilla=vanilla, parts="\n".join(lines),
+                           tw=res["width"], th=res["height"])
+    os.makedirs(os.path.dirname(JAVA_OUT), exist_ok=True)
+    open(JAVA_OUT, "w").write(java)
+
+    os.makedirs(TEX_DIR, exist_ok=True)
+    img = Image.open(io.BytesIO(base64.b64decode(
+        bb["textures"][0]["source"].split(",", 1)[1]))).convert("RGBA")
+    img.save(os.path.join(TEX_DIR, "dragon_form.png"))
+
+    glow = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    gp, ip, lit = glow.load(), img.load(), 0
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = ip[x, y]
+            if a > 0 and r > 90 and b > 120 and g < r * 0.75 and (r + b) > g * 2.2:
+                gp[x, y] = (r, g, b, 255)
+                lit += 1
+    glow.save(os.path.join(TEX_DIR, "dragon_form_eyes.png"))
+
+    print(f"{len(bb['elements'])} cubes -> {java.count('addOrReplaceChild')} parts")
+    print(f"textures written ({lit} emissive pixels)")
+
+
+TEMPLATE = '''package com.enderdragonanthro.client.model;
+
+import com.enderdragonanthro.EnderdragonAnthro;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.geom.ModelLayerLocation;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.model.geom.PartPose;
+import net.minecraft.client.model.geom.builders.CubeListBuilder;
+import net.minecraft.client.model.geom.builders.LayerDefinition;
+import net.minecraft.client.model.geom.builders.MeshDefinition;
+import net.minecraft.client.model.geom.builders.PartDefinition;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+
+/**
+ * The anthro dragon. GENERATED by tools/bbmodel_to_java.py from
+ * art/dragon_form.bbmodel — do not hand-edit; re-run the converter instead.
+ *
+ * Authored at 4x on a {tw}x{th} sheet and drawn at {{@link #RENDER_SCALE}},
+ * which both restores real size and buys one texel per model unit. The six
+ * root parts keep the player's bone names and copy their poses every frame,
+ * so all vanilla animation drives this body.
+ */
+public class DragonFormModel {{
+    public static final ModelLayerLocation LAYER =
+            new ModelLayerLocation(EnderdragonAnthro.id("dragon_form"), "main");
+
+    /** Model units are 4x final units. */
+    public static final float AUTHOR_SCALE = 4.0F;
+
+    /**
+     * 0.25 would be an exact 4x undo. The model stands 136 units to the top of
+     * the skull, which at a plain 0.25 renders 9.44 blocks tall against an
+     * 8-block hitbox, so it is trimmed by 8/9.44. Horn tips still rise a little
+     * above the hitbox, which is deliberate — the canon dragon's wings
+     * overshoot its hitbox too.
+     */
+    public static final float RENDER_SCALE = 0.2118F;
+
+{base}
+
+    // the vanilla player pivots these parts track
+{vanilla}
+
+    private final ModelPart root;
+    private final ModelPart head;
+    private final ModelPart body;
+    private final ModelPart rightArm;
+    private final ModelPart leftArm;
+    private final ModelPart rightLeg;
+    private final ModelPart leftLeg;
+
+    public DragonFormModel(ModelPart root) {{
+        this.root = root;
+        this.head = root.getChild("head");
+        this.body = root.getChild("body");
+        this.rightArm = root.getChild("right_arm");
+        this.leftArm = root.getChild("left_arm");
+        this.rightLeg = root.getChild("right_leg");
+        this.leftLeg = root.getChild("left_leg");
+    }}
+
+    public static LayerDefinition createLayer() {{
+        MeshDefinition mesh = new MeshDefinition();
+        PartDefinition root = mesh.getRoot();
+{parts}
+
+        return LayerDefinition.create(mesh, {tw}, {th});
+    }}
+
+    /**
+     * Ride the vanilla skeleton. Positions are applied as a DELTA from the
+     * player's own rest pivots rather than copied outright, because this
+     * model's pivots are not simply the player's times four — the legs are
+     * longer, which lifts everything. Copying outright would tear the body
+     * apart; the delta still picks up animated offsets such as sneaking.
+     */
+    public void copyPose(PlayerModel<AbstractClientPlayer> m) {{
+        apply(this.head, m.head, BASE_HEAD, V_HEAD);
+        apply(this.body, m.body, BASE_BODY, V_BODY);
+        apply(this.rightArm, m.rightArm, BASE_RIGHT_ARM, V_RIGHT_ARM);
+        apply(this.leftArm, m.leftArm, BASE_LEFT_ARM, V_LEFT_ARM);
+        apply(this.rightLeg, m.rightLeg, BASE_RIGHT_LEG, V_RIGHT_LEG);
+        apply(this.leftLeg, m.leftLeg, BASE_LEFT_LEG, V_LEFT_LEG);
+    }}
+
+    private static void apply(ModelPart target, ModelPart source, float[] base, float[] vanilla) {{
+        target.copyFrom(source);
+        target.x = base[0] + (source.x - vanilla[0]) * AUTHOR_SCALE;
+        target.y = base[1] + (source.y - vanilla[1]) * AUTHOR_SCALE;
+        target.z = base[2] + (source.z - vanilla[2]) * AUTHOR_SCALE;
+    }}
+
+    public void render(PoseStack poseStack, VertexConsumer buffer, int light) {{
+        this.root.render(poseStack, buffer, light, OverlayTexture.NO_OVERLAY);
+    }}
+}}
+'''
+
+if __name__ == "__main__":
+    src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "art/dragon_form.bbmodel")
+    convert(src)

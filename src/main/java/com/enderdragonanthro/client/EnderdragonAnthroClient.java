@@ -1,7 +1,6 @@
 package com.enderdragonanthro.client;
 
 import com.enderdragonanthro.ability.AbilityAction;
-import com.enderdragonanthro.client.model.CanonDragonHeadModel;
 import com.enderdragonanthro.client.model.DragonFormModel;
 import com.enderdragonanthro.client.render.DragonFormLayer;
 import com.enderdragonanthro.network.AbilityActionPayload;
@@ -68,7 +67,6 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register((graphics, tickDelta) -> DragonHud.render(graphics));
 
         EntityModelLayerRegistry.registerModelLayer(DragonFormModel.LAYER, DragonFormModel::createLayer);
-        EntityModelLayerRegistry.registerModelLayer(CanonDragonHeadModel.LAYER, CanonDragonHeadModel::createLayer);
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register(
                 (type, renderer, helper, context) -> {
                     if (renderer instanceof PlayerRenderer playerRenderer) {
