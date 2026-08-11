@@ -37,10 +37,15 @@ def jpivot(o):
 
 
 def jrot(r):
-    """Blockbench degrees -> Java radians. Inverse of the exporter: x,y negated."""
+    """Blockbench degrees -> Java radians.
+
+    Java model space is Blockbench's with Y flipped, so a part's rotation must
+    satisfy R_java = M * R_bb * M for M = diag(1,-1,1). Conjugating each axis
+    by M gives Rx(-x), Ry(+y), Rz(-z): X and Z flip sign, Y is unchanged.
+    """
     return (round(-math.radians(r[0]), 4),
-            round(-math.radians(r[1]), 4),
-            round(math.radians(r[2]), 4))
+            round(math.radians(r[1]), 4),
+            round(-math.radians(r[2]), 4))
 
 
 def jbox(e):
@@ -72,23 +77,40 @@ def convert(path):
         cubes = [els[c] for c in node.get("children", []) if isinstance(c, str) and c in els]
         kids = [c for c in node.get("children", []) if not isinstance(c, str)]
 
-        boxes = []
+        # A ModelPart's cubes are axis-aligned within it, so a cube that carries
+        # its own rotation in Blockbench cannot live in this part's cube list —
+        # it becomes a one-cube child part pivoted on the cube's own origin.
+        boxes, spun = [], []
         for e in cubes:
             u, v = e["uv_offset"]
             (x, y, z), (w, h, d) = jbox(e)
-            boxes.append(f".texOffs({int(round(u))}, {int(round(v))})"
-                         f".addBox({x - piv[0]:.3f}F, {y - piv[1]:.3f}F, {z - piv[2]:.3f}F, "
-                         f"{w:.3f}F, {h:.3f}F, {d:.3f}F)")
+            tex = f".texOffs({int(round(u))}, {int(round(v))})"
+            if any(abs(t) > 1e-9 for t in e.get("rotation", [0, 0, 0])):
+                spun.append((e, tex, (x, y, z), (w, h, d)))
+            else:
+                boxes.append(f"{tex}.addBox({x - piv[0]:.3f}F, {y - piv[1]:.3f}F, "
+                             f"{z - piv[2]:.3f}F, {w:.3f}F, {h:.3f}F, {d:.3f}F)")
         cl = "CubeListBuilder.create()" if not boxes else \
             "CubeListBuilder.create()\n" + "\n".join(" " * 24 + b for b in boxes)
         pose = (f"PartPose.offset({off[0]:.3f}F, {off[1]:.3f}F, {off[2]:.3f}F)"
                 if rot == (0.0, 0.0, 0.0) else
                 f"PartPose.offsetAndRotation({off[0]:.3f}F, {off[1]:.3f}F, {off[2]:.3f}F, "
                 f"{rot[0]:.4f}F, {rot[1]:.4f}F, {rot[2]:.4f}F)")
-        if kids:
+        if kids or spun:
             var = ident(name)
             lines.append(f'        PartDefinition {var} = {parent_var}.addOrReplaceChild("{name}", {cl},\n'
                          f"                {pose});")
+            for e, tex, (x, y, z), (w, h, d) in spun:
+                o = jpivot(e.get("origin", [0, 0, 0]))
+                r = jrot(e["rotation"])
+                sub = ident(f"{name}_spin")
+                lines.append(
+                    f'        {var}.addOrReplaceChild("{sub}", CubeListBuilder.create()\n'
+                    f"                        {tex}.addBox({x - o[0]:.3f}F, {y - o[1]:.3f}F, "
+                    f"{z - o[2]:.3f}F, {w:.3f}F, {h:.3f}F, {d:.3f}F),\n"
+                    f"                PartPose.offsetAndRotation({o[0] - piv[0]:.3f}F, "
+                    f"{o[1] - piv[1]:.3f}F, {o[2] - piv[2]:.3f}F, "
+                    f"{r[0]:.4f}F, {r[1]:.4f}F, {r[2]:.4f}F));")
             for k in kids:
                 emit(k, var, piv)
         else:

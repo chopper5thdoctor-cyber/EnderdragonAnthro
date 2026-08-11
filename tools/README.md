@@ -23,11 +23,30 @@ Conversions applied:
 | y up, ground at 0 | y down, `java_y = 96 - bb_y` |
 | group origin | `PartPose` offset relative to the parent's pivot |
 | cube from/to (absolute) | `addBox` offset relative to its own part's pivot |
-| rotation (degrees) | radians, `x` and `y` negated, `z` kept |
+| rotation (degrees) | radians; `x` and `z` negated, `y` kept (see below) |
+| a cube with its OWN rotation | wrapped in a one-cube child part pivoted on that cube's origin |
 | `canon_head_REFERENCE` | renamed `skull` — it is real geometry now |
 | root `wing_left` / `wing_right` | re-parented under `body` |
 
-The rotation mapping is the inverse of the exporter that produced the
-bbmodel. It is the one thing here that cannot be verified without running the
-game: if a rotated part (wings, tail, head spikes) appears mirrored, flip the
-sign in `jrot()` and regenerate.
+### Rotation signs
+
+Java model space is Blockbench's with Y flipped, so a part's rotation must
+satisfy `R_java = M · R_bb · M` for `M = diag(1,-1,1)`. Conjugating each axis
+by `M` gives `Rx(-x)`, `Ry(+y)`, `Rz(-z)` — X and Z flip, Y is unchanged.
+
+### Per-cube rotation
+
+A `ModelPart`'s cubes are axis-aligned within it; Minecraft has no way to
+rotate one cube inside a part. Any cube rotated in Blockbench therefore
+becomes its own single-cube child part, pivoted on that cube's origin.
+Two thirds of this model's cubes are rotated, so skipping this flattens it.
+
+## verify_model.py
+
+```bash
+python3 tools/verify_model.py
+```
+
+Rebuilds every cube's world-space corners from the generated Java and from the
+.bbmodel, then compares. **Run it after every conversion.** Both of the bugs
+described above shipped because this check did not exist yet.

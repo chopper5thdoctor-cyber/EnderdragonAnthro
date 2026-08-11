@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+"""Prove the generated Java model reproduces the Blockbench model.
+
+Usage:  python3 tools/verify_model.py [art/dragon_form.bbmodel]
+
+Reconstructs every cube's world-space corners twice — once by walking the
+generated DragonFormModel.java, once by walking the .bbmodel — and compares
+them. Run it after every conversion; a silent mismatch here is a mangled
+model in game.
+
+It exists because two conversion bugs shipped without it: per-cube rotations
+were dropped entirely (44 of 75 cubes flattened), and the group rotation
+mapping had the wrong sign on Y and Z.
+"""
+import json
+import math
+import os
+import re
+import sys
+
+import numpy as np
+
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+JAVA = os.path.join(HERE, "src/main/java/com/enderdragonanthro/client/model/DragonFormModel.java")
+GROUND = 96.0
+TOLERANCE = 0.15
+
+
+def rzyx(x, y, z):
+    cx, sx, cy, sy, cz, sz = (math.cos(x), math.sin(x), math.cos(y),
+                              math.sin(y), math.cos(z), math.sin(z))
+    return (np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]])
+            @ np.array([[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]])
+            @ np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]]))
+
+
+def from_java():
+    src = open(JAVA).read()
+    seg = src.split("PartDefinition root = mesh.getRoot();", 1)[1] \
+             .split("return LayerDefinition", 1)[0]
+    stmts = re.findall(r'(?:PartDefinition\s+(\w+)\s*=\s*)?(\w+)\.addOrReplaceChild'
+                       r'\("([^"]+)",(.*?)\n\s*(PartPose\.[^;]+)\);', seg, re.S)
+    parts = []
+    for own, parent, name, cubes, pose in stmts:
+        v = [float(t) for t in re.findall(r"(-?[\d.]+)F", pose)]
+        boxes = [tuple(float(t) for t in mm) for mm in re.findall(
+            r"addBox\((-?[\d.]+)F,\s*(-?[\d.]+)F,\s*(-?[\d.]+)F,\s*"
+            r"(-?[\d.]+)F,\s*(-?[\d.]+)F,\s*(-?[\d.]+)F\)", cubes)]
+        parts.append(dict(var=own, parent=parent, name=name, off=v[:3],
+                          rot=(v[3:6] if len(v) > 3 else [0.0, 0.0, 0.0]), boxes=boxes))
+    byvar = {p["var"]: p for p in parts if p["var"]}
+
+    def world(p):
+        if p["parent"] == "root":
+            rp, tp = np.eye(3), np.zeros(3)
+        else:
+            rp, tp = world(byvar[p["parent"]])
+        return rp @ rzyx(*p["rot"]), rp @ np.array(p["off"]) + tp
+
+    out = []
+    for p in parts:
+        r, t = world(p)
+        for (x, y, z, w, h, d) in p["boxes"]:
+            pts = [np.array([a, b, c]) for a in (x, x + w)
+                   for b in (y, y + h) for c in (z, z + d)]
+            wc = np.array([r @ q + t for q in pts])
+            wc[:, 1] = GROUND - wc[:, 1]
+            out.append((p["name"], np.sort(np.round(wc, 2), axis=0)))
+    return out
+
+
+def from_bbmodel(path):
+    bb = json.load(open(path))
+    groups = {g["uuid"]: g for g in bb.get("groups", [])}
+    els = {e["uuid"]: e for e in bb["elements"]}
+    out = []
+
+    def walk(nodes, chain):
+        for n in nodes:
+            if isinstance(n, str):
+                e = els.get(n)
+                if not e:
+                    continue
+                f, t = np.array(e["from"], float), np.array(e["to"], float)
+                pts = [np.array([a, b, c]) for a in (f[0], t[0])
+                       for b in (f[1], t[1]) for c in (f[2], t[2])]
+                if any(abs(v) > 1e-9 for v in e.get("rotation", [0, 0, 0])):
+                    o = np.array(e.get("origin", [0, 0, 0]), float)
+                    rc = rzyx(*[math.radians(v) for v in e["rotation"]])
+                    pts = [o + rc @ (q - o) for q in pts]
+                for (o, r) in reversed(chain):
+                    pts = [o + r @ (q - o) for q in pts]
+                out.append((e["name"], np.sort(np.round(np.array(pts), 2), axis=0)))
+            else:
+                g = groups.get(n["uuid"], {})
+                walk(n.get("children", []),
+                     chain + [(np.array(g.get("origin", [0, 0, 0]), float),
+                               rzyx(*[math.radians(v) for v in g.get("rotation", [0, 0, 0])]))])
+
+    walk(bb["outliner"], [])
+    return out
+
+
+def main(path):
+    java, blockbench = from_java(), from_bbmodel(path)
+    print(f"cubes: java {len(java)}  bbmodel {len(blockbench)}")
+    if len(java) != len(blockbench):
+        sys.exit("FAIL: cube counts differ")
+
+    used = [False] * len(blockbench)
+    worst, bad = 0.0, []
+    for name, jc in java:
+        best, bi = 1e9, -1
+        for i, (_, bc) in enumerate(blockbench):
+            if used[i]:
+                continue
+            dist = float(np.abs(jc - bc).max())
+            if dist < best:
+                best, bi = dist, i
+        if best < TOLERANCE:
+            used[bi] = True
+            worst = max(worst, best)
+        else:
+            bad.append((name, round(best, 2)))
+
+    print(f"matched within {TOLERANCE}u: {len(java) - len(bad)}/{len(java)}")
+    print(f"worst corner deviation: {worst:.3f} units")
+    if bad:
+        for name, dist in bad[:12]:
+            print(f"  MISMATCH {name}: nearest cube off by {dist}u")
+        sys.exit("FAIL: the generated model does not match the bbmodel")
+    print("PASS: the generated model reproduces the bbmodel")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "art/dragon_form.bbmodel"))
