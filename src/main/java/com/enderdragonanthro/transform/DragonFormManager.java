@@ -48,8 +48,9 @@ public final class DragonFormManager {
                     AttributeModifier.Operation.ADD_VALUE),
             new Mod(id("dragon_entity_reach"), Attributes.ENTITY_INTERACTION_RANGE, 8.0,
                     AttributeModifier.Operation.ADD_VALUE),
-            // fully proportional stride: speed scales with the 4.44x frame
-            new Mod(id("dragon_speed"), Attributes.MOVEMENT_SPEED, SCALE_FACTOR - 1.0,
+            // 3x stride. Fully proportional (4.44x) outran elytra cruising and
+            // made terrain unreadable at ground level; 3x still reads as a giant.
+            new Mod(id("dragon_speed"), Attributes.MOVEMENT_SPEED, 2.0,
                     AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL),
             // base 0.42 -> 0.60: hops ~2.5 blocks, proportional to leg length
             new Mod(id("dragon_jump"), Attributes.JUMP_STRENGTH, 0.18,
@@ -116,18 +117,10 @@ public final class DragonFormManager {
         CrystalHealing.unlink(player);
     }
 
-    /**
-     * Runs every server tick. Gamemode switches (and anything else that
-     * rebuilds abilities) silently reset mayfly, so wing flight must be
-     * re-asserted rather than granted once.
-     */
+    /** Hook point for per-tick form upkeep. */
     public static void tick(MinecraftServer server) {
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (isDragon(player) && !player.getAbilities().mayfly) {
-                player.getAbilities().mayfly = true;
-                player.onUpdateAbilities();
-            }
-        }
+        // nothing to re-assert now that flight is elytra-based; kept as the
+        // hook point for future per-tick form upkeep.
     }
 
     private static void dress(ServerPlayer player) {
@@ -140,8 +133,7 @@ public final class DragonFormManager {
             instance.addTransientModifier(new AttributeModifier(
                     mod.id(), mod.amount(), mod.operation()));
         }
-        // Wing flight, creative-style for M1 (stamina model is a later milestone)
-        player.getAbilities().mayfly = true;
+        // Flight is elytra-style gliding (DragonFlight), not creative flight.
         player.onUpdateAbilities();
     }
 
@@ -153,9 +145,9 @@ public final class DragonFormManager {
             }
         }
         if (!player.isCreative() && !player.isSpectator()) {
-            player.getAbilities().mayfly = false;
             player.getAbilities().flying = false;
             player.onUpdateAbilities();
         }
+        player.stopFallFlying();
     }
 }

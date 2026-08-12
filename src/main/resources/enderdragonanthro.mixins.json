@@ -3,8 +3,10 @@
   "package": "com.enderdragonanthro.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "DragonFireballExplosionMixin",
     "EntityFireImmunityMixin",
     "LivingEntityEffectImmunityMixin",
+    "LivingEntityGlideMixin",
     "LivingEntityTargetabilityMixin",
     "PlayerDamageResilienceMixin",
     "PlayerTransformDataMixin"

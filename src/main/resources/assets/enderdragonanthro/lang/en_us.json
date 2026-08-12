@@ -5,5 +5,10 @@
   "key.enderdragonanthro.fireball": "Dragon Fireball",
   "key.enderdragonanthro.buffet": "Wing Buffet",
   "key.enderdragonanthro.charge": "Dragon Charge",
-  "message.enderdragonanthro.cooldown": "Ability recharging (%s s)"
+  "key.enderdragonanthro.crater": "Crater Punch (toggle)",
+  "key.enderdragonanthro.teleport": "Blink",
+  "key.enderdragonanthro.boost": "Wing Boost",
+  "key.enderdragonanthro.summon": "Summon Shade",
+  "key.enderdragonanthro.command": "Order Shades",
+  "message.enderdragonanthro.cooldown": "Recharging (%s s)"
 }

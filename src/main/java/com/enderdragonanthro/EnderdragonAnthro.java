@@ -3,6 +3,8 @@ package com.enderdragonanthro;
 import com.enderdragonanthro.ability.AbilityAction;
 import com.enderdragonanthro.ability.CrystalHealing;
 import com.enderdragonanthro.ability.DragonAbilities;
+import com.enderdragonanthro.ability.DragonFlight;
+import com.enderdragonanthro.ability.DragonMinions;
 import com.enderdragonanthro.ability.EndermanAffection;
 import com.enderdragonanthro.boss.DragonBossBars;
 import com.enderdragonanthro.network.AbilityActionPayload;
@@ -13,6 +15,8 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,9 +56,24 @@ public class EnderdragonAnthro implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             DragonFormManager.tick(server);
             DragonAbilities.tick(server);
+            DragonFlight.tick(server);
+            DragonMinions.tick(server);
             CrystalHealing.tick(server);
             EndermanAffection.tick(server);
             DragonBossBars.tick(server);
+        });
+
+        // Crater punch: a left-click on a block while the toggle is armed blows
+        // a 5x5x5 hole instead of starting a normal break.
+        AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
+            if (level.isClientSide || !(player instanceof net.minecraft.server.level.ServerPlayer sp)) {
+                return InteractionResult.PASS;
+            }
+            if (!DragonFormManager.isDragon(sp) || !DragonAbilities.craterArmed(sp)) {
+                return InteractionResult.PASS;
+            }
+            DragonAbilities.crater(sp, pos);
+            return InteractionResult.SUCCESS;
         });
 
         LOGGER.info("Enderdragon Anthro initialized");
