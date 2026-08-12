@@ -43,17 +43,22 @@ public final class DragonFlight {
         boost(player);
     }
 
-    /** The firework rocket impulse, verbatim: nudge toward the look vector. */
+    /**
+     * A wingbeat. The firework rocket uses 0.1 push and a 1.5 target speed;
+     * these are wings, so they beat it — 0.2 push toward a 2.6 target, and the
+     * whole pull is applied rather than half of it.
+     */
     public static void boost(ServerPlayer player) {
         if (!player.isFallFlying()) {
             return;
         }
         Vec3 look = player.getLookAngle();
         Vec3 delta = player.getDeltaMovement();
+        double push = 0.2, target = 2.6, pull = 0.75;
         player.setDeltaMovement(delta.add(
-                look.x * 0.1 + (look.x * 1.5 - delta.x) * 0.5,
-                look.y * 0.1 + (look.y * 1.5 - delta.y) * 0.5,
-                look.z * 0.1 + (look.z * 1.5 - delta.z) * 0.5));
+                look.x * push + (look.x * target - delta.x) * pull,
+                look.y * push + (look.y * target - delta.y) * pull,
+                look.z * push + (look.z * target - delta.z) * pull));
         player.connection.send(new net.minecraft.network.protocol.game
                 .ClientboundSetEntityMotionPacket(player));
         player.serverLevel().playSound(null, player.blockPosition(),

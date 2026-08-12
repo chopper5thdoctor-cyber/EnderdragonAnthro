@@ -44,6 +44,7 @@ public class DragonFormLayer extends RenderLayer<AbstractClientPlayer, PlayerMod
         this.model.copyPose(getParentModel());
 
         poseStack.pushPose();
+        poseStack.translate(0.0F, DragonFormModel.GROUND_OFFSET, 0.0F);
         poseStack.scale(DragonFormModel.RENDER_SCALE,
                 DragonFormModel.RENDER_SCALE,
                 DragonFormModel.RENDER_SCALE);

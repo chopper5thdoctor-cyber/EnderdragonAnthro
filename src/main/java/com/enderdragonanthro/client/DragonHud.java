@@ -15,14 +15,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Ability bar, shown only while transformed: the ability's name sits above
- * its key chip. Chips light up with the canon eye-glow purple when pressed
- * and drain a shade as the ability recharges. Palette per DESIGN.md section 2.
+ * Ability list, shown only while transformed: a column down the left edge,
+ * each ability's key chip with its name beside it. Chips light up with the
+ * canon eye-glow purple when pressed and drain a shade as the ability
+ * recharges. Palette per DESIGN.md section 2.
  */
 public final class DragonHud {
     private static final int CHIP_H = 18;
-    private static final int GAP = 3;
-    private static final int LABEL_H = 9;
     private static final int GLOW_TICKS = 8;
 
     private static final int BG = 0xD0141414;
@@ -75,42 +74,35 @@ public final class DragonHud {
         }
         renderOwnBossBar(graphics, mc.player, mc);
 
-        // chips are as wide as their label needs, so names never collide
-        int total = 0;
-        for (Map.Entry<KeyMapping, AbilityAction> e : CHIPS.entrySet()) {
-            total += chipWidth(mc, e.getValue()) + GAP;
-        }
-        int x = Math.max(4, (graphics.guiWidth() - (total - GAP)) / 2);
-        int y = graphics.guiHeight() - CHIP_H - 4;
+        // A vertical column down the left edge: the hotbar owns the bottom of
+        // the screen, and thirteen abilities never fit across it anyway.
+        int rowH = CHIP_H + 2;
+        int total = CHIPS.size() * rowH;
+        int x = 6;
+        int y = Math.max(4, (graphics.guiHeight() - total) / 2);
 
         for (Map.Entry<KeyMapping, AbilityAction> entry : CHIPS.entrySet()) {
             AbilityAction action = entry.getValue();
-            int w = chipWidth(mc, action);
             long sincePress = clientTicks - PRESSED_AT.getOrDefault(action, Long.MIN_VALUE / 2);
-            float glow = Mth.clamp(1.0F - (float) sincePress / GLOW_TICKS, 0.0F, 1.0F);
-            boolean lit = glow > 0.0F || TOGGLED.getOrDefault(action, false);
+            boolean lit = (clientTicks - sincePress >= 0 && sincePress < GLOW_TICKS)
+                    || TOGGLED.getOrDefault(action, false);
 
-            graphics.drawCenteredString(mc.font, action.label, x + w / 2, y - LABEL_H,
-                    lit ? LABEL_ON : LABEL);
-
-            graphics.fill(x, y, x + w, y + CHIP_H, lit ? BG_GLOW : BG);
-            drawBorder(graphics, x, y, w, lit ? BORDER_GLOW : BORDER);
+            int keyW = 20;
+            graphics.fill(x, y, x + keyW, y + CHIP_H, lit ? BG_GLOW : BG);
+            drawBorder(graphics, x, y, keyW, lit ? BORDER_GLOW : BORDER);
 
             long readyAt = READY_AT.getOrDefault(action, 0L);
             if (readyAt > clientTicks && action.cooldownTicks > 0) {
                 float left = (float) (readyAt - clientTicks) / action.cooldownTicks;
-                graphics.fill(x + 1, y + 1, x + w - 1, y + 1 + (int) (left * (CHIP_H - 2)),
-                        COOLDOWN_SHADE);
+                graphics.fill(x + 1, y + 1, x + keyW - 1,
+                        y + 1 + (int) (left * (CHIP_H - 2)), COOLDOWN_SHADE);
             }
-
             graphics.drawCenteredString(mc.font, keyLabel(entry.getKey()),
-                    x + w / 2, y + (CHIP_H - 8) / 2, lit ? TEXT_GLOW : TEXT);
-            x += w + GAP;
+                    x + keyW / 2, y + (CHIP_H - 8) / 2, lit ? TEXT_GLOW : TEXT);
+            graphics.drawString(mc.font, action.label, x + keyW + 4,
+                    y + (CHIP_H - 8) / 2, lit ? LABEL_ON : LABEL, true);
+            y += rowH;
         }
-    }
-
-    private static int chipWidth(Minecraft mc, AbilityAction action) {
-        return Math.max(18, mc.font.width(action.label) + 6);
     }
 
     private static String keyLabel(KeyMapping key) {

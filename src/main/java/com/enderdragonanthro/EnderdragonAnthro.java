@@ -11,6 +11,8 @@ import com.enderdragonanthro.boss.DragonBossBars;
 import com.enderdragonanthro.item.ModItems;
 import com.enderdragonanthro.command.ShadeCommand;
 import com.enderdragonanthro.network.AbilityActionPayload;
+import com.enderdragonanthro.network.ShadeOrderPayload;
+import com.enderdragonanthro.network.ShadeStatePayload;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -35,6 +37,8 @@ public class EnderdragonAnthro implements ModInitializer {
     @Override
     public void onInitialize() {
         PayloadTypeRegistry.playC2S().register(AbilityActionPayload.TYPE, AbilityActionPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(ShadeOrderPayload.TYPE, ShadeOrderPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ShadeStatePayload.TYPE, ShadeStatePayload.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(AbilityActionPayload.TYPE, (payload, context) -> {
             if (payload.action() == AbilityAction.TRANSFORM) {
@@ -43,6 +47,10 @@ public class EnderdragonAnthro implements ModInitializer {
                 DragonAbilities.trigger(context.player(), payload.action());
             }
         });
+
+        ServerPlayNetworking.registerGlobalReceiver(ShadeOrderPayload.TYPE, (payload, context) ->
+                DragonMinions.applyOrder(context.player(), payload.slot(),
+                        payload.order(), payload.quarry()));
 
         // Reapply the (transient) attribute modifiers and boss bar when a saved dragon logs in
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->

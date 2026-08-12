@@ -1,5 +1,7 @@
 package com.enderdragonanthro.ability;
 
+import com.enderdragonanthro.network.ShadeStatePayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -10,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -29,6 +32,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,8 +55,8 @@ public final class DragonMinions {
         COLLECT(ChatFormatting.GREEN, "Collect"),
         CRYSTAL(ChatFormatting.LIGHT_PURPLE, "Crystal");
 
-        final ChatFormatting colour;
-        final String label;
+        public final ChatFormatting colour;
+        public final String label;
 
         Order(ChatFormatting colour, String label) {
             this.colour = colour;
@@ -72,6 +76,15 @@ public final class DragonMinions {
     private static final int WORK_RADIUS = 16;          // mining reach around themselves
     private static final int CARGO_MAX = 64;            // one stack, then home
     private static final int CRYSTAL_WORK = 400;        // 20s of work per crystal
+    /** Two hits inside this window counts as "you keep getting damaged". */
+    private static final int GRUDGE_WINDOW = 100;
+    private static final int RETALIATE_AFTER = 2;
+    /** How long the court stays angry at whoever drew blood. */
+    private static final int GRUDGE_TICKS = 300;
+    /** A shade this close to you drops what it is doing to answer a grudge. */
+    private static final double GRUDGE_RANGE = 48.0;
+    /** An Attack order with nothing left to kill falls back to Defend. */
+    private static final int IDLE_REVERT = 200;
     private static final ResourceLocation SCALE_ID = id("minion_scale");
     private static final String OWNER_TAG = "edanthro_owner_";
     private static final String SLOT_TAG = "edanthro_slot_";
@@ -87,10 +100,25 @@ public final class DragonMinions {
         Block wanted;
         int cargo;
         boolean headingHome;
+        /** Ticks an Attack order has spent with nothing to hunt. */
+        int idleTicks;
+    }
+
+    /** Who the court is angry at, and until when. */
+    private record Grudge(UUID target, long until) {
+    }
+
+    /** Running tally of who has been hitting the owner. */
+    private static final class Strike {
+        UUID attacker;
+        long last;
+        int hits;
     }
 
     private static final Map<UUID, List<Shade>> COURT = new HashMap<>();
     private static final Map<UUID, Integer> SELECTED = new HashMap<>();
+    private static final Map<UUID, Grudge> GRUDGES = new HashMap<>();
+    private static final Map<UUID, Strike> STRIKES = new HashMap<>();
 
     private DragonMinions() {
     }
@@ -135,6 +163,7 @@ public final class DragonMinions {
         level.playSound(null, minion.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                 SoundSource.HOSTILE, 1.0F, 0.6F);
         say(owner, NAMES[slot] + " rises and waits on you.", TINTS[slot], false);
+        pushState(owner);
     }
 
     private static int freeSlot(List<Shade> court) {
@@ -182,34 +211,91 @@ public final class DragonMinions {
         say(owner, NAMES[next.slot] + " is listening.", TINTS[next.slot], true);
     }
 
-    /** Give the selected shade its next standing order. */
-    public static void order(ServerPlayer owner) {
-        Shade shade = selected(owner);
+    /**
+     * Open the court screen.
+     *
+     * Orders used to cycle on a key, which meant reaching Collect cost you
+     * whatever the shade was already carrying and there was no way to name a
+     * quarry without looking at one. Now the key just asks the server for the
+     * roster and the client puts a screen up with every order one click away.
+     */
+    public static void openCommandUi(ServerPlayer owner) {
+        sendState(owner, true);
+    }
+
+    /** Quiet refresh for a screen that is already up. */
+    public static void pushState(ServerPlayer owner) {
+        sendState(owner, false);
+    }
+
+    /**
+     * Reads a snapshot rather than {@link #living}, because this is also
+     * called from inside the tick loop — pruning the court there would be
+     * pulling the rug out from under the iteration.
+     */
+    private static void sendState(ServerPlayer owner, boolean open) {
+        List<ShadeStatePayload.Entry> entries = new ArrayList<>();
+        ServerLevel level = owner.serverLevel();
+        for (Shade s : List.copyOf(COURT.getOrDefault(owner.getUUID(), List.of()))) {
+            if (!(level.getEntity(s.entity) instanceof EnderMan e) || !e.isAlive()) {
+                continue;
+            }
+            entries.add(new ShadeStatePayload.Entry(s.slot, NAMES[s.slot], s.order.ordinal(),
+                    s.wanted == null ? "" : BuiltInRegistries.BLOCK.getKey(s.wanted).toString(),
+                    s.cargo));
+        }
+        entries.sort(Comparator.comparingInt(ShadeStatePayload.Entry::slot));
+        ServerPlayNetworking.send(owner, new ShadeStatePayload(open, List.copyOf(entries)));
+    }
+
+    /**
+     * One shade, one order, straight from the screen.
+     *
+     * Changing a shade's mind never costs you its cargo: whatever it is
+     * carrying is handed over first, wherever in the world it had got to.
+     */
+    public static void applyOrder(ServerPlayer owner, int slot, int ordinal, String quarry) {
+        Shade shade = null;
+        for (Shade s : living(owner)) {
+            if (s.slot == slot) {
+                shade = s;
+                break;
+            }
+        }
         if (shade == null) {
-            say(owner, "No shade is listening.", ChatFormatting.DARK_GRAY, true);
+            pushState(owner);
             return;
         }
         Order[] all = Order.values();
-        shade.order = all[(shade.order.ordinal() + 1) % all.length];
-        shade.cargoType = null;
-        shade.cargo = 0;
+        Order order = all[Math.floorMod(ordinal, all.length)];
+        ServerLevel level = owner.serverLevel();
+        EnderMan minion = level.getEntity(shade.entity) instanceof EnderMan e ? e : null;
+
+        if (minion != null) {
+            handOver(owner, level, minion, shade);
+        }
+        shade.order = order;
         shade.headingHome = false;
-        if (shade.order == Order.COLLECT) {
-            shade.wanted = aimedBlock(owner);      // look at a block to name the quarry
+        shade.idleTicks = 0;
+        if (order == Order.COLLECT) {
+            Block wanted = parseBlock(quarry);
+            if (wanted == null) {
+                wanted = aimedBlock(owner);        // blank box: use what you look at
+            }
+            if (wanted != shade.wanted) {
+                shade.learnedY = null;
+            }
+            shade.wanted = wanted;
+        } else {
+            shade.wanted = null;
         }
-        if (owner.serverLevel().getEntity(shade.entity) instanceof EnderMan e) {
-            rename(e, shade);
-            e.setTarget(null);
+        SELECTED.put(owner.getUUID(), slot);
+        if (minion != null) {
+            rename(minion, shade);
+            minion.setTarget(null);
         }
-        say(owner, NAMES[shade.slot] + ": " + switch (shade.order) {
-            case ATTACK -> "\"I hunt what you look upon.\"";
-            case DEFEND -> "\"I stand with you.\"";
-            case COLLECT -> shade.wanted == null
-                    ? "\"I will bring you a stack of whatever I find.\""
-                    : "\"I will bring you a stack of "
-                      + shade.wanted.getName().getString() + ".\"";
-            case CRYSTAL -> "\"I will set a crystal on the bedrock.\"";
-        }, shade.order.colour, false);
+        say(owner, NAMES[slot] + ": " + line(shade), order.colour, false);
+        pushState(owner);
     }
 
     /** Name the quarry for the shade currently being addressed. */
@@ -218,18 +304,33 @@ public final class DragonMinions {
         if (shade == null) {
             return false;
         }
-        shade.wanted = block;
-        shade.learnedY = null;
-        shade.order = Order.COLLECT;
-        shade.cargoType = null;
-        shade.cargo = 0;
-        shade.headingHome = false;
-        if (owner.serverLevel().getEntity(shade.entity) instanceof EnderMan e) {
-            rename(e, shade);
-        }
-        say(owner, NAMES[shade.slot] + ": \"" + block.getName().getString()
-                + ". I will find it.\"", Order.COLLECT.colour, false);
+        applyOrder(owner, shade.slot, Order.COLLECT.ordinal(),
+                BuiltInRegistries.BLOCK.getKey(block).toString());
         return true;
+    }
+
+    private static String line(Shade shade) {
+        return switch (shade.order) {
+            case ATTACK -> "\"I hunt what you look upon.\"";
+            case DEFEND -> "\"I stand with you.\"";
+            case COLLECT -> shade.wanted == null
+                    ? "\"I will bring you a stack of whatever I find.\""
+                    : "\"I will bring you a stack of "
+                      + shade.wanted.getName().getString() + ".\"";
+            case CRYSTAL -> "\"I will set a crystal on the bedrock.\"";
+        };
+    }
+
+    private static Block parseBlock(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        ResourceLocation key = ResourceLocation.tryParse(raw.trim().toLowerCase(java.util.Locale.ROOT));
+        if (key == null) {
+            return null;
+        }
+        Block block = BuiltInRegistries.BLOCK.getOptional(key).orElse(null);
+        return block == Blocks.AIR ? null : block;
     }
 
     private static Block aimedBlock(ServerPlayer owner) {
@@ -270,7 +371,10 @@ public final class DragonMinions {
                 continue;
             }
             ServerLevel level = owner.serverLevel();
-            court.removeIf(s -> !(level.getEntity(s.entity) instanceof EnderMan e) || !e.isAlive());
+            if (court.removeIf(s -> !(level.getEntity(s.entity) instanceof EnderMan e) || !e.isAlive())) {
+                pushState(owner);
+            }
+            LivingEntity avenge = grudge(owner, level);
 
             for (Shade shade : court) {
                 if (!(level.getEntity(shade.entity) instanceof EnderMan minion)) {
@@ -279,8 +383,18 @@ public final class DragonMinions {
                 if (minion.getTarget() == owner) {
                     minion.setTarget(null);      // never turn on the summoner
                 }
+                // Someone is beating on Jean. Any shade close enough to see it
+                // stops what it is doing; the ones away on business keep their
+                // cargo and their errand.
+                if (avenge != null && minion.distanceToSqr(owner) < GRUDGE_RANGE * GRUDGE_RANGE) {
+                    minion.setTarget(avenge);
+                    if (minion.distanceToSqr(avenge) > 9.0) {
+                        minion.getNavigation().moveTo(avenge, 1.3);
+                    }
+                    continue;
+                }
                 switch (shade.order) {
-                    case ATTACK -> attack(owner, minion, level);
+                    case ATTACK -> attack(owner, minion, level, shade);
                     case DEFEND -> defend(owner, minion, level);
                     case COLLECT -> collect(owner, minion, level, shade);
                     case CRYSTAL -> crystal(owner, minion, level, shade);
@@ -289,16 +403,83 @@ public final class DragonMinions {
         }
     }
 
-    private static void attack(ServerPlayer owner, EnderMan minion, ServerLevel level) {
+    /**
+     * Take note of whoever is hurting the owner.
+     *
+     * One hit is an accident; a second inside {@link #GRUDGE_WINDOW} is a
+     * fight, and then the whole court knows the name.
+     */
+    public static void retaliate(Player owner, Entity attacker) {
+        if (!(owner instanceof ServerPlayer sp) || !(attacker instanceof LivingEntity foe)
+                || foe == owner || !foe.isAlive() || isOwnedBy(owner, foe)) {
+            return;
+        }
+        List<Shade> court = COURT.get(owner.getUUID());
+        if (court == null || court.isEmpty()) {
+            return;
+        }
+        long now = sp.serverLevel().getGameTime();
+        Strike strike = STRIKES.computeIfAbsent(owner.getUUID(), u -> new Strike());
+        if (!foe.getUUID().equals(strike.attacker) || now - strike.last > GRUDGE_WINDOW) {
+            strike.attacker = foe.getUUID();
+            strike.hits = 0;
+        }
+        strike.last = now;
+        strike.hits++;
+        if (strike.hits < RETALIATE_AFTER) {
+            return;
+        }
+        Grudge previous = GRUDGES.put(owner.getUUID(), new Grudge(foe.getUUID(), now + GRUDGE_TICKS));
+        if (previous == null || !previous.target().equals(foe.getUUID())) {
+            say(sp, "The court turns on " + foe.getName().getString() + ".",
+                    ChatFormatting.DARK_RED, true);
+        }
+    }
+
+    private static LivingEntity grudge(ServerPlayer owner, ServerLevel level) {
+        Grudge held = GRUDGES.get(owner.getUUID());
+        if (held == null) {
+            return null;
+        }
+        if (level.getGameTime() > held.until()
+                || !(level.getEntity(held.target()) instanceof LivingEntity foe)
+                || !foe.isAlive() || foe == owner) {
+            GRUDGES.remove(owner.getUUID());
+            return null;
+        }
+        return foe;
+    }
+
+    private static void attack(ServerPlayer owner, EnderMan minion, ServerLevel level, Shade shade) {
         LivingEntity aim = lookedAt(owner, level);
         if (aim != null && aim != owner && !isOwnedBy(owner, aim)) {
             minion.setTarget(aim);
+            shade.idleTicks = 0;
             return;
         }
         if (minion.getTarget() == null || !minion.getTarget().isAlive()) {
             minion.setTarget(nearestFoe(owner, minion, level));
         }
+        if (minion.getTarget() != null) {
+            shade.idleTicks = 0;
+        } else if (++shade.idleTicks > IDLE_REVERT) {
+            // nothing left to hunt: fall back to standing with you
+            standDown(owner, minion, shade, "\"Nothing stirs. I stand with you.\"");
+            return;
+        }
         follow(owner, minion, 24.0, 1.15);
+    }
+
+    /** Back to the default duty, which is you. */
+    private static void standDown(ServerPlayer owner, EnderMan minion, Shade shade, String line) {
+        shade.order = Order.DEFEND;
+        shade.wanted = null;
+        shade.headingHome = false;
+        shade.idleTicks = 0;
+        minion.setTarget(null);
+        rename(minion, shade);
+        say(owner, NAMES[shade.slot] + ": " + line, Order.DEFEND.colour, false);
+        pushState(owner);
     }
 
     private static void defend(ServerPlayer owner, EnderMan minion, ServerLevel level) {
@@ -331,6 +512,7 @@ public final class DragonMinions {
         if (shade.headingHome) {
             if (minion.distanceToSqr(owner) < 64.0) {
                 deliver(owner, minion, shade);
+                standDown(owner, minion, shade, "\"It is yours. I stand with you.\"");
             } else if (level.getGameTime() % 20 == 0) {
                 hopToward(level, minion, owner.getX(), owner.getZ(), 24.0);
             }
@@ -390,6 +572,23 @@ public final class DragonMinions {
         shade.cargo = 0;
         shade.headingHome = false;
         minion.setCarriedBlock(null);
+    }
+
+    /**
+     * Interrupting a shade never costs you what it dug up: it comes back,
+     * sets the load down, and only then takes the new order.
+     */
+    private static void handOver(ServerPlayer owner, ServerLevel level, EnderMan minion, Shade shade) {
+        if (shade.cargo <= 0 || shade.cargoType == null) {
+            shade.cargoType = null;
+            shade.cargo = 0;
+            minion.setCarriedBlock(null);
+            return;
+        }
+        if (minion.distanceToSqr(owner) > 64.0) {
+            hopToward(level, minion, owner.getX(), owner.getZ(), 4.0);
+        }
+        deliver(owner, minion, shade);
     }
 
     /**

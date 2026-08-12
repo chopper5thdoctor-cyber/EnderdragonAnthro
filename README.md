@@ -34,7 +34,8 @@ vanilla is hostile to the Ender Dragon.
 
 **Flight is literally elytra.** Rather than imitating the physics, a mixin keeps the
 fall-flying flag set so the untouched vanilla elytra code path runs. Double-tap `Space`
-mid-air to start; `H` boosts with the firework rocket's exact impulse.
+mid-air to start; `H` beats the wings — twice a firework rocket's push toward a 2.6
+target speed, because these are wings and a rocket is a firework.
 
 **The court.** Four named elite endermen — **Vael, Kesh, Nyra, Orrin** — scaled to 4
 blocks, each addressed and ordered separately. They never turn on you.
@@ -51,23 +52,29 @@ blocks, each addressed and ordered separately. They never turn on you.
 | `V` | Wing Buffet — canon 3/5/7 damage, huge knockback | 5 s |
 | `C` | Charge dash — canon 6/10/15. Sprinting alone also deals charge damage | 4 s |
 | `B` | Crater punch **toggle** — 5×5×5, silk-touch | — |
-| `X` | Evasive jump — somewhere random 1000+ blocks out | 60 s |
+| `X` | Evasive jump — somewhere random 1000+ blocks out, under open sky | 60 s |
 | `K` | Warp to a random player beyond 100 blocks | 10 s |
 | `J` | Return to your anchor | 5 s |
 | `H` | Wing boost | 1 s |
 | `Z` | Summon a shade (four maximum) | 10 s |
 | `N` | Address a shade — the one you look at, else the next | — |
-| `M` | Give **that** shade its next order | — |
+| `M` | Open **the court** — the orders screen | — |
 | double-`Space` | Start gliding (mid-air) | — |
 
-All rebindable. The HUD shows every ability with its name above the key; chips flash on
-press, drain while recharging, and stay lit while a toggle is armed.
+All rebindable. The HUD is a column down the left edge, each key chip with its ability
+name beside it; chips flash on press, drain while recharging, and stay lit while a toggle
+is armed.
 
 `/shade collect <block>` names a quarry by typing rather than by looking at one.
 
 ---
 
 ## The court's orders
+
+`M` opens a screen listing every shade you have raised, with all four orders one click
+each and a text field for the quarry. Orders used to cycle on a keypress, which meant
+reaching Crystal cost you whatever the shade was carrying and re-read whatever block you
+happened to be looking at on the way through; nothing is passed through now.
 
 | Order | Behaviour |
 |---|---|
@@ -79,11 +86,21 @@ press, drain while recharging, and stay lit while a toggle is armed.
 Shades make crystals rather than spending yours — a dragon has no hands for a workbench,
 so stocking a domain is the court's trade.
 
-**Collect** takes a named quarry: look at a block while cycling into the order, or type
-it. With one named the shade digs for it, teleporting into that ore's **real generation
-band** — diamond near Y −59, iron near 16, copper near 48 — and it remembers the depth it
-last struck the seam at, so it sharpens the longer it works. With no quarry named it only
-strips surface blocks, so it will not swiss-cheese the landscape by accident.
+**Collect** takes a named quarry: type a block id into the row's field, or leave it blank
+and the shade takes whatever you are looking at. With one named the shade digs for it,
+teleporting into that ore's **real generation band** — diamond near Y −59, iron near 16,
+copper near 48 — and it remembers the depth it last struck the seam at, so it sharpens the
+longer it works. With no quarry named it only strips surface blocks, so it will not
+swiss-cheese the landscape by accident.
+
+**Nothing you interrupt is lost.** Change a shade's order mid-errand and it comes back,
+sets down what it dug up, and only then takes the new one. A finished Collect hands the
+stack over and drops back to **Defend**, as does an Attack order with nothing left to
+hunt — standing with you is the default duty, not a fifth order you have to pick.
+
+**They answer for you.** Take two hits from the same attacker inside five seconds and
+every shade within 48 blocks breaks off and goes for it, for fifteen seconds. Ones away
+on business keep their cargo and their errand.
 
 ## Crater punch
 

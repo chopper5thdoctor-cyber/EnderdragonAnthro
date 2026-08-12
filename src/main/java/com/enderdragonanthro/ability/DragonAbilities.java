@@ -18,6 +18,7 @@ import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.DragonFireball;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -83,7 +84,7 @@ public final class DragonAbilities {
             case BOOST -> DragonFlight.boost(player);
             case SUMMON -> DragonMinions.summon(player);
             case SELECT -> DragonMinions.select(player);
-            case COMMAND -> DragonMinions.order(player);
+            case COMMAND -> DragonMinions.openCommandUi(player);
             case TRANSFORM -> {
             }
         }
@@ -237,12 +238,7 @@ public final class DragonAbilities {
             if (!level.getWorldBorder().isWithinBounds(BlockPos.containing(x, 64, z))) {
                 continue;
             }
-            BlockPos surface = level.getHeightmapPos(
-                    Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, BlockPos.containing(x, 0, z));
-            Vec3 dest = new Vec3(surface.getX() + 0.5, surface.getY(), surface.getZ() + 0.5);
-            if (!fits(player, level, dest)) {
-                dest = nearestFit(player, level, dest);
-            }
+            Vec3 dest = openSky(player, level, x, z);
             if (dest != null) {
                 jump(player, dest);
                 player.displayClientMessage(Component.literal(
@@ -296,6 +292,76 @@ public final class DragonAbilities {
         DragonFlight.clear(player);
         level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                 SoundSource.PLAYERS, 1.0F, 0.6F);
+    }
+
+    /** How much clear air an evasive landing needs around it. */
+    private static final int CLEARANCE = 15;
+    /** Full cube checks are the expensive part, so a column only gets a few. */
+    private static final int CUBE_BUDGET = 6;
+
+    /**
+     * Find honest open ground in a column.
+     *
+     * The old heightmap lookup is what buried people: {@code Level.getHeight}
+     * answers {@code minBuildHeight} — under the bedrock — for a chunk that is
+     * not loaded yet, and an evasive jump lands a thousand blocks out in
+     * terrain nobody has visited. So the chunk is forced in first, and then the
+     * surface is only a starting guess: the landing site has to be a solid
+     * block with a {@value #CLEARANCE}-cube of air over it, under real sky
+     * where the dimension has any, or the search walks on down the column.
+     */
+    private static Vec3 openSky(ServerPlayer player, ServerLevel level, double x, double z) {
+        BlockPos column = BlockPos.containing(x, 0, z);
+        level.getChunk(column);                        // force generation, then ask
+        int floor = level.getMinBuildHeight();
+        int top = Math.min(level.getMaxBuildHeight() - CLEARANCE - 1,
+                level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column).getY());
+        boolean skies = level.dimensionType().hasSkyLight();
+        int budget = CUBE_BUDGET;
+
+        // Downward from the surface: the first candidate is nearly always the
+        // right one, and each rejection costs three block lookups, not 3375.
+        for (int y = top; y > floor && budget > 0; y--) {
+            BlockPos ground = new BlockPos(column.getX(), y, column.getZ());
+            if (level.getBlockState(ground).isAir()
+                    || !level.getBlockState(ground.above()).isAir()) {
+                continue;                              // want a solid top surface
+            }
+            if (skies && level.getBrightness(LightLayer.SKY, ground.above()) < 12) {
+                continue;                              // roofed over: probably a cave
+            }
+            budget--;
+            if (!clearCube(level, ground)) {
+                continue;
+            }
+            Vec3 spot = new Vec3(column.getX() + 0.5, y + 1, column.getZ() + 0.5);
+            return fits(player, level, spot) ? spot : nearestFit(player, level, spot);
+        }
+        return null;
+    }
+
+    /** A {@value #CLEARANCE}-cube of air sitting on {@code ground}. */
+    private static boolean clearCube(ServerLevel level, BlockPos ground) {
+        int half = CLEARANCE / 2;
+        // straight up first: a ceiling is the usual reason a spot fails
+        for (int dy = 1; dy <= CLEARANCE; dy++) {
+            if (!level.getBlockState(ground.above(dy)).isAir()) {
+                return false;
+            }
+        }
+        for (int dx = -half; dx <= half; dx++) {
+            for (int dz = -half; dz <= half; dz++) {
+                if (dx == 0 && dz == 0) {
+                    continue;
+                }
+                for (int dy = 1; dy <= CLEARANCE; dy++) {
+                    if (!level.getBlockState(ground.offset(dx, dy, dz)).isAir()) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
     /** Somewhere at or near {@code near} that will hold the dragon, or null. */

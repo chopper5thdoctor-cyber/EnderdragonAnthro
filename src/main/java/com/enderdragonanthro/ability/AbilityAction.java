@@ -19,7 +19,8 @@ public enum AbilityAction {
     BOOST(20, "Boost"),
     SUMMON(200, "Summon"),
     SELECT(5, "Shade"),
-    COMMAND(10, "Order");
+    // opens a screen rather than firing anything, so no cooldown
+    COMMAND(0, "Court");
 
     public final int cooldownTicks;
     /** Shown above the key chip on the HUD. */

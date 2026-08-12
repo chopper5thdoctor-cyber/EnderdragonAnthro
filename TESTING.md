@@ -42,15 +42,15 @@ broken when they are not:
 | `J` | Return to your anchor | 5 s |
 | `H` | Wing boost | 1 s |
 | `Z` | Summon a shade | 10 s |
-| `N` | Address a shade | — |
-| `M` | Give that shade its order | — |
+| `N` | Address a shade (for `/shade collect`) | — |
+| `M` | Open **the court** — the orders screen | — |
 | double-tap `Space` | Start gliding (mid-air only) | — |
 
-The HUD along the bottom shows every ability with its name above the key. Chips
-flash magenta when pressed and drain a shade while recharging. Crater stays lit
-while armed. Nothing shows in human form.
+The HUD is a **column down the left edge** — a key chip with its ability name
+beside it. Chips flash magenta when pressed and drain a shade while recharging.
+Crater stays lit while armed. Nothing shows in human form.
 
-`/shade collect <block>` names a quarry by typing instead of looking.
+`/shade collect <block>` names a quarry by typing instead of using the screen.
 
 ---
 
@@ -92,7 +92,8 @@ This is real elytra physics, not an imitation — a mixin keeps the fall-flying
 flag set so the vanilla elytra code runs. Expect elytra handling exactly: dive
 to gain speed, level out to glide.
 
-- **H** boosts, reproducing a firework rocket's kick. Chain them.
+- **H** beats the wings — **harder than a firework**: twice the push, toward a
+  2.6 target speed instead of 1.5. Chain them.
 - Landing ends the glide automatically.
 - Transforming back to human mid-air should drop you out of it.
 
@@ -129,11 +130,22 @@ Press **B** (chip lights up), then **left-click a block**.
 
 - **X (evade)** — dumps you 1000+ blocks away at a spot that fits your hitbox.
   60-second cooldown, the longest in the kit. You will land somewhere unexplored.
+  - It no longer trusts the heightmap blindly. The heightmap answers *below the
+    bedrock* for a chunk that has not generated yet — which is every chunk a
+    thousand blocks out — and that is what was burying you. The destination
+    chunk is now forced in first, and the surface is only a starting guess: the
+    spot has to be solid ground with a **15×15×15 pocket of air** over it and
+    sky light 12+, or the search walks down the column. **Test this on
+    superflat**, and in the Nether (no sky light there, so that check is
+    skipped by design).
 - **K (warp)** — needs a second player more than 100 blocks away. Singleplayer
   will just tell you there is no one to reach.
 - **Anchor**: in dragon form you are **given a Homing Crystal automatically**
   (orange, unstackable, one at a time). Place it anywhere — no bedrock needed.
-  Press **J** from anywhere to return to it.
+  **The placed crystal should now be orange too**, not just the inventory icon;
+  the renderer holds one texture in a static field and never asks which texture
+  a crystal wants, so the buffer has to be swapped instead. Press **J** from
+  anywhere to return to it.
   - Break it (anything can): it **shatters, does not explode**, and you are locked
     out for **5 minutes**, after which a fresh one appears in your inventory.
   - It deliberately does **not** feed Crystal Link — it is a waypoint, not a battery.
@@ -156,8 +168,11 @@ Place an **End Crystal** (the real one) on obsidian nearby, then hurt yourself
 **Z** summons **Vael**, then **Kesh**, **Nyra**, **Orrin** — four maximum, each
 with a coloured nametag showing its name and duty.
 
-**N** addresses one (whoever you are looking at, else the next). **M** cycles
-*that one's* order. So you can run all four jobs at once.
+**M opens the court screen.** One row per shade: four order buttons (the
+standing order is the greyed-out one) and a text field for the quarry. Click an
+order and it takes effect at once; the screen refreshes itself as the server
+reports back, so leave it open and watch. The world does not pause while it is
+up. So you can run all four jobs at once.
 
 | Order | What to expect |
 |---|---|
@@ -166,12 +181,29 @@ with a coloured nametag showing its name and duty.
 | **Collect** | Goes foraging, brings back exactly one stack, sets it down |
 | **Crystal** | Finds bedrock, **makes** an end crystal every 20 s and places it |
 
-**Naming a quarry:** look at a block while cycling into Collect, or type
-`/shade collect diamond_ore`. With a quarry named, the shade **digs for it** and
-teleports to that ore's real generation band (diamonds near Y −59, iron near 16,
-copper near 48…) rather than searching blindly, and it **remembers the depth it
-last struck the seam at** and favours it thereafter. With no quarry named it only
-strips surface blocks, so it will not swiss-cheese your landscape.
+**Naming a quarry:** type a block id into the row's field (`diamond_ore`,
+`deepslate_diamond_ore`, `minecraft:ancient_debris`), or leave it **blank** and
+the shade takes whatever you were looking at. `/shade collect diamond_ore` still
+works and applies to whoever **N** last addressed. With a quarry named, the shade
+**digs for it** and teleports to that ore's real generation band (diamonds near
+Y −59, iron near 16, copper near 48…) rather than searching blindly, and it
+**remembers the depth it last struck the seam at** and favours it thereafter.
+With no quarry named it only strips surface blocks, so it will not swiss-cheese
+your landscape.
+
+Three things to check specifically:
+
+- **Interrupting costs you nothing.** Send a shade to Collect, wait until the
+  nametag shows it working, then click a different order. It should come back,
+  **drop what it had**, and only then take the new job. Cycling used to eat the
+  load — that was the bug.
+- **It goes back to Defend on its own.** A completed Collect hands the stack
+  over and reverts. So does an Attack order left with nothing to kill (about
+  10 s). No order is ever left dangling.
+- **They answer for you.** Let something hit you **twice within 5 seconds** —
+  a skeleton is ideal, or a second player. Every shade within 48 blocks should
+  break off and go for it for about 15 s, then return to its duty. Shades away
+  foraging keep their cargo and their errand.
 
 They never target you, whatever happens.
 
@@ -186,8 +218,10 @@ log rather than silently:
 1. `LivingEntityGlideMixin` → `updateFallFlying`. If this fails, gliding is dead.
 2. `PlayerCrystalImmunityMixin` → `Player.hurt`. If this fails, crystals hurt you.
 
-A third, `EndCrystalTextureMixin`, is registered **optional** — if it misses, your
-anchor renders as a normal end crystal and everything still works.
+A third, `EndCrystalTextureMixin`, is **optional** — if it misses, your anchor
+renders as a normal end crystal and everything else still works. It now redirects
+the buffer inside `EndCrystalRenderer.render` rather than overriding
+`getTextureLocation`, which the renderer never calls.
 
 **If the game will not start, paste the crash log.** The method name in the error
 is all I need.

@@ -4,6 +4,7 @@ import com.enderdragonanthro.ability.AbilityAction;
 import com.enderdragonanthro.client.model.DragonFormModel;
 import com.enderdragonanthro.client.render.DragonFormLayer;
 import com.enderdragonanthro.network.AbilityActionPayload;
+import com.enderdragonanthro.network.ShadeStatePayload;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -47,6 +48,11 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         register("summon", GLFW.GLFW_KEY_Z, AbilityAction.SUMMON);
         register("select", GLFW.GLFW_KEY_N, AbilityAction.SELECT);
         register("command", GLFW.GLFW_KEY_M, AbilityAction.COMMAND);
+
+        // The court screen is server-driven: the command key asks for the
+        // roster, and every later change is pushed to keep an open screen live.
+        ClientPlayNetworking.registerGlobalReceiver(ShadeStatePayload.TYPE,
+                (payload, context) -> ShadeCourtClient.accept(payload));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             DragonHud.tick();
