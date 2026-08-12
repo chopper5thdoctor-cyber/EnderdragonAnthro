@@ -65,6 +65,28 @@ six named bones every frame. Walking, sneaking, swimming, arm swings — all fre
    cubes exist in the project only so you can see the head while sculpting;
    they are ignored on the way back in. Keep the space around them clear.
 
+## Flat cubes: paint one face, leave the other empty
+
+The wing membranes are zero-height boxes (`56 × 0 × 56`). A box of zero height
+still generates **both** its up and down quads, and with zero height between
+them they land on **exactly the same plane** — two full-size coplanar faces at
+identical depth.
+
+Their UV regions are the two 56×56 blocks side by side at the box's offset:
+
+```
+offset (u,v)   ->   DOWN = (u+56, v)   UP = (u+112, v)
+```
+
+Only one of them may carry art. Paint both and the two quads z-fight, and
+because up and down traverse the plane in opposite senses, the second copy
+also lands mis-oriented — you get a flickering, back-to-front ghost over a
+wing that was fine. `entityCutoutNoCull` draws the painted quad from **both**
+sides anyway, so the empty one costs you nothing.
+
+If a flat cube ever looks wrong from underneath, the answer is never "fill the
+other face."
+
 ## Palette
 
 Paint with the pixel-sampled canon palette (DESIGN.md §2): scales

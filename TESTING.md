@@ -60,6 +60,9 @@ Press **Y**, then **F5**. Walk, sprint, sneak, swim, swing your arm, look around
 
 - Does the model track every animation without tearing apart?
 - Wings folded on the back, spikes angled, obliques and delts sloped?
+- **Wings**: check the membranes from above *and* below, and while turning.
+  Any shimmer, flicker, or a pattern that looks back-to-front means two
+  coplanar quads are fighting — see MODELING_GUIDE.md on flat cubes.
 - **In the dark**: eyes and mouth should glow (they are on a fullbright pass).
 - Your head should sit right at the top of the 8-block hitbox, horns just above.
 
