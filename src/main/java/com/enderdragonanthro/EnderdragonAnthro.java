@@ -6,6 +6,7 @@ import com.enderdragonanthro.ability.DragonAbilities;
 import com.enderdragonanthro.ability.DragonFlight;
 import com.enderdragonanthro.ability.DragonMinions;
 import com.enderdragonanthro.ability.EndermanAffection;
+import com.enderdragonanthro.ability.HomingCrystals;
 import com.enderdragonanthro.boss.DragonBossBars;
 import com.enderdragonanthro.item.ModItems;
 import com.enderdragonanthro.command.ShadeCommand;
@@ -61,6 +62,7 @@ public class EnderdragonAnthro implements ModInitializer {
             DragonFlight.tick(server);
             DragonMinions.tick(server);
             CrystalHealing.tick(server);
+            HomingCrystals.tick(server);
             EndermanAffection.tick(server);
             DragonBossBars.tick(server);
         });

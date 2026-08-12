@@ -3,12 +3,13 @@ package com.enderdragonanthro.ability;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import com.enderdragonanthro.transform.DragonFormManager;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
@@ -90,12 +91,6 @@ public final class HomingCrystals {
         level.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD,
                 at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5, 24, 0.4, 0.6, 0.4, 0.05);
 
-        // hand the crystal back so the cooldown, not the loss, is the cost
-        ItemEntity drop = new ItemEntity(level, at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5,
-                new ItemStack(com.enderdragonanthro.item.ModItems.HOMING_CRYSTAL));
-        drop.setDefaultPickUpDelay();
-        level.addFreshEntity(drop);
-
         for (String tag : crystal.getTags()) {
             if (!tag.startsWith(OWNER_TAG)) {
                 continue;
@@ -141,6 +136,40 @@ public final class HomingCrystals {
         level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                 SoundSource.PLAYERS, 1.0F, 0.7F);
         player.displayClientMessage(Component.literal("Home.").withStyle(ChatFormatting.GOLD), true);
+    }
+
+    /**
+     * Keep exactly one anchor in the dragon's keeping.
+     *
+     * You do not craft this — a dragon has no use for a workbench. If you hold
+     * no crystal, have none standing, and are not locked out, one simply is
+     * there. Break it and you wait; the replacement arrives when the lockout
+     * ends. That is the only cost.
+     */
+    public static void tick(MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (server.getTickCount() % 20 != 0) {
+                return;
+            }
+            if (!DragonFormManager.isDragon(player) || locked(player)) {
+                continue;
+            }
+            Anchor anchor = ANCHORS.get(player.getUUID());
+            if (anchor != null
+                    && player.serverLevel().getEntity(anchor.entity()) instanceof EndCrystal) {
+                continue;                                  // one is already standing
+            }
+            if (player.getInventory().contains(
+                    new ItemStack(com.enderdragonanthro.item.ModItems.HOMING_CRYSTAL))) {
+                continue;                                  // one is already in hand
+            }
+            ItemStack stack = new ItemStack(com.enderdragonanthro.item.ModItems.HOMING_CRYSTAL);
+            if (!player.getInventory().add(stack)) {
+                player.drop(stack, false);
+            }
+            player.displayClientMessage(Component.literal("An anchor forms in your keeping.")
+                    .withStyle(ChatFormatting.GOLD), true);
+        }
     }
 
     private static UUID fromCompact(String raw) {

@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:crafting_shapeless",
-  "category": "misc",
-  "ingredients": [
-    { "item": "minecraft:end_crystal" },
-    { "item": "minecraft:orange_dye" }
-  ],
-  "result": { "id": "enderdragonanthro:homing_crystal", "count": 1 }
-}

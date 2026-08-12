@@ -2,6 +2,7 @@ package com.enderdragonanthro.ability;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -80,6 +81,8 @@ public final class DragonMinions {
         int slot;
         Order order = Order.DEFEND;
         BlockState cargoType;
+        /** Depth the quarry was last actually found at, so searching improves. */
+        Integer learnedY;
         /** What the owner asked for. Null means "whatever is worth taking". */
         Block wanted;
         int cargo;
@@ -216,6 +219,7 @@ public final class DragonMinions {
             return false;
         }
         shade.wanted = block;
+        shade.learnedY = null;
         shade.order = Order.COLLECT;
         shade.cargoType = null;
         shade.cargo = 0;
@@ -340,6 +344,7 @@ public final class DragonMinions {
             BlockState state = level.getBlockState(found);
             level.removeBlock(found, false);
             shade.cargoType = state;
+            shade.learnedY = found.getY();       // remember where the seam was
             shade.cargo++;
             minion.setCarriedBlock(state);
             if (shade.cargo >= CARGO_MAX) {
@@ -357,10 +362,11 @@ public final class DragonMinions {
             double dist = 64.0 + level.random.nextDouble() * FORAGE_RANGE;
             double x = owner.getX() + Math.cos(angle) * dist;
             double z = owner.getZ() + Math.sin(angle) * dist;
-            if (shade.wanted != null && level.random.nextBoolean()) {
-                int y = level.getMinBuildHeight() + 8
-                        + level.random.nextInt(Math.max(16, level.getSeaLevel()
-                        - level.getMinBuildHeight() - 8));
+            int depth = shade.wanted == null ? Integer.MIN_VALUE
+                    : chooseDepth(level, shade, shade.wanted);
+            if (depth != Integer.MIN_VALUE) {
+                int y = Math.max(level.getMinBuildHeight() + 2,
+                        Math.min(level.getMaxBuildHeight() - 2, depth));
                 minion.teleportTo(x, y, z);
                 level.playSound(null, minion.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                         SoundSource.HOSTILE, 0.6F, 1.0F);
@@ -468,6 +474,49 @@ public final class DragonMinions {
                 minion.getNavigation().moveTo(owner.getX(), owner.getY(), owner.getZ(), speed);
             }
         }
+    }
+
+    /**
+     * Where a given block actually lives.
+     *
+     * Blind-searching every depth wastes a shade's time, so the common ores
+     * carry their real generation band and it aims there. Anything unlisted
+     * returns null and is treated as a surface material. A shade also
+     * remembers the depth it last struck the quarry at and favours that,
+     * so it gets better at a seam the longer it works it.
+     */
+    private static int[] oreBand(Block block) {
+        String key = BuiltInRegistries.BLOCK.getKey(block).getPath();
+        if (key.contains("diamond_ore")) return new int[]{-63, 16, -59};
+        if (key.contains("redstone_ore")) return new int[]{-63, 15, -59};
+        if (key.contains("lapis_ore")) return new int[]{-64, 64, 0};
+        if (key.contains("gold_ore") && !key.contains("nether")) return new int[]{-64, 32, -16};
+        if (key.contains("iron_ore")) return new int[]{-24, 56, 16};
+        if (key.contains("copper_ore")) return new int[]{-16, 112, 48};
+        if (key.contains("coal_ore")) return new int[]{0, 192, 96};
+        if (key.contains("emerald_ore")) return new int[]{-16, 256, 200};
+        if (key.equals("ancient_debris")) return new int[]{8, 22, 15};
+        if (key.contains("amethyst")) return new int[]{-64, 30, -20};
+        if (key.equals("deepslate") || key.contains("deepslate_")) return new int[]{-64, 8, -30};
+        if (key.equals("granite") || key.equals("diorite") || key.equals("andesite")
+                || key.equals("tuff") || key.equals("calcite")) return new int[]{-64, 80, 0};
+        if (key.equals("gravel") || key.equals("clay")) return new int[]{-20, 70, 50};
+        return null;
+    }
+
+    /** Pick a depth to search, favouring what the shade has already learned. */
+    private static int chooseDepth(ServerLevel level, Shade shade, Block quarry) {
+        if (shade.learnedY != null && level.random.nextFloat() < 0.7F) {
+            return shade.learnedY + level.random.nextInt(17) - 8;
+        }
+        int[] band = oreBand(quarry);
+        if (band == null) {
+            return Integer.MIN_VALUE;                 // surface material
+        }
+        // triangular pull toward the peak, so most stops land in the rich part
+        int a = level.random.nextInt(band[1] - band[0] + 1) + band[0];
+        int b = band[2] + level.random.nextInt(17) - 8;
+        return Math.max(band[0], Math.min(band[1], (a + b * 3) / 4));
     }
 
     /** Enderman-style hop: land on the surface at (x, z), optionally offset. */
