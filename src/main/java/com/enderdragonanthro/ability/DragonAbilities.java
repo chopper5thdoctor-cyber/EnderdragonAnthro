@@ -78,6 +78,7 @@ public final class DragonAbilities {
             case CRATER -> toggleCrater(player);
             case EVADE -> evade(player);
             case WARP -> warpToPlayer(player);
+            case RETURN -> HomingCrystals.returnHome(player);
             case GLIDE -> DragonFlight.start(player);
             case BOOST -> DragonFlight.boost(player);
             case SUMMON -> DragonMinions.summon(player);
@@ -295,6 +296,12 @@ public final class DragonAbilities {
         DragonFlight.clear(player);
         level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                 SoundSource.PLAYERS, 1.0F, 0.6F);
+    }
+
+    /** Somewhere at or near {@code near} that will hold the dragon, or null. */
+    public static Vec3 findFooting(ServerPlayer player, ServerLevel level, Vec3 near) {
+        return fits(player, level, near) ? settle(player, level, near)
+                : nearestFit(player, level, near);
     }
 
     /** Does the player's full bounding box sit clear of terrain at {@code at}? */

@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "DragonFireballExplosionMixin",
+    "EndCrystalHomingMixin",
     "EntityFireImmunityMixin",
     "LivingEntityEffectImmunityMixin",
     "LivingEntityGlideMixin",
@@ -13,6 +14,7 @@
     "PlayerTransformDataMixin"
   ],
   "client": [
+    "EndCrystalTextureMixin",
     "PlayerBodyHideMixin"
   ],
   "injectors": {

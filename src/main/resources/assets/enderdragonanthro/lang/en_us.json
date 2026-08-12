@@ -12,5 +12,7 @@
   "message.enderdragonanthro.cooldown": "Recharging (%s s)",
   "key.enderdragonanthro.evade": "Evasive Jump (1000+ blocks)",
   "key.enderdragonanthro.warp": "Warp to a Distant Player",
-  "key.enderdragonanthro.select": "Address a Shade"
+  "key.enderdragonanthro.select": "Address a Shade",
+  "key.enderdragonanthro.home": "Return to Anchor",
+  "item.enderdragonanthro.homing_crystal": "Homing Crystal"
 }

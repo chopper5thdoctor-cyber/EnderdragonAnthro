@@ -42,6 +42,7 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         register("crater", GLFW.GLFW_KEY_B, AbilityAction.CRATER);
         register("evade", GLFW.GLFW_KEY_X, AbilityAction.EVADE);
         register("warp", GLFW.GLFW_KEY_K, AbilityAction.WARP);
+        register("home", GLFW.GLFW_KEY_J, AbilityAction.RETURN);
         register("boost", GLFW.GLFW_KEY_H, AbilityAction.BOOST);
         register("summon", GLFW.GLFW_KEY_Z, AbilityAction.SUMMON);
         register("select", GLFW.GLFW_KEY_N, AbilityAction.SELECT);

@@ -20,6 +20,7 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -69,6 +70,7 @@ public final class DragonMinions {
     private static final double FORAGE_RANGE = 1000.0;  // how far afield they will roam
     private static final int WORK_RADIUS = 16;          // mining reach around themselves
     private static final int CARGO_MAX = 64;            // one stack, then home
+    private static final int CRYSTAL_WORK = 400;        // 20s of work per crystal
     private static final ResourceLocation SCALE_ID = id("minion_scale");
     private static final String OWNER_TAG = "edanthro_owner_";
     private static final String SLOT_TAG = "edanthro_slot_";
@@ -78,6 +80,8 @@ public final class DragonMinions {
         int slot;
         Order order = Order.DEFEND;
         BlockState cargoType;
+        /** What the owner asked for. Null means "whatever is worth taking". */
+        Block wanted;
         int cargo;
         boolean headingHome;
     }
@@ -187,6 +191,9 @@ public final class DragonMinions {
         shade.cargoType = null;
         shade.cargo = 0;
         shade.headingHome = false;
+        if (shade.order == Order.COLLECT) {
+            shade.wanted = aimedBlock(owner);      // look at a block to name the quarry
+        }
         if (owner.serverLevel().getEntity(shade.entity) instanceof EnderMan e) {
             rename(e, shade);
             e.setTarget(null);
@@ -194,9 +201,42 @@ public final class DragonMinions {
         say(owner, NAMES[shade.slot] + ": " + switch (shade.order) {
             case ATTACK -> "\"I hunt what you look upon.\"";
             case DEFEND -> "\"I stand with you.\"";
-            case COLLECT -> "\"I will bring you a stack.\"";
+            case COLLECT -> shade.wanted == null
+                    ? "\"I will bring you a stack of whatever I find.\""
+                    : "\"I will bring you a stack of "
+                      + shade.wanted.getName().getString() + ".\"";
             case CRYSTAL -> "\"I will set a crystal on the bedrock.\"";
         }, shade.order.colour, false);
+    }
+
+    /** Name the quarry for the shade currently being addressed. */
+    public static boolean setQuarry(ServerPlayer owner, Block block) {
+        Shade shade = selected(owner);
+        if (shade == null) {
+            return false;
+        }
+        shade.wanted = block;
+        shade.order = Order.COLLECT;
+        shade.cargoType = null;
+        shade.cargo = 0;
+        shade.headingHome = false;
+        if (owner.serverLevel().getEntity(shade.entity) instanceof EnderMan e) {
+            rename(e, shade);
+        }
+        say(owner, NAMES[shade.slot] + ": \"" + block.getName().getString()
+                + ". I will find it.\"", Order.COLLECT.colour, false);
+        return true;
+    }
+
+    private static Block aimedBlock(ServerPlayer owner) {
+        net.minecraft.world.phys.HitResult hit = owner.pick(48.0, 0.0F, false);
+        if (hit instanceof net.minecraft.world.phys.BlockHitResult block) {
+            BlockState state = owner.level().getBlockState(block.getBlockPos());
+            if (!state.isAir()) {
+                return state.getBlock();
+            }
+        }
+        return null;
     }
 
     private static Shade selected(ServerPlayer owner) {
@@ -309,13 +349,24 @@ public final class DragonMinions {
             }
             return;
         }
-        // nothing worth taking nearby: hop somewhere new inside the forage range
+        // nothing in reach: hop somewhere new inside the forage range. When a
+        // quarry is named, alternate between the surface and a random depth so
+        // buried seams actually get searched.
         if (level.getGameTime() % 40 == 0) {
             double angle = level.random.nextDouble() * Math.PI * 2;
             double dist = 64.0 + level.random.nextDouble() * FORAGE_RANGE;
-            hopToward(level, minion,
-                    owner.getX() + Math.cos(angle) * dist,
-                    owner.getZ() + Math.sin(angle) * dist, 0.0);
+            double x = owner.getX() + Math.cos(angle) * dist;
+            double z = owner.getZ() + Math.sin(angle) * dist;
+            if (shade.wanted != null && level.random.nextBoolean()) {
+                int y = level.getMinBuildHeight() + 8
+                        + level.random.nextInt(Math.max(16, level.getSeaLevel()
+                        - level.getMinBuildHeight() - 8));
+                minion.teleportTo(x, y, z);
+                level.playSound(null, minion.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
+                        SoundSource.HOSTILE, 0.6F, 1.0F);
+            } else {
+                hopToward(level, minion, x, z, 0.0);
+            }
         }
     }
 
@@ -335,9 +386,18 @@ public final class DragonMinions {
         minion.setCarriedBlock(null);
     }
 
-    /** A surface block of the trip's chosen kind, never tunnelling downward. */
+    /**
+     * Find something worth taking.
+     *
+     * With no quarry named it only strips surface blocks, so it will not
+     * swiss-cheese the landscape. Once you name one it will dig for it — an
+     * enderman can stand anywhere, so buried ore is fair game.
+     */
     private static BlockPos findHarvest(ServerLevel level, BlockPos base, Shade shade) {
-        for (BlockPos pos : BlockPos.randomInCube(level.random, 24, base, WORK_RADIUS)) {
+        Block quarry = shade.wanted != null ? shade.wanted
+                : (shade.cargoType != null ? shade.cargoType.getBlock() : null);
+        int samples = quarry != null ? 160 : 24;
+        for (BlockPos pos : BlockPos.randomInCube(level.random, samples, base, WORK_RADIUS)) {
             BlockState state = level.getBlockState(pos);
             if (state.isAir() || state.hasBlockEntity()
                     || state.getDestroySpeed(level, pos) < 0
@@ -346,8 +406,12 @@ public final class DragonMinions {
                     || state.getBlock().asItem() == Items.AIR) {
                 continue;
             }
-            if (!level.getBlockState(pos.above()).isAir()) {
-                continue;
+            if (quarry != null) {
+                if (!state.is(quarry)) {
+                    continue;
+                }
+            } else if (!level.getBlockState(pos.above()).isAir()) {
+                continue;                       // unnamed: surface only, no tunnelling
             }
             if (shade.cargoType != null && !state.is(shade.cargoType.getBlock())) {
                 continue;                       // one kind per trip, so it stacks
@@ -357,26 +421,25 @@ public final class DragonMinions {
         return null;
     }
 
-    /** Place an end crystal on bedrock, spending one from the owner's pack. */
+    /**
+     * Fashion an end crystal and set it on bedrock.
+     *
+     * The shades make these — it is their trade. A dragon has no hands for
+     * crafting, so this is how the court keeps a domain stocked. Slow on
+     * purpose: one crystal every CRYSTAL_WORK ticks per shade.
+     */
     private static void crystal(ServerPlayer owner, EnderMan minion, ServerLevel level, Shade shade) {
         minion.setTarget(null);
-        if (level.getGameTime() % 40 != 0) {
+        if (level.getGameTime() % CRYSTAL_WORK != 0) {
             return;
         }
         BlockPos base = minion.blockPosition();
-        for (BlockPos pos : BlockPos.randomInCube(level.random, 32, base, 24)) {
+        for (BlockPos pos : BlockPos.randomInCube(level.random, 48, base, 24)) {
             if (!level.getBlockState(pos).is(Blocks.BEDROCK)) {
                 continue;
             }
             if (!level.getBlockState(pos.above()).isAir() || !level.getBlockState(pos.above(2)).isAir()) {
                 continue;
-            }
-            if (!spend(owner)) {
-                say(owner, NAMES[shade.slot] + ": \"You carry no crystals.\"",
-                        ChatFormatting.DARK_GRAY, true);
-                shade.order = Order.DEFEND;
-                rename(minion, shade);
-                return;
             }
             EndCrystal crystal = new EndCrystal(level,
                     pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5);
@@ -392,17 +455,6 @@ public final class DragonMinions {
         // no bedrock in reach - go looking for some
         hopToward(level, minion, minion.getX() + level.random.nextInt(129) - 64,
                 minion.getZ() + level.random.nextInt(129) - 64, 0.0);
-    }
-
-    private static boolean spend(ServerPlayer owner) {
-        for (int i = 0; i < owner.getInventory().getContainerSize(); i++) {
-            ItemStack stack = owner.getInventory().getItem(i);
-            if (stack.is(Items.END_CRYSTAL)) {
-                stack.shrink(1);
-                return true;
-            }
-        }
-        return false;
     }
 
     // ----------------------------------------------------------- movement

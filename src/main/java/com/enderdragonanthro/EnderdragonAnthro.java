@@ -7,6 +7,8 @@ import com.enderdragonanthro.ability.DragonFlight;
 import com.enderdragonanthro.ability.DragonMinions;
 import com.enderdragonanthro.ability.EndermanAffection;
 import com.enderdragonanthro.boss.DragonBossBars;
+import com.enderdragonanthro.item.ModItems;
+import com.enderdragonanthro.command.ShadeCommand;
 import com.enderdragonanthro.network.AbilityActionPayload;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.fabricmc.api.ModInitializer;
@@ -75,6 +77,9 @@ public class EnderdragonAnthro implements ModInitializer {
             DragonAbilities.crater(sp, pos);
             return InteractionResult.SUCCESS;
         });
+
+        ModItems.register();
+        ShadeCommand.register();
 
         LOGGER.info("Enderdragon Anthro initialized");
     }

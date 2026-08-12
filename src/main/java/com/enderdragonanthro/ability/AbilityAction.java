@@ -14,6 +14,7 @@ public enum AbilityAction {
     // evasive jump is the escape button, so it is the expensive one
     EVADE(1200, "Evade"),
     WARP(200, "Warp"),
+    RETURN(100, "Home"),
     GLIDE(0, "Glide"),
     BOOST(20, "Boost"),
     SUMMON(200, "Summon"),

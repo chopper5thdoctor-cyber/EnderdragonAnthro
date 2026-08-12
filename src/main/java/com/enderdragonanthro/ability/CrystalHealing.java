@@ -63,6 +63,9 @@ public final class CrystalHealing {
             double best = Double.MAX_VALUE;
             for (EndCrystal crystal : level.getEntitiesOfClass(EndCrystal.class,
                     player.getBoundingBox().inflate(RANGE))) {
+                if (HomingCrystals.isHoming(crystal)) {
+                    continue;              // an anchor is a waypoint, not a battery
+                }
                 double dist = crystal.distanceToSqr(player);
                 if (dist < best) {
                     best = dist;
