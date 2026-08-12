@@ -40,10 +40,12 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         register("buffet", GLFW.GLFW_KEY_V, AbilityAction.BUFFET);
         register("charge", GLFW.GLFW_KEY_C, AbilityAction.CHARGE);
         register("crater", GLFW.GLFW_KEY_B, AbilityAction.CRATER);
-        register("teleport", GLFW.GLFW_KEY_X, AbilityAction.TELEPORT);
+        register("evade", GLFW.GLFW_KEY_X, AbilityAction.EVADE);
+        register("warp", GLFW.GLFW_KEY_K, AbilityAction.WARP);
         register("boost", GLFW.GLFW_KEY_H, AbilityAction.BOOST);
         register("summon", GLFW.GLFW_KEY_Z, AbilityAction.SUMMON);
-        register("command", GLFW.GLFW_KEY_N, AbilityAction.COMMAND);
+        register("select", GLFW.GLFW_KEY_N, AbilityAction.SELECT);
+        register("command", GLFW.GLFW_KEY_M, AbilityAction.COMMAND);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             DragonHud.tick();

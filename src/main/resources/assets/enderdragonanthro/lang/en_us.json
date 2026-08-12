@@ -6,9 +6,11 @@
   "key.enderdragonanthro.buffet": "Wing Buffet",
   "key.enderdragonanthro.charge": "Dragon Charge",
   "key.enderdragonanthro.crater": "Crater Punch (toggle)",
-  "key.enderdragonanthro.teleport": "Blink",
   "key.enderdragonanthro.boost": "Wing Boost",
-  "key.enderdragonanthro.summon": "Summon Shade",
-  "key.enderdragonanthro.command": "Order Shades",
-  "message.enderdragonanthro.cooldown": "Recharging (%s s)"
+  "key.enderdragonanthro.summon": "Summon a Shade",
+  "key.enderdragonanthro.command": "Give the Order",
+  "message.enderdragonanthro.cooldown": "Recharging (%s s)",
+  "key.enderdragonanthro.evade": "Evasive Jump (1000+ blocks)",
+  "key.enderdragonanthro.warp": "Warp to a Distant Player",
+  "key.enderdragonanthro.select": "Address a Shade"
 }

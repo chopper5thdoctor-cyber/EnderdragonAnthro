@@ -18,14 +18,17 @@ import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.DragonFireball;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -41,7 +44,10 @@ public final class DragonAbilities {
 
     /** How far the breath will look for ground before giving up. */
     private static final double BREATH_REACH = 100.0;
-    private static final double TELEPORT_REACH = 64.0;
+    /** Evasive jump always lands at least this far away. */
+    private static final double EVADE_MIN_DISTANCE = 1000.0;
+    /** Player warp only considers people beyond this. */
+    private static final double WARP_MIN_DISTANCE = 100.0;
 
     private DragonAbilities() {
     }
@@ -70,11 +76,13 @@ public final class DragonAbilities {
             case BUFFET -> wingBuffet(player);
             case CHARGE -> beginCharge(player);
             case CRATER -> toggleCrater(player);
-            case TELEPORT -> teleport(player);
+            case EVADE -> evade(player);
+            case WARP -> warpToPlayer(player);
             case GLIDE -> DragonFlight.start(player);
             case BOOST -> DragonFlight.boost(player);
             case SUMMON -> DragonMinions.summon(player);
-            case COMMAND -> DragonMinions.cycleOrder(player);
+            case SELECT -> DragonMinions.select(player);
+            case COMMAND -> DragonMinions.order(player);
             case TRANSFORM -> {
             }
         }
@@ -212,30 +220,78 @@ public final class DragonAbilities {
     }
 
     /**
-     * Blink to where you are looking. If the dragon does not fit there, search
-     * outward for somewhere it does — the same idea as chorus fruit, but the
-     * fit test uses the real (very large) hitbox rather than a single block.
+     * Evasive jump: somewhere random, at least a thousand blocks out.
+     *
+     * This is the panic button, so it carries the longest cooldown in the kit.
+     * A handful of bearings are tried and the first that can hold the dragon
+     * wins; failing that, nothing happens rather than dumping you inside rock.
      */
-    private static void teleport(ServerPlayer player) {
+    private static void evade(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
-        Vec3 eye = player.getEyePosition();
-        Vec3 far = eye.add(player.getLookAngle().scale(TELEPORT_REACH));
-        BlockHitResult hit = level.clip(new ClipContext(eye, far,
-                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
-        Vec3 aim = hit.getType() == HitResult.Type.BLOCK
-                ? hit.getLocation().add(Vec3.atLowerCornerOf(hit.getDirection().getNormal()).scale(0.5))
-                : far;
+        for (int attempt = 0; attempt < 12; attempt++) {
+            double angle = level.random.nextDouble() * Math.PI * 2.0;
+            double dist = EVADE_MIN_DISTANCE + level.random.nextDouble() * 512.0;
+            double x = player.getX() + Math.cos(angle) * dist;
+            double z = player.getZ() + Math.sin(angle) * dist;
+            if (!level.getWorldBorder().isWithinBounds(BlockPos.containing(x, 64, z))) {
+                continue;
+            }
+            BlockPos surface = level.getHeightmapPos(
+                    Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, BlockPos.containing(x, 0, z));
+            Vec3 dest = new Vec3(surface.getX() + 0.5, surface.getY(), surface.getZ() + 0.5);
+            if (!fits(player, level, dest)) {
+                dest = nearestFit(player, level, dest);
+            }
+            if (dest != null) {
+                jump(player, dest);
+                player.displayClientMessage(Component.literal(
+                        String.format("Gone. %,d blocks.", (int) dist))
+                        .withStyle(ChatFormatting.DARK_PURPLE), true);
+                return;
+            }
+        }
+        player.displayClientMessage(Component.literal("The void offers no footing.")
+                .withStyle(ChatFormatting.DARK_PURPLE), true);
+    }
 
-        Vec3 dest = fits(player, level, aim) ? aim : nearestFit(player, level, aim);
-        if (dest == null) {
-            player.displayClientMessage(Component.literal("Nowhere there will hold you.")
+    /** Jump to a random player who is not already close by. */
+    private static void warpToPlayer(ServerPlayer player) {
+        ServerLevel level = player.serverLevel();
+        List<ServerPlayer> candidates = new ArrayList<>();
+        for (ServerPlayer other : player.server.getPlayerList().getPlayers()) {
+            if (other == player || other.level() != level) {
+                continue;
+            }
+            if (other.distanceToSqr(player) > WARP_MIN_DISTANCE * WARP_MIN_DISTANCE) {
+                candidates.add(other);
+            }
+        }
+        if (candidates.isEmpty()) {
+            player.displayClientMessage(Component.literal("No one is far enough to reach for.")
                     .withStyle(ChatFormatting.DARK_PURPLE), true);
             return;
         }
+        ServerPlayer target = candidates.get(level.random.nextInt(candidates.size()));
+        Vec3 beside = target.position().add(
+                (level.random.nextDouble() - 0.5) * 6.0, 0.0, (level.random.nextDouble() - 0.5) * 6.0);
+        Vec3 dest = fits(player, level, beside) ? beside : nearestFit(player, level, beside);
+        if (dest == null) {
+            player.displayClientMessage(Component.literal("There is no room beside them.")
+                    .withStyle(ChatFormatting.DARK_PURPLE), true);
+            return;
+        }
+        jump(player, dest);
+        player.displayClientMessage(Component.literal("You step to " + target.getName().getString() + ".")
+                .withStyle(ChatFormatting.LIGHT_PURPLE), true);
+    }
+
+    private static void jump(ServerPlayer player, Vec3 dest) {
+        ServerLevel level = player.serverLevel();
         level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                 SoundSource.PLAYERS, 1.0F, 0.6F);
         player.teleportTo(dest.x, dest.y, dest.z);
         player.connection.resetPosition();
+        player.resetFallDistance();
         DragonFlight.clear(player);
         level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                 SoundSource.PLAYERS, 1.0F, 0.6F);
@@ -285,16 +341,33 @@ public final class DragonAbilities {
         return cur;
     }
 
-    /** The 5x5x5 crater, used by the left-click hook when the toggle is armed. */
+    /**
+     * The 5x5x5 crater, used by the left-click hook when the toggle is armed.
+     *
+     * Obsidian and end stone hold — those are the canon dragon's own limits and
+     * they are what keeps the End fight standing. Bedrock does NOT: breaking
+     * the floor out from under yourself is a choice you are allowed to make.
+     * Everything comes back silk-touch, so the block itself drops.
+     */
     public static void crater(ServerPlayer player, BlockPos centre) {
         ServerLevel level = player.serverLevel();
         int broken = 0;
         for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-2, -2, -2), centre.offset(2, 2, 2))) {
             var state = level.getBlockState(pos);
-            if (state.isAir() || state.getDestroySpeed(level, pos) < 0) {
-                continue;                       // bedrock, barriers and the like stay put
+            if (state.isAir() || holds(state)) {
+                continue;
             }
-            level.destroyBlock(pos.immutable(), true, player);
+            BlockPos at = pos.immutable();
+            var item = state.getBlock().asItem();
+            level.removeBlock(at, false);
+            if (item != net.minecraft.world.item.Items.AIR) {
+                net.minecraft.world.entity.item.ItemEntity drop =
+                        new net.minecraft.world.entity.item.ItemEntity(level,
+                                at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5,
+                                new net.minecraft.world.item.ItemStack(item));
+                drop.setDefaultPickUpDelay();
+                level.addFreshEntity(drop);
+            }
             broken++;
         }
         if (broken > 0) {
@@ -303,6 +376,18 @@ public final class DragonAbilities {
             level.sendParticles(ParticleTypes.EXPLOSION, centre.getX() + 0.5,
                     centre.getY() + 0.5, centre.getZ() + 0.5, 6, 1.5, 1.5, 1.5, 0.0);
         }
+    }
+
+    /** Blocks a dragon cannot break, bedrock deliberately excluded. */
+    private static boolean holds(net.minecraft.world.level.block.state.BlockState state) {
+        return state.is(net.minecraft.world.level.block.Blocks.OBSIDIAN)
+                || state.is(net.minecraft.world.level.block.Blocks.CRYING_OBSIDIAN)
+                || state.is(net.minecraft.world.level.block.Blocks.END_STONE)
+                || state.is(net.minecraft.world.level.block.Blocks.END_STONE_BRICKS)
+                || state.is(net.minecraft.world.level.block.Blocks.BARRIER)
+                || state.is(net.minecraft.world.level.block.Blocks.END_PORTAL_FRAME)
+                || state.is(net.minecraft.world.level.block.Blocks.END_PORTAL)
+                || state.is(net.minecraft.world.level.block.Blocks.END_GATEWAY);
     }
 
     private static float byDifficulty(Difficulty difficulty, float easy, float normal, float hard) {

@@ -8,6 +8,7 @@
     "LivingEntityEffectImmunityMixin",
     "LivingEntityGlideMixin",
     "LivingEntityTargetabilityMixin",
+    "PlayerCrystalImmunityMixin",
     "PlayerDamageResilienceMixin",
     "PlayerTransformDataMixin"
   ],
