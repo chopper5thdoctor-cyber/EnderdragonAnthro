@@ -78,7 +78,7 @@ public class DragonFormModel {
 
         // ---- head ----
         PartDefinition head = root.addOrReplaceChild("head", CubeListBuilder.create()
-                        .texOffs(-2, 20).addBox(-8.000F, -8.000F, -8.000F, 16.000F, 14.000F, 16.000F),
+                        .texOffs(0, 20).addBox(-8.000F, -8.000F, -8.000F, 16.000F, 14.000F, 16.000F),
                 PartPose.offset(0.000F, -13.000F, 0.000F));
         head.addOrReplaceChild("head_spin", CubeListBuilder.create()
                         .texOffs(284, 384).addBox(-2.000F, -3.000F, -3.000F, 4.000F, 6.000F, 6.000F),
