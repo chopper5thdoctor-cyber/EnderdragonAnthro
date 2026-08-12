@@ -5,9 +5,19 @@ setlocal
 pushd "%~dp0"
 
 call gradlew.bat runClient %*
+set "EXITCODE=%ERRORLEVEL%"
 
 echo.
-echo Client closed - cleaning up...
+if not "%EXITCODE%"=="0" (
+    echo ============================================================
+    echo  BUILD FAILED ^(exit code %EXITCODE%^).
+    echo  Scroll up to the first line containing "error:" - that line
+    echo  names the file and what is wrong. Paste it to me.
+    echo ============================================================
+) else (
+    echo Client closed - cleaning up...
+)
+
 call gradlew.bat --stop >nul 2>&1
 
 set "ROOT=%~dp0"
@@ -16,3 +26,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$r='%ROOT%'; Get-CimInst
 
 popd
 echo Done.
+
+REM Hold the window open on failure - otherwise the error scrolls past and
+REM the console closes with it, which is no help to anybody.
+if not "%EXITCODE%"=="0" (
+    echo.
+    pause
+)
+exit /b %EXITCODE%

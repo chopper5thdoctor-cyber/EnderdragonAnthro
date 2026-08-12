@@ -62,6 +62,13 @@ described above shipped because this check did not exist yet.
 It checks **where the corners are, not what is painted on them** — a cube can
 pass this and still render with its texture running backwards.
 
+It also checks that every `DragonFormModel.X` the rest of the mod references is
+still declared. `DragonFormModel.java` is **generated**, so anything hand-added
+to it survives only until the next conversion: `GROUND_OFFSET` was added by
+hand once and vanished the next time the wings changed, breaking the build.
+**A new constant goes in the template in `bbmodel_to_java.py`, never in the
+generated file.**
+
 ## preview_wings.py
 
 ```bash

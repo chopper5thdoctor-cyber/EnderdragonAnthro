@@ -259,6 +259,14 @@ public class DragonFormModel {{
      */
     public static final float RENDER_SCALE = 0.2118F;
 
+    /**
+     * The authoring rig puts the foot plane at y=96, which lands on the ground
+     * only at a scale of exactly 0.25. Trimming to RENDER_SCALE for the hitbox
+     * lifts the whole dragon, so DragonFormLayer translates by this first.
+     * Without it the dragon hovers about a block off the floor.
+     */
+    public static final float GROUND_OFFSET = 24.0F - 96.0F * RENDER_SCALE;
+
 {base}
 
     // the vanilla player pivots these parts track

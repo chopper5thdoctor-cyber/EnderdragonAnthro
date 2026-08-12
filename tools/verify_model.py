@@ -130,6 +130,39 @@ def main(path):
             print(f"  MISMATCH {name}: nearest cube off by {dist}u")
         sys.exit("FAIL: the generated model does not match the bbmodel")
     print("PASS: the generated model reproduces the bbmodel")
+    check_symbols()
+
+
+def check_symbols():
+    """Every DragonFormModel.X the rest of the mod uses must still be declared.
+
+    DragonFormModel.java is generated, so anything hand-added to it survives
+    only until the next conversion. GROUND_OFFSET was added by hand once and
+    vanished the next time the wings changed, taking the build with it. Adding
+    a constant means adding it to the template in bbmodel_to_java.py.
+    """
+    generated = open(JAVA).read()
+    declared = set(re.findall(r"(?:static\s+final\s+\w+|ModelPart|void|public)\s+(\w+)\s*[=({;]",
+                              generated))
+    declared |= set(re.findall(r"\b(\w+)\s*\(", generated))
+
+    missing = {}
+    for root, _, files in os.walk(os.path.join(HERE, "src/main/java")):
+        for f in files:
+            if not f.endswith(".java") or f == "DragonFormModel.java":
+                continue
+            path = os.path.join(root, f)
+            for sym in set(re.findall(r"DragonFormModel\.(\w+)", open(path).read())):
+                if sym not in declared:
+                    missing.setdefault(sym, []).append(os.path.relpath(path, HERE))
+
+    if missing:
+        for sym, users in sorted(missing.items()):
+            print(f"  MISSING DragonFormModel.{sym} - used by {', '.join(users)}")
+        sys.exit("FAIL: the generated model is missing symbols the mod uses. "
+                 "Add them to the template in tools/bbmodel_to_java.py, not to "
+                 "the generated file.")
+    print("PASS: every DragonFormModel symbol the mod references is declared")
 
 
 if __name__ == "__main__":

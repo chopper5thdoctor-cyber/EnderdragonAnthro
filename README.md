@@ -143,7 +143,9 @@ same tasks.
 
 **Updating:** `git pull` then `run.bat`. Close Minecraft first — the build locks files.
 
-**On Windows**, `run.bat` runs the dev client and cleans up its own JVMs afterwards, and
+**On Windows**, `run.bat` runs the dev client and cleans up its own JVMs afterwards. On
+a build failure it now prints a banner and **pauses** so the error stays on screen
+instead of the console closing over it. Also,
 `unlock.bat` clears anything still holding the folder (it only stops Java processes whose
 command line points at this folder, so other Java apps are untouched). The Gradle daemon
 and file-system watching are disabled in `gradle.properties` — between them they are why
@@ -159,7 +161,10 @@ python3 tools/verify_model.py          # always run this
 python3 tools/preview_wings.py         # and this, if you touched the wings
 ```
 
-`DragonFormModel.java` is **generated** — never hand-edit it. The verifier rebuilds every
+`DragonFormModel.java` is **generated** — never hand-edit it. A constant you add
+by hand survives exactly until the next conversion; put it in the template in
+`bbmodel_to_java.py` instead. The verifier now fails loudly if the generated
+file is missing a symbol the rest of the mod uses. The verifier rebuilds every
 cube's world-space corners from both the generated Java and the `.bbmodel` and compares
 them; it exists because three conversion bugs shipped without it. See
 [MODELING_GUIDE.md](MODELING_GUIDE.md) for the six-bone rig contract the model must keep.
