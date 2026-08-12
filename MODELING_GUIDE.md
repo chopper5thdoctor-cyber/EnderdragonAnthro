@@ -65,6 +65,34 @@ six named bones every frame. Walking, sneaking, swimming, arm swings — all fre
    cubes exist in the project only so you can see the head while sculpting;
    they are ignored on the way back in. Keep the space around them clear.
 
+## Mirrored pairs: the geometry already mirrors them
+
+A cube's `u` runs from its box origin to origin+size. The wings are authored as
+a genuine pair — `wing_left` spans x 16..72, `wing_right` spans x −72..−16 — so
+their low-u ends point in **opposite** directions all on their own. That already
+*is* the mirroring a symmetric pair needs.
+
+Blockbench still flags the −x twin with `mirror_uv`, and honouring that in
+Minecraft mirrors the cube a **second** time. The membrane then reads `ng][wi`
+instead of `[wing]`: the inner and tip panels swap end-for-end and their thin
+edges meet in a seam down the middle of the wing.
+
+Which twin the shared art was painted for is a fact about the art, not the
+geometry, so there is nothing to derive it from. `MIRROR_OVERRIDE` in
+`bbmodel_to_java.py` records it: the art is painted low-u = **outboard**, which
+`wing_right` gets for free and `wing_left` needs a flip to reach.
+
+**`verify_model.py` will not catch this** — it checks where corners are, not
+what is painted on them. Use:
+
+```bash
+python3 tools/preview_wings.py       # writes art/wing_preview.png
+```
+
+Each wing must be one unbroken membrane — central spar, struts fanning out,
+scalloped trailing edge running continuously from body to tip — and the two must
+be mirror images. Two panels meeting thin-end-to-thin-end means a reversed `u`.
+
 ## Flat cubes: paint one face, leave the other empty
 
 The wing membranes are zero-height boxes (`56 × 0 × 56`). A box of zero height

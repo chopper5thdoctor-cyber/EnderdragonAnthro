@@ -39,14 +39,6 @@ public class DragonFormModel {
      */
     public static final float RENDER_SCALE = 0.2118F;
 
-    /**
-     * The authoring rig puts the foot plane at y=96, which lands on the ground
-     * only at a scale of exactly 0.25. Trimming to RENDER_SCALE lifts the whole
-     * model, so the layer drops it back by this much (in rendered units) before
-     * scaling. Without it the dragon hovers about a block off the floor.
-     */
-    public static final float GROUND_OFFSET = 24.0F - 96.0F * RENDER_SCALE;
-
     private static final float[] BASE_HEAD = {0.000F, -13.000F, 0.000F};
     private static final float[] BASE_BODY = {0.000F, -13.000F, 0.000F};
     private static final float[] BASE_RIGHT_ARM = {-20.000F, -5.000F, 2.000F};
@@ -290,22 +282,22 @@ public class DragonFormModel {
 
         // ---- wings: re-parented onto body so they follow the torso ----
         PartDefinition wing_right = body.addOrReplaceChild("wing_right", CubeListBuilder.create()
-                        .mirror(true).texOffs(0, 300).addBox(-56.000F, -4.000F, -4.000F, 56.000F, 8.000F, 8.000F)
-                        .texOffs(0, 320).addBox(-56.000F, 0.000F, 4.000F, 56.000F, 0.000F, 56.000F)
-                        .mirror(false),
+                        .texOffs(0, 300).addBox(-56.000F, -4.000F, -4.000F, 56.000F, 8.000F, 8.000F)
+                        .texOffs(0, 320).addBox(-56.000F, 0.000F, 4.000F, 56.000F, 0.000F, 56.000F),
                 PartPose.offsetAndRotation(-16.000F, 6.000F, 8.000F, -1.3355F, 0.8951F, 0.3530F));
         wing_right.addOrReplaceChild("wing_tip_right", CubeListBuilder.create()
-                        .mirror(true).texOffs(132, 300).addBox(-56.000F, -2.000F, -2.000F, 56.000F, 4.000F, 4.000F)
-                        .texOffs(256, 320).addBox(-56.000F, 0.000F, 2.000F, 56.000F, 0.000F, 56.000F)
-                        .mirror(false),
+                        .texOffs(132, 300).addBox(-56.000F, -2.000F, -2.000F, 56.000F, 4.000F, 4.000F)
+                        .texOffs(256, 320).addBox(-56.000F, 0.000F, 2.000F, 56.000F, 0.000F, 56.000F),
                 PartPose.offset(-56.000F, 0.000F, 0.000F));
         PartDefinition wing_left = body.addOrReplaceChild("wing_left", CubeListBuilder.create()
-                        .texOffs(0, 300).addBox(0.000F, -4.000F, -4.000F, 56.000F, 8.000F, 8.000F)
-                        .texOffs(0, 320).addBox(0.000F, 0.000F, 4.000F, 56.000F, 0.000F, 56.000F),
+                        .mirror(true).texOffs(0, 300).addBox(0.000F, -4.000F, -4.000F, 56.000F, 8.000F, 8.000F)
+                        .texOffs(0, 320).addBox(0.000F, 0.000F, 4.000F, 56.000F, 0.000F, 56.000F)
+                        .mirror(false),
                 PartPose.offsetAndRotation(16.000F, 6.000F, 8.000F, -1.3355F, -0.8951F, -0.3530F));
         wing_left.addOrReplaceChild("wing_tip_left", CubeListBuilder.create()
-                        .texOffs(132, 300).addBox(0.000F, -2.000F, -2.000F, 56.000F, 4.000F, 4.000F)
-                        .texOffs(256, 320).addBox(0.000F, 0.000F, 2.000F, 56.000F, 0.000F, 56.000F),
+                        .mirror(true).texOffs(132, 300).addBox(0.000F, -2.000F, -2.000F, 56.000F, 4.000F, 4.000F)
+                        .texOffs(256, 320).addBox(0.000F, 0.000F, 2.000F, 56.000F, 0.000F, 56.000F)
+                        .mirror(false),
                 PartPose.offset(56.000F, 0.000F, 0.000F));
 
         return LayerDefinition.create(mesh, 512, 512);

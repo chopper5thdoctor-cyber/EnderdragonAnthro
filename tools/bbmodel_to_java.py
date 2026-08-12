@@ -27,6 +27,41 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 JAVA_OUT = os.path.join(HERE, "src/main/java/com/enderdragonanthro/client/model/DragonFormModel.java")
 TEX_DIR = os.path.join(HERE, "src/main/resources/assets/enderdragonanthro/textures/entity")
 
+# The wings are a mirror pair sharing one UV region, and Blockbench flags the
+# -x twin with mirror_uv. In Minecraft that flag is redundant AND harmful.
+#
+# A cube's u runs from its box origin to origin+size. wing_left spans x 16..72,
+# so its low-u end is INBOARD; wing_right spans x -72..-16, so its low-u end is
+# OUTBOARD. The pair therefore already runs its texture in opposite directions
+# with no flag at all -- which is exactly the mirroring a symmetric pair wants.
+# Adding .mirror() on top of that mirrors it a second time.
+#
+# The evidence, from two builds: with mirror_uv ignored entirely, wing_right
+# rendered correctly and wing_left came out with its inner and tip panels
+# swapped end-for-end (the membrane read "ng][wi" instead of "[wing]").
+# Honouring mirror_uv then broke wing_right the same way. So the art is painted
+# low-u = OUTBOARD: wing_right gets that for free and wing_left is the one that
+# needs flipping.
+#
+# Scoped to the wings by name rather than applied as a rule, because the
+# handedness the art was painted for is a fact about the art, not about the
+# geometry -- there is nothing in the model to derive it from.
+MIRROR_OVERRIDE = {
+    "wing_bone_left": True,
+    "wing_membrane_left": True,
+    "wing_tip_bone_left": True,
+    "wing_tip_membrane_left": True,
+    "wing_bone_right": False,
+    "wing_membrane_right": False,
+    "wing_tip_bone_right": False,
+    "wing_tip_membrane_right": False,
+}
+
+
+def wants_mirror(e):
+    """Blockbench's mirror_uv, except where the wings override it."""
+    return MIRROR_OVERRIDE.get(e.get("name", ""), bool(e.get("mirror_uv")))
+
 
 def jy(v):
     return GROUND - v
@@ -82,13 +117,14 @@ def convert(path):
         # it becomes a one-cube child part pivoted on the cube's own origin.
         # mirror_uv flips a cube's texture horizontally. Two cubes mirrored in
         # world space share one UV region, so without this the asymmetric art
-        # (wing membranes especially) lands reversed on one side.
+        # lands reversed on one side. See MIRROR_OVERRIDE for the wings, where
+        # the flag has to be taken the other way round.
         boxes, spun, mirrored = [], [], False
         for e in cubes:
             u, v = e["uv_offset"]
             (x, y, z), (w, h, d) = jbox(e)
             tex = f".texOffs({int(round(u))}, {int(round(v))})"
-            want = bool(e.get("mirror_uv"))
+            want = wants_mirror(e)
             if any(abs(t) > 1e-9 for t in e.get("rotation", [0, 0, 0])):
                 spun.append((e, tex, (x, y, z), (w, h, d), want))
             else:

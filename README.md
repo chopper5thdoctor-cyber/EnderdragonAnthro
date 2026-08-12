@@ -156,6 +156,7 @@ Edit `art/dragon_form.bbmodel` in [Blockbench](https://blockbench.net), then:
 ```bash
 python3 tools/bbmodel_to_java.py art/dragon_form.bbmodel
 python3 tools/verify_model.py          # always run this
+python3 tools/preview_wings.py         # and this, if you touched the wings
 ```
 
 `DragonFormModel.java` is **generated** — never hand-edit it. The verifier rebuilds every

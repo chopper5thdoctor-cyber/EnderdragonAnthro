@@ -58,3 +58,21 @@ python3 tools/verify_model.py
 Rebuilds every cube's world-space corners from the generated Java and from the
 .bbmodel, then compares. **Run it after every conversion.** Both of the bugs
 described above shipped because this check did not exist yet.
+
+It checks **where the corners are, not what is painted on them** — a cube can
+pass this and still render with its texture running backwards.
+
+## preview_wings.py
+
+```bash
+python3 tools/preview_wings.py       # writes art/wing_preview.png
+```
+
+Lays the wing membranes out flat and samples the texture the way
+`ModelPart.Cube` does, so a reversed `u` is visible without launching the game.
+Each wing must be one unbroken membrane and the two must be mirror images; two
+panels meeting thin-end-to-thin-end mean the mirror flag is wrong on that side.
+
+This is the check that finally explained why the membranes read `ng][wi`
+instead of `[wing]` for two builds running. See `MIRROR_OVERRIDE` in
+`bbmodel_to_java.py`.
