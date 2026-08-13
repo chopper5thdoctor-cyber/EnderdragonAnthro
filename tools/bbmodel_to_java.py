@@ -94,6 +94,9 @@ def convert(path):
     groups = {g["uuid"]: g for g in bb.get("groups", [])}
     els = {e["uuid"]: e for e in bb["elements"]}
     lines, used = [], set()
+    # The right arm's own extent, so the first-person hand can be fitted from
+    # the rig rather than from numbers typed in by hand.
+    arm = {}
 
     def ident(name):
         s = re.sub(r"\W", "_", name)
@@ -134,6 +137,12 @@ def convert(path):
                     mirrored = want
                 boxes.append(f"{prefix}{tex}.addBox({x - piv[0]:.3f}F, {y - piv[1]:.3f}F, "
                              f"{z - piv[2]:.3f}F, {w:.3f}F, {h:.3f}F, {d:.3f}F)")
+                if name == "right_arm":
+                    lo = (x - piv[0], y - piv[1], z - piv[2])
+                    hi = (lo[0] + w, lo[1] + h, lo[2] + d)
+                    for i in range(3):
+                        arm[f"lo{i}"] = min(arm.get(f"lo{i}", lo[i]), lo[i])
+                        arm[f"hi{i}"] = max(arm.get(f"hi{i}", hi[i]), hi[i])
         if mirrored:
             boxes.append(".mirror(false)")
         cl = "CubeListBuilder.create()" if not boxes else \
@@ -194,8 +203,13 @@ def convert(path):
     vanilla = "\n".join(f"    private static final float[] V_{k.upper()} = "
                         f"{{{v[0]}F, {v[1]}F, {v[2]}F}};" for k, v in VANILLA_PIVOTS.items())
 
+    if len(arm) != 6:
+        sys.exit("ERROR: could not measure right_arm; the first-person hand needs it")
     java = TEMPLATE.format(base=base, vanilla=vanilla, parts="\n".join(lines),
-                           tw=res["width"], th=res["height"])
+                           tw=res["width"], th=res["height"],
+                           ax0=f"{arm['lo0']:.3f}", ax1=f"{arm['hi0']:.3f}",
+                           ay0=f"{arm['lo1']:.3f}", ay1=f"{arm['hi1']:.3f}",
+                           az0=f"{arm['lo2']:.3f}", az1=f"{arm['hi2']:.3f}")
     os.makedirs(os.path.dirname(JAVA_OUT), exist_ok=True)
     open(JAVA_OUT, "w").write(java)
 
@@ -268,15 +282,22 @@ public class DragonFormModel {{
     public static final float GROUND_OFFSET = 24.0F - 96.0F * RENDER_SCALE;
 
     /**
-     * The first-person arm.
-     *
-     * The dragon's arm runs from the shoulder at y=-1 to the fingertips at
-     * y=46 — 47 model units, against the vanilla arm's 12. Scaling by that
-     * ratio keeps the screen footprint the player's hand had while putting the
-     * dragon's bulk and texture in its place. If the rig's arm length changes,
-     * this is the number to revisit.
+     * The right arm's own box, in the arm part's local space, measured off the
+     * rig at conversion time. The first-person hand is fitted from these, so
+     * reshaping the arm in Blockbench moves the hand with it.
      */
-    public static final float ARM_SCALE = 12.0F / 47.0F;
+    public static final float ARM_MIN_X = {ax0}F;
+    public static final float ARM_MAX_X = {ax1}F;
+    public static final float ARM_MIN_Y = {ay0}F;
+    public static final float ARM_MAX_Y = {ay1}F;
+    public static final float ARM_MIN_Z = {az0}F;
+    public static final float ARM_MAX_Z = {az1}F;
+
+    /**
+     * Scaled so the dragon's arm is as long on screen as the human one it
+     * replaces — the vanilla arm is 12 model units from shoulder to fingertip.
+     */
+    public static final float ARM_SCALE = 12.0F / (ARM_MAX_Y - ARM_MIN_Y);
 
 {base}
 

@@ -48,15 +48,22 @@ public class DragonFormModel {
     public static final float GROUND_OFFSET = 24.0F - 96.0F * RENDER_SCALE;
 
     /**
-     * The first-person arm.
-     *
-     * The dragon's arm runs from the shoulder at y=-1 to the fingertips at
-     * y=46 — 47 model units, against the vanilla arm's 12. Scaling by that
-     * ratio keeps the screen footprint the player's hand had while putting the
-     * dragon's bulk and texture in its place. If the rig's arm length changes,
-     * this is the number to revisit.
+     * The right arm's own box, in the arm part's local space, measured off the
+     * rig at conversion time. The first-person hand is fitted from these, so
+     * reshaping the arm in Blockbench moves the hand with it.
      */
-    public static final float ARM_SCALE = 12.0F / 47.0F;
+    public static final float ARM_MIN_X = -17.000F;
+    public static final float ARM_MAX_X = -0.500F;
+    public static final float ARM_MIN_Y = -1.000F;
+    public static final float ARM_MAX_Y = 46.000F;
+    public static final float ARM_MIN_Z = -8.000F;
+    public static final float ARM_MAX_Z = 8.000F;
+
+    /**
+     * Scaled so the dragon's arm is as long on screen as the human one it
+     * replaces — the vanilla arm is 12 model units from shoulder to fingertip.
+     */
+    public static final float ARM_SCALE = 12.0F / (ARM_MAX_Y - ARM_MIN_Y);
 
     private static final float[] BASE_HEAD = {0.000F, -13.000F, 0.000F};
     private static final float[] BASE_BODY = {0.000F, -13.000F, 0.000F};

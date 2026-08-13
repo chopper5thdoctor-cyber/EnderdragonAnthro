@@ -24,6 +24,11 @@ public final class DragonFirstPersonArm {
     private static final ResourceLocation EYES =
             EnderdragonAnthro.id("textures/entity/dragon_form_eyes.png");
 
+    // The vanilla arm this replaces: addBox(-3, -2, -2, 4, 12, 4) on the right
+    // arm part. Its centre line, and where its shoulder end sits.
+    private static final float VANILLA_CENTRE_X = -1.0F;
+    private static final float VANILLA_SHOULDER_Y = -2.0F;
+
     private static DragonFormModel model;
 
     private DragonFirstPersonArm() {
@@ -40,13 +45,27 @@ public final class DragonFirstPersonArm {
             model = new DragonFormModel(client.getEntityModels().bakeLayer(DragonFormModel.LAYER));
         }
 
+        // Scaling alone was not enough. The dragon's arm cubes sit seventeen
+        // units off their own pivot, so dropping the part at the origin put the
+        // wrong end of it on screen — it read as a slab of texture rather than
+        // an arm. Fit the arm's real box onto the box vanilla's arm occupied
+        // instead: centred on the same line, shoulder in the same place, and
+        // the same twelve units long. Everything comes off the rig, so
+        // reshaping the arm in Blockbench moves the hand with it.
+        float scale = DragonFormModel.ARM_SCALE;
+        float centreX = (DragonFormModel.ARM_MIN_X + DragonFormModel.ARM_MAX_X) / 2.0F;
+        float centreZ = (DragonFormModel.ARM_MIN_Z + DragonFormModel.ARM_MAX_Z) / 2.0F;
+        float side = right ? 1.0F : -1.0F;      // the left arm is its mirror
+
         poseStack.pushPose();
-        // The vanilla arm hangs from a shoulder at the origin with its cubes
-        // running +Y away from it; the dragon's arm is built the same way, just
-        // very much bigger, so the whole job is the scale.
-        poseStack.scale(DragonFormModel.ARM_SCALE,
-                DragonFormModel.ARM_SCALE,
-                DragonFormModel.ARM_SCALE);
+        // Model units over sixteen: ModelPart does that division itself, one
+        // level further down, so the offset has to be in blocks by the time it
+        // reaches the stack.
+        poseStack.translate(
+                side * (VANILLA_CENTRE_X - scale * centreX) / 16.0F,
+                (VANILLA_SHOULDER_Y - scale * DragonFormModel.ARM_MIN_Y) / 16.0F,
+                -scale * centreZ / 16.0F);
+        poseStack.scale(scale, scale, scale);
         model.renderArm(right, poseStack,
                 buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)), light);
         model.renderArm(right, poseStack, buffers.getBuffer(RenderType.eyes(EYES)), light);
