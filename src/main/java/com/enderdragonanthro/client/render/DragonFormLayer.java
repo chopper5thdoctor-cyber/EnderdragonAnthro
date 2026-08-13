@@ -44,7 +44,12 @@ public class DragonFormLayer extends RenderLayer<AbstractClientPlayer, PlayerMod
         this.model.copyPose(getParentModel());
 
         poseStack.pushPose();
-        poseStack.translate(0.0F, DragonFormModel.GROUND_OFFSET, 0.0F);
+        // GROUND_OFFSET is in model units. The stack is in BLOCKS here —
+        // ModelPart does the /16 itself, further down — so it has to be
+        // converted, or the dragon gets shoved sixteen times too far and ends
+        // up buried in the floor. (+Y is down: LivingEntityRenderer already
+        // scaled by -1, -1, 1.)
+        poseStack.translate(0.0F, DragonFormModel.GROUND_OFFSET / 16.0F, 0.0F);
         poseStack.scale(DragonFormModel.RENDER_SCALE,
                 DragonFormModel.RENDER_SCALE,
                 DragonFormModel.RENDER_SCALE);

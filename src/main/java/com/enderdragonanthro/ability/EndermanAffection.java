@@ -1,7 +1,9 @@
 package com.enderdragonanthro.ability;
 
+import com.enderdragonanthro.network.EndermanHappyPayload;
+import com.enderdragonanthro.particle.ModParticles;
 import com.enderdragonanthro.transform.DragonFormManager;
-import net.minecraft.core.particles.ParticleTypes;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,15 +17,21 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Endermen adore the dragon. Hold your gaze on one for 10 seconds and it
- * emits hearts — once per gaze; breaking eye contact re-arms it. (The
- * usual stare-anger never fires in dragon form: targeting is disabled by
- * LivingEntityTargetabilityMixin, and endermen already face nearby
- * players via their vanilla look goals.)
+ * Endermen adore the dragon.
+ *
+ * Hold your gaze on one for three seconds and it looks back, wears a ^^ for a
+ * moment and gives off purple hearts — once per gaze; looking away re-arms it.
+ * They meet your eyes the whole time you are watching, which is the opposite
+ * of what an enderman does to anyone else.
+ *
+ * (The usual stare-anger never fires in dragon form: targeting is disabled by
+ * LivingEntityTargetabilityMixin.)
  */
 public final class EndermanAffection {
     private static final double RANGE = 48.0;
-    private static final int GAZE_TICKS = 200;
+    /** Three seconds, as asked — long enough to be deliberate, short enough to find. */
+    private static final int GAZE_TICKS = 60;
+    public static final int HAPPY_TICKS = 60;
 
     private static final class Gaze {
         int ticks;
@@ -51,17 +59,47 @@ public final class EndermanAffection {
                     continue;
                 }
                 lookedAt.add(enderman.getId());
+                // meet the dragon's eyes for as long as it is watching
+                enderman.getLookControl().setLookAt(player, 60.0F, 60.0F);
+
                 Gaze gaze = gazes.computeIfAbsent(enderman.getId(), i -> new Gaze());
                 gaze.ticks++;
                 if (gaze.ticks >= GAZE_TICKS && !gaze.fired) {
                     gaze.fired = true;
-                    level.sendParticles(ParticleTypes.HEART,
-                            enderman.getX(), enderman.getEyeY() + 0.6, enderman.getZ(),
-                            6, 0.5, 0.5, 0.5, 0.02);
+                    delight(level, enderman);
                 }
             }
             // looking away resets the gaze, re-arming the hearts
             gazes.keySet().retainAll(lookedAt);
+        }
+    }
+
+    /** Hearts, and the ^^, for everyone who can see it. */
+    public static void delight(ServerLevel level, EnderMan enderman) {
+        level.sendParticles(ModParticles.PURPLE_HEART,
+                enderman.getX(), enderman.getEyeY() + 0.6, enderman.getZ(),
+                7, 0.5, 0.5, 0.5, 0.02);
+        announce(level, enderman, HAPPY_TICKS);
+    }
+
+    /** A bigger show, for a deliberate fuss rather than a passing glance. */
+    public static void adore(ServerLevel level, EnderMan enderman) {
+        level.sendParticles(ModParticles.PURPLE_HEART,
+                enderman.getX(), enderman.getEyeY() + 0.4, enderman.getZ(),
+                24, 0.7, 0.9, 0.7, 0.05);
+        announce(level, enderman, HAPPY_TICKS * 2);
+    }
+
+    /**
+     * The ^^ is a client-side overlay, and nothing about an entity's mood is
+     * synced on its own, so it has to be said out loud.
+     */
+    private static void announce(ServerLevel level, EnderMan enderman, int ticks) {
+        EndermanHappyPayload payload = new EndermanHappyPayload(enderman.getId(), ticks);
+        for (ServerPlayer viewer : level.players()) {
+            if (viewer.distanceToSqr(enderman) < 128.0 * 128.0) {
+                ServerPlayNetworking.send(viewer, payload);
+            }
         }
     }
 

@@ -53,7 +53,17 @@ public final class DragonMinions {
         DEFEND(ChatFormatting.AQUA, "Defend"),
         ATTACK(ChatFormatting.RED, "Attack"),
         COLLECT(ChatFormatting.GREEN, "Collect"),
-        CRYSTAL(ChatFormatting.LIGHT_PURPLE, "Crystal");
+        CRYSTAL(ChatFormatting.LIGHT_PURPLE, "Crystal"),
+        DISMANTLE(ChatFormatting.GOLD, "Dismantle"),
+        /** Not a standing order — a moment's fuss, then back to what it was doing. */
+        PET(ChatFormatting.WHITE, "Pet"),
+        /** Also momentary: come here, wherever "here" has got to. */
+        RECALL(ChatFormatting.YELLOW, "Recall");
+
+        /** The ones that are actions rather than duties. */
+        public boolean momentary() {
+            return this == PET || this == RECALL;
+        }
 
         public final ChatFormatting colour;
         public final String label;
@@ -85,6 +95,12 @@ public final class DragonMinions {
     private static final double GRUDGE_RANGE = 48.0;
     /** An Attack order with nothing left to kill falls back to Defend. */
     private static final int IDLE_REVERT = 200;
+    /** How close a shade keeps to the dragon when it has nothing else to do. */
+    private static final double HEEL = 6.0;
+    /** Bedrock this far above the world floor is fair game; below it is not. */
+    private static final int BEDROCK_FLOOR = 5;
+    /** Past this it has genuinely lost you, and walking will not close it. */
+    private static final double FETCH_DISTANCE = 48.0;
     private static final ResourceLocation SCALE_ID = id("minion_scale");
     private static final String OWNER_TAG = "edanthro_owner_";
     private static final String SLOT_TAG = "edanthro_slot_";
@@ -102,6 +118,11 @@ public final class DragonMinions {
         boolean headingHome;
         /** Ticks an Attack order has spent with nothing to hunt. */
         int idleTicks;
+        /** Last place we actually saw it, so an unloaded shade can be fetched. */
+        BlockPos lastPos;
+        /** The crystal this shade raised, and the block it stands on. */
+        UUID crystal;
+        BlockPos bedrock;
     }
 
     /** Who the court is angry at, and until when. */
@@ -128,7 +149,8 @@ public final class DragonMinions {
     public static void summon(ServerPlayer owner) {
         List<Shade> court = COURT.computeIfAbsent(owner.getUUID(), u -> new ArrayList<>());
         ServerLevel level = owner.serverLevel();
-        court.removeIf(s -> !(level.getEntity(s.entity) instanceof EnderMan e) || !e.isAlive());
+        prune(level, court);
+        adoptStrays(owner, level, court);
         if (court.size() >= MAX_PER_PLAYER) {
             say(owner, "All four already answer you.", ChatFormatting.DARK_PURPLE, true);
             return;
@@ -164,6 +186,137 @@ public final class DragonMinions {
                 SoundSource.HOSTILE, 1.0F, 0.6F);
         say(owner, NAMES[slot] + " rises and waits on you.", TINTS[slot], false);
         pushState(owner);
+    }
+
+    /**
+     * Drop a shade only when we have actually seen it die.
+     *
+     * {@code getEntity} answers null for an unloaded entity exactly as it does
+     * for a dead one, and an evasive jump lands a thousand blocks away — so
+     * the old check quietly struck the whole court off the roll the moment you
+     * left, freed their slots, and let you summon a second Orrin standing next
+     * to the first. Absent is not dead.
+     */
+    private static void prune(ServerLevel level, List<Shade> court) {
+        court.removeIf(s -> level.getEntity(s.entity) instanceof EnderMan e && !e.isAlive());
+    }
+
+    /**
+     * Re-adopt shades the court has lost track of, and put down duplicates.
+     *
+     * Every shade carries its owner and its slot as tags, so one that has come
+     * adrift can be recognised and slotted back in. If its slot is already held
+     * by somebody else, it is a duplicate of exactly the kind the bug above
+     * produced, and it is dismissed.
+     */
+    private static void adoptStrays(ServerPlayer owner, ServerLevel level, List<Shade> court) {
+        String ownerTag = OWNER_TAG + owner.getUUID().toString().replace("-", "");
+        for (EnderMan stray : level.getEntitiesOfClass(EnderMan.class,
+                owner.getBoundingBox().inflate(128.0),
+                e -> e.isAlive() && e.getTags().contains(ownerTag))) {
+            boolean known = false;
+            for (Shade s : court) {
+                if (s.entity.equals(stray.getUUID())) {
+                    known = true;
+                    break;
+                }
+            }
+            if (known) {
+                continue;
+            }
+            int slot = slotOf(stray);
+            if (slot < 0) {
+                continue;
+            }
+            boolean taken = false;
+            for (Shade s : court) {
+                if (s.slot == slot) {
+                    taken = true;
+                    break;
+                }
+            }
+            if (taken) {
+                stray.discard();          // a second of somebody who already stands here
+                say(owner, "A second " + NAMES[slot] + " is dismissed.",
+                        ChatFormatting.DARK_GRAY, true);
+                continue;
+            }
+            Shade shade = new Shade();
+            shade.entity = stray.getUUID();
+            shade.slot = slot;
+            court.add(shade);
+            rename(stray, shade);
+            say(owner, NAMES[slot] + " rejoins you.", TINTS[slot], true);
+        }
+    }
+
+    private static int slotOf(EnderMan minion) {
+        for (String tag : minion.getTags()) {
+            if (tag.startsWith(SLOT_TAG)) {
+                try {
+                    int slot = Integer.parseInt(tag.substring(SLOT_TAG.length()));
+                    if (slot >= 0 && slot < MAX_PER_PLAYER) {
+                        return slot;
+                    }
+                } catch (NumberFormatException ignored) {
+                    // a tag we did not write; not ours to interpret
+                }
+            }
+        }
+        return -1;
+    }
+
+    /** Is this one of somebody's shades? Used to keep them from blinking away. */
+    public static boolean isShade(EnderMan minion) {
+        for (String tag : minion.getTags()) {
+            if (tag.startsWith(OWNER_TAG)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Bring the court along when the dragon jumps.
+     *
+     * Evade, warp and going home all cover ground no enderman is going to walk,
+     * so the retinue is carried rather than left behind. A shade whose chunk
+     * has already unloaded is fetched by loading the chunk we last saw it in.
+     */
+    public static void recall(ServerPlayer owner) {
+        List<Shade> court = COURT.get(owner.getUUID());
+        if (court == null || court.isEmpty()) {
+            return;
+        }
+        ServerLevel level = owner.serverLevel();
+        for (Shade shade : court) {
+            if (shade.order == Order.COLLECT) {
+                continue;                       // away on business; let it work
+            }
+            EnderMan minion = resolve(level, shade);
+            if (minion == null) {
+                continue;
+            }
+            Vec3 look = owner.getLookAngle();
+            minion.teleportTo(owner.getX() - look.x * 3.0,
+                    owner.getY(), owner.getZ() - look.z * 3.0);
+            level.playSound(null, minion.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
+                    SoundSource.HOSTILE, 0.7F, 0.8F);
+        }
+    }
+
+    /** The shade's entity, loading the chunk it was last seen in if need be. */
+    private static EnderMan resolve(ServerLevel level, Shade shade) {
+        if (level.getEntity(shade.entity) instanceof EnderMan found) {
+            return found;
+        }
+        if (shade.lastPos != null) {
+            level.getChunk(shade.lastPos);
+            if (level.getEntity(shade.entity) instanceof EnderMan loaded) {
+                return loaded;
+            }
+        }
+        return null;
     }
 
     private static int freeSlot(List<Shade> court) {
@@ -269,8 +422,33 @@ public final class DragonMinions {
         Order[] all = Order.values();
         Order order = all[Math.floorMod(ordinal, all.length)];
         ServerLevel level = owner.serverLevel();
-        EnderMan minion = level.getEntity(shade.entity) instanceof EnderMan e ? e : null;
 
+        // Pet and Recall are things you do to a shade, not jobs you give it:
+        // they happen and the standing order carries on untouched.
+        if (order.momentary()) {
+            EnderMan target = resolve(level, shade);
+            if (target == null) {
+                say(owner, NAMES[slot] + " is too far to hear you.",
+                        ChatFormatting.DARK_GRAY, true);
+                return;
+            }
+            if (order == Order.RECALL) {
+                Vec3 look = owner.getLookAngle();
+                target.teleportTo(owner.getX() - look.x * 3.0, owner.getY(),
+                        owner.getZ() - look.z * 3.0);
+                level.playSound(null, target.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
+                        SoundSource.HOSTILE, 0.8F, 0.8F);
+                say(owner, NAMES[slot] + ": \"At your side.\"", Order.RECALL.colour, false);
+            } else {
+                target.getLookControl().setLookAt(owner, 60.0F, 60.0F);
+                EndermanAffection.adore(level, target);
+                say(owner, NAMES[slot] + " leans into it.", Order.PET.colour, false);
+            }
+            pushState(owner);
+            return;
+        }
+
+        EnderMan minion = level.getEntity(shade.entity) instanceof EnderMan e ? e : null;
         if (minion != null) {
             handOver(owner, level, minion, shade);
         }
@@ -278,10 +456,7 @@ public final class DragonMinions {
         shade.headingHome = false;
         shade.idleTicks = 0;
         if (order == Order.COLLECT) {
-            Block wanted = parseBlock(quarry);
-            if (wanted == null) {
-                wanted = aimedBlock(owner);        // blank box: use what you look at
-            }
+            Block wanted = parseBlock(quarry);     // named from the picker, or nothing
             if (wanted != shade.wanted) {
                 shade.learnedY = null;
             }
@@ -317,7 +492,9 @@ public final class DragonMinions {
                     ? "\"I will bring you a stack of whatever I find.\""
                     : "\"I will bring you a stack of "
                       + shade.wanted.getName().getString() + ".\"";
-            case CRYSTAL -> "\"I will set a crystal on the bedrock.\"";
+            case CRYSTAL -> "\"I will raise a crystal and keep it.\"";
+            case DISMANTLE -> "\"I will pull the bedrock down.\"";
+            case PET, RECALL -> "\"I stand with you.\"";     // never a standing order
         };
     }
 
@@ -333,16 +510,6 @@ public final class DragonMinions {
         return block == Blocks.AIR ? null : block;
     }
 
-    private static Block aimedBlock(ServerPlayer owner) {
-        net.minecraft.world.phys.HitResult hit = owner.pick(48.0, 0.0F, false);
-        if (hit instanceof net.minecraft.world.phys.BlockHitResult block) {
-            BlockState state = owner.level().getBlockState(block.getBlockPos());
-            if (!state.isAir()) {
-                return state.getBlock();
-            }
-        }
-        return null;
-    }
 
     private static Shade selected(ServerPlayer owner) {
         int slot = SELECTED.getOrDefault(owner.getUUID(), -1);
@@ -358,7 +525,7 @@ public final class DragonMinions {
     private static List<Shade> living(ServerPlayer owner) {
         List<Shade> court = COURT.computeIfAbsent(owner.getUUID(), u -> new ArrayList<>());
         ServerLevel level = owner.serverLevel();
-        court.removeIf(s -> !(level.getEntity(s.entity) instanceof EnderMan e) || !e.isAlive());
+        prune(level, court);
         return court;
     }
 
@@ -371,10 +538,13 @@ public final class DragonMinions {
                 continue;
             }
             ServerLevel level = owner.serverLevel();
-            if (court.removeIf(s -> !(level.getEntity(s.entity) instanceof EnderMan e) || !e.isAlive())) {
+            int before = court.size();
+            prune(level, court);
+            if (court.size() != before) {
                 pushState(owner);
             }
             LivingEntity avenge = grudge(owner, level);
+            LivingEntity watched = lookedAt(owner, level);
 
             for (Shade shade : court) {
                 if (!(level.getEntity(shade.entity) instanceof EnderMan minion)) {
@@ -382,6 +552,16 @@ public final class DragonMinions {
                 }
                 if (minion.getTarget() == owner) {
                     minion.setTarget(null);      // never turn on the summoner
+                }
+                shade.lastPos = minion.blockPosition();
+
+                // Meet the dragon's eye. Looking at a shade is also how you
+                // remind it where it is supposed to be.
+                if (watched == minion) {
+                    minion.getLookControl().setLookAt(owner, 60.0F, 60.0F);
+                    if (shade.order != Order.COLLECT) {
+                        follow(owner, minion, HEEL, 1.25);
+                    }
                 }
                 // Someone is beating on Jean. Any shade close enough to see it
                 // stops what it is doing; the ones away on business keep their
@@ -395,9 +575,12 @@ public final class DragonMinions {
                 }
                 switch (shade.order) {
                     case ATTACK -> attack(owner, minion, level, shade);
-                    case DEFEND -> defend(owner, minion, level);
                     case COLLECT -> collect(owner, minion, level, shade);
                     case CRYSTAL -> crystal(owner, minion, level, shade);
+                    case DISMANTLE -> dismantle(owner, minion, level, shade);
+                    // Pet and Recall are never standing orders; if one somehow
+                    // lands here, standing with you is the right thing to do.
+                    default -> defend(owner, minion, level);
                 }
             }
         }
@@ -492,7 +675,7 @@ public final class DragonMinions {
                 return;
             }
             minion.setTarget(null);
-            follow(owner, minion, 8.0, 1.1);
+            follow(owner, minion, HEEL, 1.15);
         }
     }
 
@@ -627,51 +810,118 @@ public final class DragonMinions {
     }
 
     /**
-     * Fashion an end crystal and set it on bedrock.
+     * Raise a crystal, and keep exactly one.
      *
-     * The shades make these — it is their trade. A dragon has no hands for
-     * crafting, so this is how the court keeps a domain stocked. Slow on
-     * purpose: one crystal every CRYSTAL_WORK ticks per shade.
+     * It used to hunt for bedrock already in the world and place on that, which
+     * meant it did nothing at all anywhere the bedrock is at the bottom of the
+     * world — that is to say, everywhere. A shade brings its own: one block of
+     * bedrock set down, one crystal on top of it, and then it guards the thing.
+     * Nothing further is raised until that crystal is destroyed.
      */
     private static void crystal(ServerPlayer owner, EnderMan minion, ServerLevel level, Shade shade) {
         minion.setTarget(null);
+        if (shade.crystal != null
+                && level.getEntity(shade.crystal) instanceof EndCrystal standing
+                && standing.isAlive()) {
+            follow(owner, minion, HEEL, 1.1);      // its crystal still stands; guard it
+            return;
+        }
+        shade.crystal = null;
         if (level.getGameTime() % CRYSTAL_WORK != 0) {
+            follow(owner, minion, HEEL, 1.1);
             return;
         }
-        BlockPos base = minion.blockPosition();
-        for (BlockPos pos : BlockPos.randomInCube(level.random, 48, base, 24)) {
-            if (!level.getBlockState(pos).is(Blocks.BEDROCK)) {
-                continue;
-            }
-            if (!level.getBlockState(pos.above()).isAir() || !level.getBlockState(pos.above(2)).isAir()) {
-                continue;
-            }
-            EndCrystal crystal = new EndCrystal(level,
-                    pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5);
-            crystal.setShowBottom(false);
-            level.addFreshEntity(crystal);
-            level.playSound(null, pos, SoundEvents.ENDERMAN_TELEPORT,
-                    SoundSource.HOSTILE, 1.0F, 1.4F);
-            say(owner, NAMES[shade.slot] + " sets a crystal at "
-                    + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ".",
-                    Order.CRYSTAL.colour, false);
+        BlockPos spot = crystalSpot(level, minion.blockPosition());
+        if (spot == null) {
+            follow(owner, minion, HEEL, 1.1);
             return;
         }
-        // no bedrock in reach - go looking for some
-        hopToward(level, minion, minion.getX() + level.random.nextInt(129) - 64,
-                minion.getZ() + level.random.nextInt(129) - 64, 0.0);
+        level.setBlockAndUpdate(spot, Blocks.BEDROCK.defaultBlockState());
+        EndCrystal crystal = new EndCrystal(level,
+                spot.getX() + 0.5, spot.getY() + 1, spot.getZ() + 0.5);
+        crystal.setShowBottom(false);
+        level.addFreshEntity(crystal);
+        shade.crystal = crystal.getUUID();
+        shade.bedrock = spot;
+        level.playSound(null, spot, SoundEvents.ENDERMAN_TELEPORT,
+                SoundSource.HOSTILE, 1.0F, 1.4F);
+        say(owner, NAMES[shade.slot] + " raises a crystal at "
+                + spot.getX() + ", " + (spot.getY() + 1) + ", " + spot.getZ() + ".",
+                Order.CRYSTAL.colour, false);
+    }
+
+    /** Somewhere near the shade with solid footing and headroom for a crystal. */
+    private static BlockPos crystalSpot(ServerLevel level, BlockPos base) {
+        for (BlockPos pos : BlockPos.randomInCube(level.random, 64, base, 6)) {
+            BlockState here = level.getBlockState(pos);
+            if (here.isAir() || here.is(Blocks.BEDROCK) || here.getDestroySpeed(level, pos) < 0) {
+                continue;                          // want ordinary ground to build on
+            }
+            if (!level.getBlockState(pos.above()).isAir()
+                    || !level.getBlockState(pos.above(2)).isAir()
+                    || !level.getBlockState(pos.above(3)).isAir()) {
+                continue;
+            }
+            return pos.immutable();
+        }
+        return null;
+    }
+
+    /**
+     * Take the bedrock back out.
+     *
+     * Only above {@link #BEDROCK_FLOOR} — the world's own floor is left alone,
+     * because pulling that up drops everything standing on it into the void.
+     * A crystal sitting on a block being removed comes down with it.
+     */
+    private static void dismantle(ServerPlayer owner, EnderMan minion, ServerLevel level, Shade shade) {
+        minion.setTarget(null);
+        if (level.getGameTime() % 10 != 0) {
+            return;
+        }
+        int floor = level.getMinBuildHeight() + BEDROCK_FLOOR;
+        for (BlockPos pos : BlockPos.randomInCube(level.random, 96, minion.blockPosition(), WORK_RADIUS)) {
+            if (pos.getY() <= floor || !level.getBlockState(pos).is(Blocks.BEDROCK)) {
+                continue;
+            }
+            for (EndCrystal sitting : level.getEntitiesOfClass(EndCrystal.class,
+                    new AABB(pos.above()).inflate(0.6))) {
+                if (shade.crystal != null && shade.crystal.equals(sitting.getUUID())) {
+                    shade.crystal = null;
+                }
+                sitting.discard();
+            }
+            level.removeBlock(pos, false);
+            if (pos.equals(shade.bedrock)) {
+                shade.bedrock = null;
+            }
+            level.playSound(null, pos, SoundEvents.STONE_BREAK, SoundSource.HOSTILE, 1.0F, 0.6F);
+            return;
+        }
+        follow(owner, minion, HEEL, 1.1);          // nothing here to pull up
     }
 
     // ----------------------------------------------------------- movement
 
+    /**
+     * Keep station on the dragon.
+     *
+     * A shade walks after you now rather than blinking about — EndermanTeleportMixin
+     * refuses their idle teleports, because a retinue that reappears somewhere
+     * else every few seconds is not a retinue. The one exception is losing you
+     * entirely: past FETCH_DISTANCE it hops, since no enderman is going to walk
+     * a thousand blocks and an evasive jump makes that gap routine.
+     */
     private static void follow(ServerPlayer owner, EnderMan minion, double leash, double speed) {
-        if (minion.distanceToSqr(owner) > leash * leash && minion.getTarget() == null) {
-            if (minion.distanceToSqr(owner) > 4096.0) {
-                hopToward(minion.level() instanceof ServerLevel sl ? sl : null,
-                        minion, owner.getX(), owner.getZ(), 6.0);
-            } else {
-                minion.getNavigation().moveTo(owner.getX(), owner.getY(), owner.getZ(), speed);
-            }
+        if (minion.getTarget() != null) {
+            return;
+        }
+        double gap = minion.distanceToSqr(owner);
+        if (gap > FETCH_DISTANCE * FETCH_DISTANCE) {
+            hopToward(minion.level() instanceof ServerLevel sl ? sl : null,
+                    minion, owner.getX(), owner.getZ(), 6.0);
+        } else if (gap > leash * leash) {
+            minion.getNavigation().moveTo(owner.getX(), owner.getY(), owner.getZ(), speed);
         }
     }
 

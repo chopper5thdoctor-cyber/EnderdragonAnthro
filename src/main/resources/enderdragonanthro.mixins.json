@@ -5,6 +5,7 @@
   "mixins": [
     "DragonFireballExplosionMixin",
     "EndCrystalHomingMixin",
+    "EndermanTeleportMixin",
     "EntityFireImmunityMixin",
     "LivingEntityEffectImmunityMixin",
     "LivingEntityGlideMixin",

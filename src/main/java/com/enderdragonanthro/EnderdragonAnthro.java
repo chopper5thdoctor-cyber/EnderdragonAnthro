@@ -11,8 +11,11 @@ import com.enderdragonanthro.boss.DragonBossBars;
 import com.enderdragonanthro.item.ModItems;
 import com.enderdragonanthro.command.ShadeCommand;
 import com.enderdragonanthro.network.AbilityActionPayload;
+import com.enderdragonanthro.network.EndermanHappyPayload;
+import com.enderdragonanthro.network.HomingCrystalPayload;
 import com.enderdragonanthro.network.ShadeOrderPayload;
 import com.enderdragonanthro.network.ShadeStatePayload;
+import com.enderdragonanthro.particle.ModParticles;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -39,6 +42,8 @@ public class EnderdragonAnthro implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(AbilityActionPayload.TYPE, AbilityActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ShadeOrderPayload.TYPE, ShadeOrderPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ShadeStatePayload.TYPE, ShadeStatePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(HomingCrystalPayload.TYPE, HomingCrystalPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(EndermanHappyPayload.TYPE, EndermanHappyPayload.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(AbilityActionPayload.TYPE, (payload, context) -> {
             if (payload.action() == AbilityAction.TRANSFORM) {
@@ -89,6 +94,7 @@ public class EnderdragonAnthro implements ModInitializer {
         });
 
         ModItems.register();
+        ModParticles.init();
         ShadeCommand.register();
 
         LOGGER.info("Enderdragon Anthro initialized");

@@ -290,6 +290,10 @@ public final class DragonAbilities {
         player.connection.resetPosition();
         player.resetFallDistance();
         DragonFlight.clear(player);
+        // The court comes with you. Without this an evade strands them a
+        // thousand blocks back, and a stranded shade is how you end up with
+        // two of the same name.
+        DragonMinions.recall(player);
         level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                 SoundSource.PLAYERS, 1.0F, 0.6F);
     }

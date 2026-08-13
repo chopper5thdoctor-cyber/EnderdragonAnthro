@@ -1,6 +1,6 @@
 package com.enderdragonanthro.mixin;
 
-import com.enderdragonanthro.ability.HomingCrystals;
+import com.enderdragonanthro.client.HomingCrystalsClient;
 import com.enderdragonanthro.client.render.HomingCrystalRender;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -21,6 +21,11 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * all. Only the first {@code getBuffer} call in {@code render} is the crystal
  * itself — the beam to the dragon is drawn from a separate method.
  *
+ * Which crystals are anchors comes from HomingCrystalsClient, not from the
+ * entity: the server marks them with a scoreboard tag, and scoreboard tags are
+ * server-side NBT that the client never receives. Reading the tag here always
+ * answered "no", which is why every anchor rendered vanilla magenta.
+ *
  * Cosmetic only, so this stays optional: if the mapping ever shifts, the
  * anchor renders as an ordinary crystal instead of the game refusing to start.
  */
@@ -39,7 +44,7 @@ public abstract class EndCrystalTextureMixin {
                                                     EndCrystal crystal, float entityYaw,
                                                     float partialTick, PoseStack poseStack,
                                                     MultiBufferSource source, int light) {
-        return buffers.getBuffer(HomingCrystals.isHoming(crystal)
+        return buffers.getBuffer(HomingCrystalsClient.isHoming(crystal)
                 ? HomingCrystalRender.type()
                 : original);
     }

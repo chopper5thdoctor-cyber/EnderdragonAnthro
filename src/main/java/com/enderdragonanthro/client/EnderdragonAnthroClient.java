@@ -4,7 +4,14 @@ import com.enderdragonanthro.ability.AbilityAction;
 import com.enderdragonanthro.client.model.DragonFormModel;
 import com.enderdragonanthro.client.render.DragonFormLayer;
 import com.enderdragonanthro.network.AbilityActionPayload;
+import com.enderdragonanthro.client.particle.PurpleHeartParticle;
+import com.enderdragonanthro.client.render.EndermanHappyLayer;
+import com.enderdragonanthro.network.EndermanHappyPayload;
+import com.enderdragonanthro.network.HomingCrystalPayload;
 import com.enderdragonanthro.network.ShadeStatePayload;
+import com.enderdragonanthro.particle.ModParticles;
+import net.fabricmc.fabric.api.client.particle.v1.ParticleFactoryRegistry;
+import net.minecraft.client.renderer.entity.EndermanRenderer;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -53,9 +60,22 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         // roster, and every later change is pushed to keep an open screen live.
         ClientPlayNetworking.registerGlobalReceiver(ShadeStatePayload.TYPE,
                 (payload, context) -> ShadeCourtClient.accept(payload));
+        ClientPlayNetworking.registerGlobalReceiver(HomingCrystalPayload.TYPE,
+                (payload, context) -> HomingCrystalsClient.accept(payload));
+        ClientPlayNetworking.registerGlobalReceiver(EndermanHappyPayload.TYPE,
+                (payload, context) -> EndermanHappyClient.accept(payload));
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT
+                .register((handler, client) -> {
+                    HomingCrystalsClient.clear();
+                    EndermanHappyClient.clear();
+                });
+
+        ParticleFactoryRegistry.getInstance().register(
+                ModParticles.PURPLE_HEART, PurpleHeartParticle.Provider::new);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             DragonHud.tick();
+            EndermanHappyClient.tick();
             clientTick++;
             if (client.player == null) {
                 return;
@@ -102,10 +122,15 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register((graphics, tickDelta) -> DragonHud.render(graphics));
 
         EntityModelLayerRegistry.registerModelLayer(DragonFormModel.LAYER, DragonFormModel::createLayer);
+        EntityModelLayerRegistry.registerModelLayer(EndermanHappyLayer.LAYER,
+                EndermanHappyLayer::createLayer);
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register(
                 (type, renderer, helper, context) -> {
                     if (renderer instanceof PlayerRenderer playerRenderer) {
                         helper.register(new DragonFormLayer(playerRenderer, context.getModelSet()));
+                    }
+                    if (renderer instanceof EndermanRenderer endermanRenderer) {
+                        helper.register(new EndermanHappyLayer(endermanRenderer, context.getModelSet()));
                     }
                 });
     }

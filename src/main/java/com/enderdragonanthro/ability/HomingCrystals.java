@@ -1,5 +1,7 @@
 package com.enderdragonanthro.ability;
 
+import com.enderdragonanthro.network.HomingCrystalPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -13,7 +15,9 @@ import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -133,6 +137,7 @@ public final class HomingCrystals {
         player.connection.resetPosition();
         player.resetFallDistance();
         DragonFlight.clear(player);
+        DragonMinions.recall(player);
         level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                 SoundSource.PLAYERS, 1.0F, 0.7F);
         player.displayClientMessage(Component.literal("Home.").withStyle(ChatFormatting.GOLD), true);
@@ -147,10 +152,11 @@ public final class HomingCrystals {
      * ends. That is the only cost.
      */
     public static void tick(MinecraftServer server) {
+        if (server.getTickCount() % 20 != 0) {
+            return;
+        }
+        broadcast(server);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (server.getTickCount() % 20 != 0) {
-                return;
-            }
             if (!DragonFormManager.isDragon(player) || locked(player)) {
                 continue;
             }
@@ -169,6 +175,26 @@ public final class HomingCrystals {
             }
             player.displayClientMessage(Component.literal("An anchor forms in your keeping.")
                     .withStyle(ChatFormatting.GOLD), true);
+        }
+    }
+
+    /**
+     * Tell every client which crystals are anchors.
+     *
+     * The mark is a scoreboard tag, and scoreboard tags are server-side NBT —
+     * the client never receives them. Without this the renderer cannot tell an
+     * anchor from a live crystal and paints them all vanilla magenta, which is
+     * exactly what it was doing.
+     */
+    private static void broadcast(MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            List<Integer> ids = new ArrayList<>();
+            for (EndCrystal crystal : player.serverLevel().getEntitiesOfClass(
+                    EndCrystal.class, player.getBoundingBox().inflate(160.0),
+                    HomingCrystals::isHoming)) {
+                ids.add(crystal.getId());
+            }
+            ServerPlayNetworking.send(player, new HomingCrystalPayload(List.copyOf(ids)));
         }
     }
 
