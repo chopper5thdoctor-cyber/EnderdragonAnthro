@@ -101,6 +101,10 @@ public final class DragonMinions {
     private static final double HEEL = 6.0;
     /** Bedrock this far above the world floor is fair game; below it is not. */
     private static final int BEDROCK_FLOOR = 5;
+    /** A Collect order that has got nowhere in this long comes home anyway. */
+    private static final int COLLECT_TIMEOUT = 3600;
+    /** Fruitless hops around one patch before trying somewhere else entirely. */
+    private static final int DRY_HOPS = 12;
     /** Past this it has genuinely lost you, and walking will not close it. */
     private static final double FETCH_DISTANCE = 48.0;
     /**
@@ -134,6 +138,11 @@ public final class DragonMinions {
         int idleTicks;
         /** Last place we actually saw it, so an unloaded shade can be fetched. */
         BlockPos lastPos;
+        /** The patch it is working, and how many fruitless hops it has had. */
+        BlockPos site;
+        int dryHops;
+        /** Ticks spent away on a Collect order without finishing. */
+        int awayTicks;
         /** The chunk we are currently holding open for it. */
         ChunkPos ticket;
         /** The crystal this shade raised, and the block it stands on. */
@@ -351,10 +360,10 @@ public final class DragonMinions {
                 continue;
             }
             Vec3 look = owner.getLookAngle();
-            minion.teleportTo(owner.getX() - look.x * 3.0,
-                    owner.getY(), owner.getZ() - look.z * 3.0);
-            level.playSound(null, minion.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
-                    SoundSource.HOSTILE, 0.7F, 0.8F);
+            if (!blink(level, minion, owner.getX() - look.x * 3.0,
+                    owner.getY(), owner.getZ() - look.z * 3.0, 16)) {
+                minion.teleportTo(owner.getX(), owner.getY(), owner.getZ());
+            }
         }
     }
 
@@ -487,10 +496,10 @@ public final class DragonMinions {
             }
             if (order == Order.RECALL) {
                 Vec3 look = owner.getLookAngle();
-                target.teleportTo(owner.getX() - look.x * 3.0, owner.getY(),
-                        owner.getZ() - look.z * 3.0);
-                level.playSound(null, target.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
-                        SoundSource.HOSTILE, 0.8F, 0.8F);
+                if (!blink(level, target, owner.getX() - look.x * 3.0, owner.getY(),
+                        owner.getZ() - look.z * 3.0, 16)) {
+                    target.teleportTo(owner.getX(), owner.getY(), owner.getZ());
+                }
                 say(owner, NAMES[slot] + ": \"At your side.\"", Order.RECALL.colour, false);
             } else {
                 target.getLookControl().setLookAt(owner, 60.0F, 60.0F);
@@ -508,6 +517,9 @@ public final class DragonMinions {
         shade.order = order;
         shade.headingHome = false;
         shade.idleTicks = 0;
+        shade.awayTicks = 0;
+        shade.dryHops = 0;
+        shade.site = null;
         if (order == Order.COLLECT) {
             Block wanted = parseBlock(quarry);     // named from the picker, or nothing
             if (wanted != shade.wanted) {
@@ -608,6 +620,20 @@ public final class DragonMinions {
                 }
                 shade.lastPos = minion.blockPosition();
                 holdChunk(level, shade, minion);
+
+                // Walled into stone, or fallen through the floor. Dig it out
+                // rather than let it suffocate: EndermanTeleportMixin took away
+                // the escape blink a wild enderman would have used, so this is
+                // the only way back for one that has got itself stuck.
+                if (stranded(level, minion)) {
+                    if (!blink(level, minion, minion.getX(), minion.getY() + 4, minion.getZ(), 48)
+                            && !blink(level, minion, owner.getX(), owner.getY(), owner.getZ(), 24)) {
+                        minion.teleportTo(owner.getX(), owner.getY(), owner.getZ());
+                    }
+                    say(owner, NAMES[shade.slot] + " claws free of the rock.",
+                            ChatFormatting.DARK_GRAY, true);
+                    continue;
+                }
 
                 // Meet the dragon's eye. Looking at a shade is also how you
                 // remind it where it is supposed to be.
@@ -713,6 +739,9 @@ public final class DragonMinions {
         shade.wanted = null;
         shade.headingHome = false;
         shade.idleTicks = 0;
+        shade.awayTicks = 0;
+        shade.dryHops = 0;
+        shade.site = null;
         minion.setTarget(null);
         rename(minion, shade);
         say(owner, NAMES[shade.slot] + ": " + line, Order.DEFEND.colour, false);
@@ -737,14 +766,25 @@ public final class DragonMinions {
      * Forage far and wide, then bring back exactly one stack.
      *
      * Walking a thousand blocks would take an age, so the shade does what
-     * endermen do: it teleports. It hops to fresh ground, strips surface
-     * blocks of the first kind it grabs until it holds a stack, then hops
-     * home and hands it over — silk-touch, so the block itself comes back.
+     * endermen do: it teleports. It settles on one patch and works it rather
+     * than bouncing to a fresh random point across the world every two seconds
+     * — that used to force a chunk to generate each time, and gave it no chance
+     * to find a seam before it moved on.
+     *
+     * Every hop goes through {@link #blink}, so it can only ever land somewhere
+     * it can stand. And the whole errand is on a clock: a shade that has got
+     * nowhere in {@value #COLLECT_TIMEOUT} ticks comes home with whatever it
+     * has, rather than staying out forever and holding its slot.
      */
     private static void collect(ServerPlayer owner, EnderMan minion, ServerLevel level, Shade shade) {
         minion.setTarget(null);
         if (shade.cargo >= CARGO_MAX) {
             shade.headingHome = true;
+        }
+        if (!shade.headingHome && ++shade.awayTicks > COLLECT_TIMEOUT) {
+            shade.headingHome = true;
+            say(owner, NAMES[shade.slot] + ": \"The seam is dry. Returning.\"",
+                    Order.COLLECT.colour, false);
         }
         if (shade.headingHome) {
             if (minion.distanceToSqr(owner) < 64.0) {
@@ -765,6 +805,7 @@ public final class DragonMinions {
             shade.cargoType = state;
             shade.learnedY = found.getY();       // remember where the seam was
             shade.cargo++;
+            shade.dryHops = 0;                   // this patch is paying out
             minion.setCarriedBlock(state);
             if (shade.cargo >= CARGO_MAX) {
                 shade.headingHome = true;
@@ -773,26 +814,32 @@ public final class DragonMinions {
             }
             return;
         }
-        // nothing in reach: hop somewhere new inside the forage range. When a
-        // quarry is named, alternate between the surface and a random depth so
-        // buried seams actually get searched.
-        if (level.getGameTime() % 40 == 0) {
+        if (level.getGameTime() % 40 != 0) {
+            return;
+        }
+        // Nothing in reach. Pick a patch if we have not got one, otherwise
+        // shuffle around inside it; give up on a patch that keeps coming up
+        // empty and choose somewhere else entirely.
+        if (shade.site == null || ++shade.dryHops > DRY_HOPS) {
             double angle = level.random.nextDouble() * Math.PI * 2;
             double dist = 64.0 + level.random.nextDouble() * FORAGE_RANGE;
-            double x = owner.getX() + Math.cos(angle) * dist;
-            double z = owner.getZ() + Math.sin(angle) * dist;
-            int depth = shade.wanted == null ? Integer.MIN_VALUE
-                    : chooseDepth(level, shade, shade.wanted);
-            if (depth != Integer.MIN_VALUE) {
-                int y = Math.max(level.getMinBuildHeight() + 2,
-                        Math.min(level.getMaxBuildHeight() - 2, depth));
-                minion.teleportTo(x, y, z);
-                level.playSound(null, minion.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
-                        SoundSource.HOSTILE, 0.6F, 1.0F);
-            } else {
-                hopToward(level, minion, x, z, 0.0);
-            }
+            shade.site = BlockPos.containing(owner.getX() + Math.cos(angle) * dist,
+                    owner.getY(), owner.getZ() + Math.sin(angle) * dist);
+            shade.dryHops = 0;
         }
+        int depth = shade.wanted == null ? Integer.MIN_VALUE
+                : chooseDepth(level, shade, shade.wanted);
+        double x = shade.site.getX() + level.random.nextInt(65) - 32;
+        double z = shade.site.getZ() + level.random.nextInt(65) - 32;
+        if (depth != Integer.MIN_VALUE) {
+            int y = Math.max(level.getMinBuildHeight() + 2,
+                    Math.min(level.getMaxBuildHeight() - 5, depth));
+            if (blink(level, minion, x, y, z, 24)) {
+                return;
+            }
+            // no pocket anywhere near that depth: work the surface instead
+        }
+        hopToward(level, minion, x, z, 0.0);
     }
 
     private static void deliver(ServerPlayer owner, EnderMan minion, Shade shade) {
@@ -1082,7 +1129,15 @@ public final class DragonMinions {
         return Math.max(band[0], Math.min(band[1], (a + b * 3) / 4));
     }
 
-    /** Enderman-style hop: land on the surface at (x, z), optionally offset. */
+    /**
+     * Enderman-style hop: land on the surface at (x, z), optionally offset.
+     *
+     * The chunk is forced in FIRST. {@code Level.getHeight} answers
+     * {@code minBuildHeight} for a chunk it does not have — and a forage hop is
+     * always into terrain nobody has visited — so asking before loading put
+     * shades at Y=-64, inside the bedrock. That is the same bug the evasive
+     * jump had; this is the copy of it that was left behind.
+     */
     private static void hopToward(ServerLevel level, EnderMan minion, double x, double z, double spread) {
         if (level == null) {
             return;
@@ -1092,10 +1147,72 @@ public final class DragonMinions {
             z += (level.random.nextDouble() - 0.5) * spread;
         }
         BlockPos column = BlockPos.containing(x, 0, z);
+        level.getChunk(column);
         BlockPos surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column);
-        minion.teleportTo(surface.getX() + 0.5, surface.getY(), surface.getZ() + 0.5);
-        level.playSound(null, surface, SoundEvents.ENDERMAN_TELEPORT,
+        blink(level, minion, surface.getX() + 0.5, surface.getY(), surface.getZ() + 0.5, 32);
+    }
+
+    /**
+     * Teleport, but never into somewhere it cannot stand.
+     *
+     * A shade used to be dropped at a raw depth with nothing checked, which
+     * walled it into solid stone. It could not blink out either — the whole
+     * point of EndermanTeleportMixin is that shades hold their ground — so it
+     * suffocated out there, which is where the court kept going.
+     */
+    private static boolean blink(ServerLevel level, EnderMan minion,
+                                 double x, double y, double z, int span) {
+        Vec3 spot = standingRoom(level, x, y, z, span);
+        if (spot == null) {
+            return false;
+        }
+        minion.teleportTo(spot.x, spot.y, spot.z);
+        level.playSound(null, minion.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                 SoundSource.HOSTILE, 0.6F, 1.0F);
+        return true;
+    }
+
+    /** The nearest spot in this column a four-block shade actually fits. */
+    private static Vec3 standingRoom(ServerLevel level, double x, double y, double z, int span) {
+        BlockPos wanted = BlockPos.containing(x, y, z);
+        level.getChunk(wanted);                    // generate before asking
+        int floor = level.getMinBuildHeight() + 1;
+        int ceiling = level.getMaxBuildHeight() - 5;
+        for (int step = 0; step <= span; step++) {
+            for (int dir = 0; dir < (step == 0 ? 1 : 2); dir++) {
+                int cy = wanted.getY() + (dir == 0 ? step : -step);
+                if (cy < floor || cy > ceiling) {
+                    continue;
+                }
+                BlockPos at = new BlockPos(wanted.getX(), cy, wanted.getZ());
+                if (fitsShade(level, at)) {
+                    return new Vec3(at.getX() + 0.5, at.getY(), at.getZ() + 0.5);
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Four blocks of headroom on solid ground — a shade is not a normal enderman. */
+    private static boolean fitsShade(ServerLevel level, BlockPos at) {
+        for (int dy = 0; dy < 4; dy++) {
+            BlockPos head = at.above(dy);
+            if (!level.getBlockState(head).getCollisionShape(level, head).isEmpty()) {
+                return false;
+            }
+        }
+        BlockPos under = at.below();
+        return !level.getBlockState(under).getCollisionShape(level, under).isEmpty();
+    }
+
+    /** Walled in, or fallen out of the world. */
+    private static boolean stranded(ServerLevel level, EnderMan minion) {
+        BlockPos at = minion.blockPosition();
+        if (at.getY() < level.getMinBuildHeight() + 1) {
+            return true;
+        }
+        BlockPos head = at.above();
+        return level.getBlockState(head).isSuffocating(level, head);
     }
 
     // -------------------------------------------------------------- helpers
