@@ -48,12 +48,17 @@ public class DragonFormModel {
     public static final float GROUND_OFFSET = 24.0F - 96.0F * RENDER_SCALE;
 
     /**
-     * The right arm's own box, in the arm part's local space, measured off the
-     * rig at conversion time. The first-person hand is fitted from these, so
+     * The box of the arm the first-person hand clones, in that part's local
+     * space, measured off the rig at conversion time.
+     *
+     * That arm is the rig's left_arm. The rig names its arms from the model's
+     * own facing, which is the mirror of the game's, so the part called
+     * left_arm is the one that reads as the player's RIGHT hand -- and the
+     * right hand is what first person shows. Fitted from these numbers, so
      * reshaping the arm in Blockbench moves the hand with it.
      */
-    public static final float ARM_MIN_X = -17.000F;
-    public static final float ARM_MAX_X = -0.500F;
+    public static final float ARM_MIN_X = 0.500F;
+    public static final float ARM_MAX_X = 17.000F;
     public static final float ARM_MIN_Y = -1.000F;
     public static final float ARM_MAX_Y = 46.000F;
     public static final float ARM_MIN_Z = -8.000F;

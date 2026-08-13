@@ -94,8 +94,13 @@ def convert(path):
     groups = {g["uuid"]: g for g in bb.get("groups", [])}
     els = {e["uuid"]: e for e in bb["elements"]}
     lines, used = [], set()
-    # The right arm's own extent, so the first-person hand can be fitted from
-    # the rig rather than from numbers typed in by hand.
+    # The extent of the arm the first-person hand clones, so it can be fitted
+    # from the rig rather than from numbers typed in by hand.
+    #
+    # That is the rig's LEFT arm. The rig names its arms from the model's own
+    # facing, which is the mirror of the game's, so the part called left_arm is
+    # the one that reads as the player's right hand -- and the right hand is
+    # what first person shows.
     arm = {}
 
     def ident(name):
@@ -137,7 +142,7 @@ def convert(path):
                     mirrored = want
                 boxes.append(f"{prefix}{tex}.addBox({x - piv[0]:.3f}F, {y - piv[1]:.3f}F, "
                              f"{z - piv[2]:.3f}F, {w:.3f}F, {h:.3f}F, {d:.3f}F)")
-                if name == "right_arm":
+                if name == "left_arm":
                     lo = (x - piv[0], y - piv[1], z - piv[2])
                     hi = (lo[0] + w, lo[1] + h, lo[2] + d)
                     for i in range(3):
@@ -204,7 +209,7 @@ def convert(path):
                         f"{{{v[0]}F, {v[1]}F, {v[2]}F}};" for k, v in VANILLA_PIVOTS.items())
 
     if len(arm) != 6:
-        sys.exit("ERROR: could not measure right_arm; the first-person hand needs it")
+        sys.exit("ERROR: could not measure left_arm; the first-person hand needs it")
     java = TEMPLATE.format(base=base, vanilla=vanilla, parts="\n".join(lines),
                            tw=res["width"], th=res["height"],
                            ax0=f"{arm['lo0']:.3f}", ax1=f"{arm['hi0']:.3f}",
@@ -282,8 +287,13 @@ public class DragonFormModel {{
     public static final float GROUND_OFFSET = 24.0F - 96.0F * RENDER_SCALE;
 
     /**
-     * The right arm's own box, in the arm part's local space, measured off the
-     * rig at conversion time. The first-person hand is fitted from these, so
+     * The box of the arm the first-person hand clones, in that part's local
+     * space, measured off the rig at conversion time.
+     *
+     * That arm is the rig's left_arm. The rig names its arms from the model's
+     * own facing, which is the mirror of the game's, so the part called
+     * left_arm is the one that reads as the player's RIGHT hand -- and the
+     * right hand is what first person shows. Fitted from these numbers, so
      * reshaping the arm in Blockbench moves the hand with it.
      */
     public static final float ARM_MIN_X = {ax0}F;

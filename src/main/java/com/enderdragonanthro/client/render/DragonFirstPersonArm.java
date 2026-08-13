@@ -66,9 +66,13 @@ public final class DragonFirstPersonArm {
                 (VANILLA_SHOULDER_Y - scale * DragonFormModel.ARM_MIN_Y) / 16.0F,
                 -scale * centreZ / 16.0F);
         poseStack.scale(scale, scale, scale);
-        model.renderArm(right, poseStack,
+        // The rig names its arms from the model's own facing, which is the
+        // mirror of the game's — so the part to clone for the player's right
+        // hand is the rig's LEFT arm, and vice versa.
+        boolean rigArm = !right;
+        model.renderArm(rigArm, poseStack,
                 buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)), light);
-        model.renderArm(right, poseStack, buffers.getBuffer(RenderType.eyes(EYES)), light);
+        model.renderArm(rigArm, poseStack, buffers.getBuffer(RenderType.eyes(EYES)), light);
         poseStack.popPose();
         return true;
     }

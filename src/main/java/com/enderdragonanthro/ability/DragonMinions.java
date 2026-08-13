@@ -500,7 +500,13 @@ public final class DragonMinions {
                         owner.getZ() - look.z * 3.0, 16)) {
                     target.teleportTo(owner.getX(), owner.getY(), owner.getZ());
                 }
-                say(owner, NAMES[slot] + ": \"At your side.\"", Order.RECALL.colour, false);
+                // Recall has to end the errand, not just interrupt it. A shade
+                // still under Collect arrived, was told nothing had changed, and
+                // hopped straight back out to its patch inside two seconds — so
+                // it looked as though it had never come. It hands over what it
+                // dug up and stays.
+                deliver(owner, target, shade);
+                standDown(owner, target, shade, "\"At your side.\"");
             } else {
                 target.getLookControl().setLookAt(owner, 60.0F, 60.0F);
                 EndermanAffection.adore(level, target);
