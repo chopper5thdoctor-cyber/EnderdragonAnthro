@@ -170,12 +170,13 @@ def happy_face():
     """
     sheet = Image.new("RGBA", (64, 32), CLEAR)
     x0, y0, _, _ = box_slots(0, 0, 8, 8, 8)["north"]       # the face
+    # One purple throughout. The apex used to be near-white, which under an
+    # additive render type blew out to a plain white pixel.
     bright = (0xF0, 0xA8, 0xFF, 255)
-    core = (0xFF, 0xF4, 0xFF, 255)
     # Three wide with two clear pixels between them: at four wide the inner
     # legs met in the middle and the pair read as one flat bar.
     for cx in (0, 5):                                      # one caret per eye
-        sheet.putpixel((x0 + cx + 1, y0 + 2), core)        # apex
+        sheet.putpixel((x0 + cx + 1, y0 + 2), bright)      # apex
         sheet.putpixel((x0 + cx, y0 + 3), bright)          # legs falling away
         sheet.putpixel((x0 + cx + 2, y0 + 3), bright)
     return sheet
