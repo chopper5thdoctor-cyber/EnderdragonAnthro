@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -27,6 +28,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -101,6 +103,18 @@ public final class DragonMinions {
     private static final int BEDROCK_FLOOR = 5;
     /** Past this it has genuinely lost you, and walking will not close it. */
     private static final double FETCH_DISTANCE = 48.0;
+    /**
+     * Keeps a shade's chunk loaded wherever it has got to.
+     *
+     * A shade sent foraging walks straight out of the player's view distance,
+     * its chunk unloads, and then it is neither working nor findable — which is
+     * how a Collect order used to end with a minion simply gone. Radius 2 puts
+     * the chunk at level 31, which is entity-ticking, so the shade keeps mining
+     * and Recall can still reach it from a thousand blocks out.
+     */
+    private static final TicketType<ChunkPos> SHADE_TICKET =
+            TicketType.create("edanthro_shade", Comparator.comparingLong(ChunkPos::toLong));
+    private static final int TICKET_RADIUS = 2;
     private static final ResourceLocation SCALE_ID = id("minion_scale");
     private static final String OWNER_TAG = "edanthro_owner_";
     private static final String SLOT_TAG = "edanthro_slot_";
@@ -120,6 +134,8 @@ public final class DragonMinions {
         int idleTicks;
         /** Last place we actually saw it, so an unloaded shade can be fetched. */
         BlockPos lastPos;
+        /** The chunk we are currently holding open for it. */
+        ChunkPos ticket;
         /** The crystal this shade raised, and the block it stands on. */
         UUID crystal;
         BlockPos bedrock;
@@ -198,7 +214,13 @@ public final class DragonMinions {
      * to the first. Absent is not dead.
      */
     private static void prune(ServerLevel level, List<Shade> court) {
-        court.removeIf(s -> level.getEntity(s.entity) instanceof EnderMan e && !e.isAlive());
+        court.removeIf(s -> {
+            if (level.getEntity(s.entity) instanceof EnderMan e && !e.isAlive()) {
+                releaseChunk(level, s);
+                return true;
+            }
+            return false;
+        });
     }
 
     /**
@@ -264,6 +286,37 @@ public final class DragonMinions {
             }
         }
         return -1;
+    }
+
+    /** Hold the chunk the shade is standing in, releasing whichever it left. */
+    private static void holdChunk(ServerLevel level, Shade shade, EnderMan minion) {
+        ChunkPos now = new ChunkPos(minion.blockPosition());
+        if (now.equals(shade.ticket)) {
+            return;
+        }
+        releaseChunk(level, shade);
+        level.getChunkSource().addRegionTicket(SHADE_TICKET, now, TICKET_RADIUS, now);
+        shade.ticket = now;
+    }
+
+    private static void releaseChunk(ServerLevel level, Shade shade) {
+        if (shade.ticket != null) {
+            level.getChunkSource().removeRegionTicket(
+                    SHADE_TICKET, shade.ticket, TICKET_RADIUS, shade.ticket);
+            shade.ticket = null;
+        }
+    }
+
+    /** Let the world close up again when the owner logs out. */
+    public static void onLeave(ServerPlayer owner) {
+        List<Shade> court = COURT.get(owner.getUUID());
+        if (court == null) {
+            return;
+        }
+        ServerLevel level = owner.serverLevel();
+        for (Shade shade : court) {
+            releaseChunk(level, shade);
+        }
     }
 
     /** Is this one of somebody's shades? Used to keep them from blinking away. */
@@ -461,9 +514,9 @@ public final class DragonMinions {
                 shade.learnedY = null;
             }
             shade.wanted = wanted;
-        } else {
-            shade.wanted = null;
         }
+        // A quarry is a standing preference, not part of the order: switching
+        // to Defend and back should not make the shade forget what it digs for.
         SELECTED.put(owner.getUUID(), slot);
         if (minion != null) {
             rename(minion, shade);
@@ -554,6 +607,7 @@ public final class DragonMinions {
                     minion.setTarget(null);      // never turn on the summoner
                 }
                 shade.lastPos = minion.blockPosition();
+                holdChunk(level, shade, minion);
 
                 // Meet the dragon's eye. Looking at a shade is also how you
                 // remind it where it is supposed to be.
@@ -870,35 +924,95 @@ public final class DragonMinions {
     /**
      * Take the bedrock back out.
      *
-     * Only above {@link #BEDROCK_FLOOR} — the world's own floor is left alone,
+     * Any shade can pull up any bedrock, including a crystal another shade
+     * raised — it used to sample points at random inside its own work radius,
+     * which meant it almost never found anything and never crossed the room to
+     * reach it. The court's own platforms are remembered, so those are targeted
+     * directly; anything else is found by sweeping nearby.
+     *
+     * Only above {@link #BEDROCK_FLOOR}: the world's own floor is left alone,
      * because pulling that up drops everything standing on it into the void.
-     * A crystal sitting on a block being removed comes down with it.
      */
     private static void dismantle(ServerPlayer owner, EnderMan minion, ServerLevel level, Shade shade) {
         minion.setTarget(null);
         if (level.getGameTime() % 10 != 0) {
             return;
         }
+        BlockPos target = dismantleTarget(owner, level, minion);
+        if (target == null) {
+            follow(owner, minion, HEEL, 1.1);      // nothing left to pull up
+            return;
+        }
+        if (!minion.blockPosition().closerThan(target, 6.0)) {
+            if (minion.blockPosition().distSqr(target) > FETCH_DISTANCE * FETCH_DISTANCE) {
+                hopToward(level, minion, target.getX(), target.getZ(), 0.0);
+            } else {
+                minion.getNavigation().moveTo(target.getX() + 0.5,
+                        target.getY() + 1, target.getZ() + 0.5, 1.2);
+            }
+            return;
+        }
+        for (EndCrystal sitting : level.getEntitiesOfClass(EndCrystal.class,
+                new AABB(target.above()).inflate(0.9))) {
+            forget(owner, sitting.getUUID(), null);
+            sitting.discard();
+        }
+        level.removeBlock(target, false);
+        forget(owner, null, target);
+        level.playSound(null, target, SoundEvents.STONE_BREAK, SoundSource.HOSTILE, 1.0F, 0.6F);
+        say(owner, NAMES[shade.slot] + " pulls down the bedrock at "
+                + target.getX() + ", " + target.getY() + ", " + target.getZ() + ".",
+                Order.DISMANTLE.colour, false);
+    }
+
+    /** The court's own platforms first, then whatever bedrock is lying about. */
+    private static BlockPos dismantleTarget(ServerPlayer owner, ServerLevel level, EnderMan minion) {
         int floor = level.getMinBuildHeight() + BEDROCK_FLOOR;
-        for (BlockPos pos : BlockPos.randomInCube(level.random, 96, minion.blockPosition(), WORK_RADIUS)) {
+        BlockPos base = minion.blockPosition();
+        BlockPos best = null;
+        double bestDist = Double.MAX_VALUE;
+
+        for (Shade other : COURT.getOrDefault(owner.getUUID(), List.of())) {
+            BlockPos known = other.bedrock;
+            if (known == null || known.getY() <= floor
+                    || !level.getBlockState(known).is(Blocks.BEDROCK)) {
+                continue;
+            }
+            double dist = known.distSqr(base);
+            if (dist < bestDist) {
+                best = known;
+                bestDist = dist;
+            }
+        }
+        if (best != null) {
+            return best;
+        }
+        // Nothing of ours in the ledger: sweep, nearest first. Bounded on
+        // purpose - this runs twice a second and the ledger covers the
+        // common case.
+        for (BlockPos pos : BlockPos.betweenClosed(base.offset(-8, -8, -8), base.offset(8, 8, 8))) {
             if (pos.getY() <= floor || !level.getBlockState(pos).is(Blocks.BEDROCK)) {
                 continue;
             }
-            for (EndCrystal sitting : level.getEntitiesOfClass(EndCrystal.class,
-                    new AABB(pos.above()).inflate(0.6))) {
-                if (shade.crystal != null && shade.crystal.equals(sitting.getUUID())) {
-                    shade.crystal = null;
-                }
-                sitting.discard();
+            double dist = pos.distSqr(base);
+            if (dist < bestDist) {
+                best = pos.immutable();
+                bestDist = dist;
             }
-            level.removeBlock(pos, false);
-            if (pos.equals(shade.bedrock)) {
-                shade.bedrock = null;
-            }
-            level.playSound(null, pos, SoundEvents.STONE_BREAK, SoundSource.HOSTILE, 1.0F, 0.6F);
-            return;
         }
-        follow(owner, minion, HEEL, 1.1);          // nothing here to pull up
+        return best;
+    }
+
+    /** Strike a dismantled crystal or platform off whichever shade raised it. */
+    private static void forget(ServerPlayer owner, UUID crystal, BlockPos bedrock) {
+        for (Shade s : COURT.getOrDefault(owner.getUUID(), List.of())) {
+            if (crystal != null && crystal.equals(s.crystal)) {
+                s.crystal = null;
+            }
+            if (bedrock != null && bedrock.equals(s.bedrock)) {
+                s.bedrock = null;
+            }
+        }
     }
 
     // ----------------------------------------------------------- movement

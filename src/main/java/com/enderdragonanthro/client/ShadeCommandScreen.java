@@ -111,9 +111,22 @@ public class ShadeCommandScreen extends Screen {
         return block == null ? id : block.getName().getString();
     }
 
+    /**
+     * Send the quarry the row is actually showing.
+     *
+     * This used to fall back to an empty string when the player had not touched
+     * the picker this time round, so simply pressing Collect again wiped the
+     * quarry the shade already had and sent it after anything it fancied.
+     */
     private void send(int slot, int order) {
-        ClientPlayNetworking.send(new ShadeOrderPayload(
-                slot, order, this.quarry.getOrDefault(slot, "")));
+        String named = this.quarry.get(slot);
+        if (named == null) {
+            named = this.state.shades().stream()
+                    .filter(e -> e.slot() == slot)
+                    .map(ShadeStatePayload.Entry::quarry)
+                    .findFirst().orElse("");
+        }
+        ClientPlayNetworking.send(new ShadeOrderPayload(slot, order, named));
     }
 
     @Override

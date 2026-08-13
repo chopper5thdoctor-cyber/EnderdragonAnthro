@@ -60,8 +60,10 @@ public class EnderdragonAnthro implements ModInitializer {
         // Reapply the (transient) attribute modifiers and boss bar when a saved dragon logs in
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 DragonFormManager.onJoin(handler.getPlayer()));
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                DragonFormManager.onLeave(handler.getPlayer()));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            DragonFormManager.onLeave(handler.getPlayer());
+            DragonMinions.onLeave(handler.getPlayer());   // let the held chunks close
+        });
 
         // Dragon-ness survives death: copy the flag to the respawned player, then re-dress it
         ServerPlayerEvents.COPY_FROM.register((oldPlayer, newPlayer, alive) ->

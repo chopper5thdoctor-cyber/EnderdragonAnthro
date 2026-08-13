@@ -16,7 +16,8 @@
   ],
   "client": [
     "EndCrystalTextureMixin",
-    "PlayerBodyHideMixin"
+    "PlayerBodyHideMixin",
+    "PlayerHandMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -267,6 +267,17 @@ public class DragonFormModel {{
      */
     public static final float GROUND_OFFSET = 24.0F - 96.0F * RENDER_SCALE;
 
+    /**
+     * The first-person arm.
+     *
+     * The dragon's arm runs from the shoulder at y=-1 to the fingertips at
+     * y=46 — 47 model units, against the vanilla arm's 12. Scaling by that
+     * ratio keeps the screen footprint the player's hand had while putting the
+     * dragon's bulk and texture in its place. If the rig's arm length changes,
+     * this is the number to revisit.
+     */
+    public static final float ARM_SCALE = 12.0F / 47.0F;
+
 {base}
 
     // the vanilla player pivots these parts track
@@ -323,6 +334,23 @@ public class DragonFormModel {{
 
     public void render(PoseStack poseStack, VertexConsumer buffer, int light) {{
         this.root.render(poseStack, buffer, light, OverlayTexture.NO_OVERLAY);
+    }}
+
+    /**
+     * One arm on its own, shoulder at the origin, for the first-person hand.
+     *
+     * Its pivot and pose are neutralised for the duration: in first person the
+     * arm is placed by the hand renderer, not by the body it belongs to.
+     */
+    public void renderArm(boolean right, PoseStack poseStack, VertexConsumer buffer, int light) {{
+        ModelPart arm = right ? this.rightArm : this.leftArm;
+        float x = arm.x, y = arm.y, z = arm.z;
+        float xRot = arm.xRot, yRot = arm.yRot, zRot = arm.zRot;
+        arm.setPos(0.0F, 0.0F, 0.0F);
+        arm.setRotation(0.0F, 0.0F, 0.0F);
+        arm.render(poseStack, buffer, light, OverlayTexture.NO_OVERLAY);
+        arm.setPos(x, y, z);
+        arm.setRotation(xRot, yRot, zRot);
     }}
 }}
 '''

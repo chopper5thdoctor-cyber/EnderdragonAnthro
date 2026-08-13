@@ -33,6 +33,8 @@ public class EndermanHappyLayer extends RenderLayer<EnderMan, EndermanModel<Ende
             new ModelLayerLocation(EnderdragonAnthro.id("enderman_happy"), "main");
     private static final ResourceLocation FACE =
             EnderdragonAnthro.id("textures/entity/enderman_happy.png");
+    private static final ResourceLocation MASK =
+            EnderdragonAnthro.id("textures/entity/enderman_happy_mask.png");
 
     private final ModelPart face;
 
@@ -60,6 +62,12 @@ public class EndermanHappyLayer extends RenderLayer<EnderMan, EndermanModel<Ende
             return;
         }
         this.face.copyFrom(getParentModel().head);
+        // Mask first, in ordinary cutout, so the enderman's own glowing eyes are
+        // actually covered. RenderType.eyes is additive — the expression drawn
+        // on its own could only ever sit on top of them, which read as blush
+        // rather than as a face.
+        this.face.render(poseStack, buffers.getBuffer(RenderType.entityCutoutNoCull(MASK)),
+                light, OverlayTexture.NO_OVERLAY);
         this.face.render(poseStack, buffers.getBuffer(RenderType.eyes(FACE)),
                 15728640, OverlayTexture.NO_OVERLAY);
     }

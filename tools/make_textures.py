@@ -162,23 +162,40 @@ def purple_heart():
 
 
 def happy_face():
-    """A head-sized overlay, blank except two carets where the eyes are.
+    """The ^^ itself, emissive, drawn over the mask below.
 
-    Drawn as its own emissive layer over the vanilla enderman rather than by
-    swapping its texture: no Mojang art is copied, and the eyes layer
-    underneath is left alone.
+    Sits one row higher and tighter than the first attempt, which put two pink
+    patches out on the cheeks either side of the vanilla eyes and read as
+    blushing rather than as an expression.
     """
     sheet = Image.new("RGBA", (64, 32), CLEAR)
     x0, y0, _, _ = box_slots(0, 0, 8, 8, 8)["north"]       # the face
     bright = (0xF0, 0xA8, 0xFF, 255)
-    core = (0xFF, 0xF0, 0xFF, 255)
-    # Endermen have wide eyes, so the carets are wide too: apex pair on one
-    # row, legs dropping away on the next.
-    for cx in (0, 4):                                      # one caret per eye
-        sheet.putpixel((x0 + cx + 1, y0 + 3), core)
-        sheet.putpixel((x0 + cx + 2, y0 + 3), core)
-        sheet.putpixel((x0 + cx, y0 + 4), bright)
-        sheet.putpixel((x0 + cx + 3, y0 + 4), bright)
+    core = (0xFF, 0xF4, 0xFF, 255)
+    # Three wide with two clear pixels between them: at four wide the inner
+    # legs met in the middle and the pair read as one flat bar.
+    for cx in (0, 5):                                      # one caret per eye
+        sheet.putpixel((x0 + cx + 1, y0 + 2), core)        # apex
+        sheet.putpixel((x0 + cx, y0 + 3), bright)          # legs falling away
+        sheet.putpixel((x0 + cx + 2, y0 + 3), bright)
+    return sheet
+
+
+def happy_mask():
+    """An opaque band that hides the enderman's own eyes.
+
+    RenderType.eyes is additive, so the ^^ on its own could only ever be drawn
+    on top of the glowing eyes rather than instead of them — two bright shapes
+    at once, which is why it read as blush. This pass is ordinary cutout, so it
+    covers them, and it is the same near-black as an enderman so nothing shows
+    but the expression.
+    """
+    sheet = Image.new("RGBA", (64, 32), CLEAR)
+    x0, y0, _, _ = box_slots(0, 0, 8, 8, 8)["north"]
+    skin = (0x0F, 0x0F, 0x12, 255)
+    for x in range(8):
+        for y in range(1, 5):                              # the whole eye band
+            sheet.putpixel((x0 + x, y0 + y), skin)
     return sheet
 
 
@@ -188,6 +205,7 @@ def main():
         "item/homing_crystal.png": crystal_item(),
         "particle/purple_heart.png": purple_heart(),
         "entity/enderman_happy.png": happy_face(),
+        "entity/enderman_happy_mask.png": happy_mask(),
     }
     for rel, img in out.items():
         path = os.path.join(ASSETS, rel)
