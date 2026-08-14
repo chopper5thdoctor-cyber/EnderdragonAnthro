@@ -2,6 +2,7 @@ package com.enderdragonanthro.client.render;
 
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.client.DragonHud;
+import com.enderdragonanthro.config.DragonConfig;
 import com.enderdragonanthro.client.model.DragonFormModel;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.model.PlayerModel;
@@ -43,16 +44,17 @@ public class DragonFormLayer extends RenderLayer<AbstractClientPlayer, PlayerMod
         }
         this.model.copyPose(getParentModel());
 
+        float scale = DragonConfig.trueProportions()
+                ? DragonFormModel.TRUE_SCALE       // as drawn; the head overshoots
+                : DragonFormModel.RENDER_SCALE;    // trimmed to fill the hitbox
+
         poseStack.pushPose();
-        // GROUND_OFFSET is in model units. The stack is in BLOCKS here —
-        // ModelPart does the /16 itself, further down — so it has to be
-        // converted, or the dragon gets shoved sixteen times too far and ends
-        // up buried in the floor. (+Y is down: LivingEntityRenderer already
-        // scaled by -1, -1, 1.)
-        poseStack.translate(0.0F, DragonFormModel.GROUND_OFFSET / 16.0F, 0.0F);
-        poseStack.scale(DragonFormModel.RENDER_SCALE,
-                DragonFormModel.RENDER_SCALE,
-                DragonFormModel.RENDER_SCALE);
+        // The offset is in model units. The stack is in BLOCKS here — ModelPart
+        // does the /16 itself, further down — so it has to be converted, or the
+        // dragon gets shoved sixteen times too far and ends up buried in the
+        // floor. (+Y is down: LivingEntityRenderer already scaled by -1, -1, 1.)
+        poseStack.translate(0.0F, DragonFormModel.groundOffset(scale) / 16.0F, 0.0F);
+        poseStack.scale(scale, scale, scale);
         this.model.render(poseStack,
                 buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)), light);
         this.model.render(poseStack, buffers.getBuffer(RenderType.eyes(EYES)), light);

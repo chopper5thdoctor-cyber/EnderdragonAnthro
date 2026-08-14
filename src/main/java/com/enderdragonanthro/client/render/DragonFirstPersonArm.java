@@ -3,6 +3,7 @@ package com.enderdragonanthro.client.render;
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.client.DragonHud;
 import com.enderdragonanthro.client.model.DragonFormModel;
+import com.enderdragonanthro.config.DragonConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -52,7 +53,11 @@ public final class DragonFirstPersonArm {
         // instead: centred on the same line, shoulder in the same place, and
         // the same twelve units long. Everything comes off the rig, so
         // reshaping the arm in Blockbench moves the hand with it.
-        float scale = DragonFormModel.ARM_SCALE;
+        // Follows the body's setting: at authored proportions the hand is the
+        // same 18% larger the rest of the dragon is.
+        float scale = DragonFormModel.ARM_SCALE
+                * (DragonConfig.trueProportions()
+                   ? DragonFormModel.TRUE_SCALE / DragonFormModel.RENDER_SCALE : 1.0F);
         float centreX = (DragonFormModel.ARM_MIN_X + DragonFormModel.ARM_MAX_X) / 2.0F;
         float centreZ = (DragonFormModel.ARM_MIN_Z + DragonFormModel.ARM_MAX_Z) / 2.0F;
         float side = right ? 1.0F : -1.0F;      // the left arm is its mirror

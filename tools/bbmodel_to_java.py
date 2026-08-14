@@ -212,6 +212,7 @@ def convert(path):
         sys.exit("ERROR: could not measure left_arm; the first-person hand needs it")
     java = TEMPLATE.format(base=base, vanilla=vanilla, parts="\n".join(lines),
                            tw=res["width"], th=res["height"],
+                           ground=f"{GROUND:.1f}", skull="136.0",
                            ax0=f"{arm['lo0']:.3f}", ax1=f"{arm['hi0']:.3f}",
                            ay0=f"{arm['lo1']:.3f}", ay1=f"{arm['hi1']:.3f}",
                            az0=f"{arm['lo2']:.3f}", az1=f"{arm['hi2']:.3f}")
@@ -269,22 +270,40 @@ public class DragonFormModel {{
     /** Model units are 4x final units. */
     public static final float AUTHOR_SCALE = 4.0F;
 
-    /**
-     * 0.25 would be an exact 4x undo. The model stands 136 units to the top of
-     * the skull, which at a plain 0.25 renders 9.44 blocks tall against an
-     * 8-block hitbox, so it is trimmed by 8/9.44. Horn tips still rise a little
-     * above the hitbox, which is deliberate — the canon dragon's wings
-     * overshoot its hitbox too.
-     */
-    public static final float RENDER_SCALE = 0.2118F;
+    /** The rig's foot plane, and the top of the skull above it, in model units. */
+    public static final float FOOT_PLANE = {ground}F;
+    public static final float SKULL_HEIGHT = {skull}F;
+    /** The model is authored at four times life size on the sheet. */
+    public static final float AUTHORED_SCALE = 4.0F;
 
     /**
-     * The authoring rig puts the foot plane at y=96, which lands on the ground
-     * only at a scale of exactly 0.25. Trimming to RENDER_SCALE for the hitbox
-     * lifts the whole dragon, so DragonFormLayer translates by this first.
-     * Without it the dragon hovers about a block off the floor.
+     * The model at exactly the proportions it was drawn at — an exact undo of
+     * the 4x authoring. At this scale the dragon stands 1.18x its own hitbox:
+     * the model is 136 units to the top of the skull where a player model is
+     * 32, so it is simply a taller build than the box it lives in.
      */
-    public static final float GROUND_OFFSET = 24.0F - 96.0F * RENDER_SCALE;
+    public static final float TRUE_SCALE = 1.0F / AUTHORED_SCALE;
+
+    /**
+     * The model trimmed to fill its hitbox exactly.
+     *
+     * 1.8 * 16 / SKULL_HEIGHT — a player is 1.8 blocks and 16 model units make
+     * a block, so this is the scale at which the skull tops out level with the
+     * hitbox. It does not depend on how tall the form is set to be: the trim is
+     * a fixed 18 percent, not something the eight-block figure imposes. Horn
+     * tips still rise a little above, which is deliberate — the canon dragon
+     * overshoots its own hitbox too.
+     */
+    public static final float RENDER_SCALE = 1.8F * 16.0F / SKULL_HEIGHT;
+
+    /**
+     * The rig puts the foot plane at FOOT_PLANE, which only lands on the ground
+     * at a scale of exactly 0.25. Any other scale lifts the whole dragon, so
+     * the layer drops it back by this much before drawing.
+     */
+    public static float groundOffset(float scale) {{
+        return 24.0F - FOOT_PLANE * scale;
+    }}
 
     /**
      * The box of the arm the first-person hand clones, in that part's local

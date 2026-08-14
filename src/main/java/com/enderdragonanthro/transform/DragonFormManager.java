@@ -2,6 +2,7 @@ package com.enderdragonanthro.transform;
 
 import com.enderdragonanthro.ability.CrystalHealing;
 import com.enderdragonanthro.boss.DragonBossBars;
+import com.enderdragonanthro.config.DragonConfig;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -19,49 +20,61 @@ import static com.enderdragonanthro.EnderdragonAnthro.id;
 /**
  * Applies and removes the dragon form. All numbers trace back to DESIGN.md:
  * the canon dragon hitbox is 8 blocks tall, the player 1.8 — so scale is
- * 8 / 1.8. Max health becomes the canon 200. Modifiers are transient
+ * 8 / 1.8. That height is a config knob now, and everything derived from size
+ * — step, reach, safe fall, jump — moves with it, so a taller dragon is
+ * consistently taller rather than a big model on a small creature's stats. The
+ * canon numbers that are not about size (200 HP, the damage figures) stay put.
+ * Max health becomes the canon 200. Modifiers are transient
  * (not saved to NBT); the persistent truth is the TransformAccess flag,
  * and onJoin/onRespawn re-dress the player from it.
  */
 public final class DragonFormManager {
+    /** The canon figure, and the default. DragonConfig can move it. */
     public static final double SCALE_FACTOR = 8.0 / 1.8;
 
     private record Mod(ResourceLocation id, Holder<Attribute> attribute, double amount,
                        AttributeModifier.Operation operation) {
     }
 
-    private static final List<Mod> MODIFIERS = List.of(
+    /**
+     * Built per call rather than held as a constant: the size-derived numbers
+     * depend on the configured height, which is not known until the config has
+     * been read.
+     */
+    private static List<Mod> modifiers() {
+        double size = DragonConfig.sizeRatio();      // 1.0 at the canon eight blocks
+        return List.of(
             // base scale 1.0 -> 4.444 (8 blocks tall, ~2.67 wide; vanilla cap is 16)
-            new Mod(id("dragon_scale"), Attributes.SCALE, SCALE_FACTOR - 1.0,
+            new Mod(id("dragon_scale"), Attributes.SCALE, DragonConfig.scaleFactor() - 1.0,
                     AttributeModifier.Operation.ADD_VALUE),
             // 20 -> 200 HP, canon
             new Mod(id("dragon_health"), Attributes.MAX_HEALTH, 180.0,
                     AttributeModifier.Operation.ADD_VALUE),
             // base 0.6 -> 2.5: an 8-block dragon does not hop up single blocks
-            new Mod(id("dragon_step"), Attributes.STEP_HEIGHT, 1.9,
+            new Mod(id("dragon_step"), Attributes.STEP_HEIGHT, 1.9 * size,
                     AttributeModifier.Operation.ADD_VALUE),
             // base 3 -> 13 blocks of safe fall
-            new Mod(id("dragon_safe_fall"), Attributes.SAFE_FALL_DISTANCE, 10.0,
+            new Mod(id("dragon_safe_fall"), Attributes.SAFE_FALL_DISTANCE, 10.0 * size,
                     AttributeModifier.Operation.ADD_VALUE),
             // reach scaled so you can touch the ground at your own feet
-            new Mod(id("dragon_block_reach"), Attributes.BLOCK_INTERACTION_RANGE, 8.0,
+            new Mod(id("dragon_block_reach"), Attributes.BLOCK_INTERACTION_RANGE, 8.0 * size,
                     AttributeModifier.Operation.ADD_VALUE),
-            new Mod(id("dragon_entity_reach"), Attributes.ENTITY_INTERACTION_RANGE, 8.0,
+            new Mod(id("dragon_entity_reach"), Attributes.ENTITY_INTERACTION_RANGE, 8.0 * size,
                     AttributeModifier.Operation.ADD_VALUE),
             // 3x stride. Fully proportional (4.44x) outran elytra cruising and
             // made terrain unreadable at ground level; 3x still reads as a giant.
             new Mod(id("dragon_speed"), Attributes.MOVEMENT_SPEED, 2.0,
                     AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL),
             // base 0.42 -> 0.60: hops ~2.5 blocks, proportional to leg length
-            new Mod(id("dragon_jump"), Attributes.JUMP_STRENGTH, 0.18,
+            new Mod(id("dragon_jump"), Attributes.JUMP_STRENGTH, 0.18 * size,
                     AttributeModifier.Operation.ADD_VALUE),
             // canon head-hit is 10 on Normal: bare fist 1 -> 10
             new Mod(id("dragon_attack"), Attributes.ATTACK_DAMAGE, 9.0,
                     AttributeModifier.Operation.ADD_VALUE),
             // dragon hits launch people
             new Mod(id("dragon_attack_knockback"), Attributes.ATTACK_KNOCKBACK, 1.5,
-                    AttributeModifier.Operation.ADD_VALUE)
-    );
+                    AttributeModifier.Operation.ADD_VALUE));
+    }
 
     private DragonFormManager() {
     }
@@ -124,7 +137,7 @@ public final class DragonFormManager {
     }
 
     private static void dress(ServerPlayer player) {
-        for (Mod mod : MODIFIERS) {
+        for (Mod mod : modifiers()) {
             AttributeInstance instance = player.getAttribute(mod.attribute());
             if (instance == null) {
                 continue;
@@ -138,7 +151,7 @@ public final class DragonFormManager {
     }
 
     private static void undress(ServerPlayer player) {
-        for (Mod mod : MODIFIERS) {
+        for (Mod mod : modifiers()) {
             AttributeInstance instance = player.getAttribute(mod.attribute());
             if (instance != null) {
                 instance.removeModifier(mod.id());

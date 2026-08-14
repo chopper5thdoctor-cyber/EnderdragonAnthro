@@ -8,6 +8,7 @@ import com.enderdragonanthro.ability.DragonMinions;
 import com.enderdragonanthro.ability.EndermanAffection;
 import com.enderdragonanthro.ability.HomingCrystals;
 import com.enderdragonanthro.boss.DragonBossBars;
+import com.enderdragonanthro.config.DragonConfig;
 import com.enderdragonanthro.item.ModItems;
 import com.enderdragonanthro.command.ShadeCommand;
 import com.enderdragonanthro.network.AbilityActionPayload;
@@ -39,6 +40,8 @@ public class EnderdragonAnthro implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        DragonConfig.load();
+
         PayloadTypeRegistry.playC2S().register(AbilityActionPayload.TYPE, AbilityActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ShadeOrderPayload.TYPE, ShadeOrderPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ShadeStatePayload.TYPE, ShadeStatePayload.CODEC);

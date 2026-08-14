@@ -169,6 +169,38 @@ cube's world-space corners from both the generated Java and the `.bbmodel` and c
 them; it exists because three conversion bugs shipped without it. See
 [MODELING_GUIDE.md](MODELING_GUIDE.md) for the six-bone rig contract the model must keep.
 
+## Size
+
+`config/enderdragonanthro.json`, written on first run:
+
+```json
+{
+  "heightBlocks": 8.0,
+  "trueProportions": false
+}
+```
+
+**`heightBlocks`** is how tall you actually stand — the hitbox. 8.0 is the canon
+Ender Dragon. Everything derived from size moves with it: step height, reach, safe
+fall, jump. The canon numbers that are *not* about size — 200 HP, the damage
+figures, the 3× stride — stay put. Vanilla caps the scale attribute at 16, so the
+ceiling is 28.8 blocks; anything outside is clamped with a warning.
+
+**`trueProportions`** is a separate question. The rig is 136 model units to the top
+of the skull where a player model is 32, so the dragon is a taller build than the
+box it lives in *at any size*. By default the model is trimmed 18% so the skull tops
+out level with the hitbox. Set this true and it is drawn exactly as authored, head
+and horns overshooting — the way the canon dragon's own model does.
+
+| | hitbox | model drawn |
+|---|---|---|
+| `8.0`, trimmed *(default)* | 8.00 | 8.00 |
+| `8.0`, true proportions | 8.00 | 9.44 |
+| `12.0`, trimmed | 12.00 | 12.00 |
+| `12.0`, true proportions | 12.00 | 14.17 |
+
+The first-person hand follows whichever you pick.
+
 ## Palette
 
 Pixel-sampled from the vanilla dragon textures (see [DESIGN.md](DESIGN.md) §2): near-black
