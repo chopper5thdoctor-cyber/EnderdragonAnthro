@@ -83,3 +83,18 @@ panels meeting thin-end-to-thin-end mean the mirror flag is wrong on that side.
 This is the check that finally explained why the membranes read `ng][wi`
 instead of `[wing]` for two builds running. See `MIRROR_OVERRIDE` in
 `bbmodel_to_java.py`.
+
+## preview_eyeline.py
+
+```bash
+python3 tools/preview_eyeline.py     # writes art/eyeline_preview.png
+```
+
+Draws the rig front-on with the game's eye plane — the red line in F3+B — laid
+across it, for both `trueProportions` settings.
+
+Worth running after any change to the rig's height, because the two are not
+connected. The eye sits at a fixed 1.62/1.8 of the **hitbox**, and the model is
+sized separately, so `rigY = 1.62 * 16 / renderScale` — where the plane lands on
+the model depends entirely on the render scale and not at all on where the eyes
+are painted. Move the head and the camera does not follow it.

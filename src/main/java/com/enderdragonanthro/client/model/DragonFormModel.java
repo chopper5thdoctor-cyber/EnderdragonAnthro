@@ -88,7 +88,7 @@ public class DragonFormModel {
      */
     public static final float ARM_SCALE = 12.0F / (ARM_MAX_Y - ARM_MIN_Y);
 
-    private static final float[] BASE_HEAD = {0.000F, -13.000F, 0.000F};
+    private static final float[] BASE_HEAD = {0.000F, -13.000F, -1.000F};
     private static final float[] BASE_BODY = {0.000F, -13.000F, 0.000F};
     private static final float[] BASE_RIGHT_ARM = {-20.000F, -5.000F, 2.000F};
     private static final float[] BASE_LEFT_ARM = {20.000F, -5.000F, 2.000F};
@@ -128,7 +128,7 @@ public class DragonFormModel {
         // ---- head ----
         PartDefinition head = root.addOrReplaceChild("head", CubeListBuilder.create()
                         .texOffs(0, 20).addBox(-8.000F, -8.000F, -8.000F, 16.000F, 14.000F, 16.000F),
-                PartPose.offset(0.000F, -13.000F, 0.000F));
+                PartPose.offset(0.000F, -13.000F, -1.000F));
         head.addOrReplaceChild("head_spin", CubeListBuilder.create()
                         .texOffs(284, 384).addBox(-2.000F, -3.000F, -3.000F, 4.000F, 6.000F, 6.000F),
                 PartPose.offsetAndRotation(0.000F, -19.000F, 7.786F, 0.7854F, 0.0000F, -0.0000F));
