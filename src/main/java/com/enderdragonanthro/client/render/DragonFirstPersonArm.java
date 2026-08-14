@@ -29,6 +29,17 @@ public final class DragonFirstPersonArm {
     // arm part. Its centre line, and where its shoulder end sits.
     private static final float VANILLA_CENTRE_X = -1.0F;
     private static final float VANILLA_SHOULDER_Y = -2.0F;
+    // ...and the part's own pivot, PartPose.offset(-5, 2, 0), which those box
+    // figures are measured against.
+    //
+    // This is easy to leave out and was. ModelPart.render applies the pivot
+    // itself, so vanilla's arm lands at pivot + box while renderArm zeroes the
+    // pivot and this placed the dragon's arm at box alone -- adrift by exactly
+    // (-5, 2, 0). Not a subtle 2 units, either: the hand renderer rotates 200
+    // degrees about X before drawing, which turns model-space down into roughly
+    // screen-up, so the missing +2 read as the arm sitting too LOW on screen.
+    private static final float VANILLA_PIVOT_X = -5.0F;
+    private static final float VANILLA_PIVOT_Y = 2.0F;
 
     private static DragonFormModel model;
 
@@ -66,9 +77,11 @@ public final class DragonFirstPersonArm {
         // Model units over sixteen: ModelPart does that division itself, one
         // level further down, so the offset has to be in blocks by the time it
         // reaches the stack.
+        // Pivot included, so the arm ends up in exactly the volume vanilla's
+        // occupies: x -8..-4, y 0..12, mirrored for the left.
         poseStack.translate(
-                side * (VANILLA_CENTRE_X - scale * centreX) / 16.0F,
-                (VANILLA_SHOULDER_Y - scale * DragonFormModel.ARM_MIN_Y) / 16.0F,
+                side * (VANILLA_PIVOT_X + VANILLA_CENTRE_X - scale * centreX) / 16.0F,
+                (VANILLA_PIVOT_Y + VANILLA_SHOULDER_Y - scale * DragonFormModel.ARM_MIN_Y) / 16.0F,
                 -scale * centreZ / 16.0F);
         poseStack.scale(scale, scale, scale);
         // The rig names its arms from the model's own facing, which is the

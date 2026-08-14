@@ -22,10 +22,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * Expressed against the dimensions' own height rather than an absolute, so it
  * lands correctly whether this fires before or after the scale is applied —
  * and applying it twice, if the call chain overrides itself, is a no-op.
+ *
+ * The hook is getDefaultDimensions, not getDimensions. Player does not declare
+ * getDimensions at all: LivingEntity does, and it is final. getDefaultDimensions
+ * is what Player overrides, and LivingEntity scales its result afterwards — which
+ * is harmless here, because scale() multiplies height and eyeHeight by the same
+ * factor and this sets a ratio between them.
+ *
+ * This targeted getDimensions for several builds. Nothing said so: mixin only
+ * warns when a target cannot be remapped, the build stays green, and require = 0
+ * turned the miss into silence. It is 1 now, so a mapping change breaks the build
+ * rather than the camera.
  */
 @Mixin(Player.class)
 public abstract class PlayerEyeHeightMixin {
-    @Inject(method = "getDimensions", at = @At("RETURN"), cancellable = true, require = 0)
+    @Inject(method = "getDefaultDimensions", at = @At("RETURN"), cancellable = true)
     private void enderdragonanthro$eyeHeight(Pose pose,
                                              CallbackInfoReturnable<EntityDimensions> cir) {
         Player self = (Player) (Object) this;

@@ -66,8 +66,23 @@ jobs:
           key: loom-${{ runner.os }}-${{ hashFiles('gradle.properties', 'build.gradle') }}
           restore-keys: loom-${{ runner.os }}-
 
+      # A mixin whose target does not exist does NOT fail the build. Loom's
+      # remapper prints "Cannot remap <name> because it does not exists in any
+      # of the targets [...]" and carries on green. That one line was the only
+      # evidence that PlayerEyeHeightMixin had been pointing at a method Player
+      # does not have, silently, for several builds. It fails the run now.
       - name: Build
-        run: ./gradlew build --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew build --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Check mixins resolved
+        run: |
+          if grep -n "Cannot remap" build.log; then
+            echo "::error::A mixin names a target that does not exist in 1.21.1 (see above)."
+            exit 1
+          fi
+          echo "Every mixin target resolved."
 
       - name: Upload jar
         if: success()

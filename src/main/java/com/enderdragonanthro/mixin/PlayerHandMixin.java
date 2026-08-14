@@ -18,12 +18,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * something. Taking them over means the bob, the swing and the item hold all
  * still come from vanilla — only the limb changes.
  *
- * Optional: if it misses, you get human arms in first person, which is what
- * you had before and nothing else breaks.
+ * Both targets are verified present on PlayerRenderer in 1.21.1, so this is no
+ * longer optional. It used to carry require = 0, which would have let a wrong
+ * name fail in total silence — the arm simply staying human with nothing said.
  */
 @Mixin(PlayerRenderer.class)
 public abstract class PlayerHandMixin {
-    @Inject(method = "renderRightHand", at = @At("HEAD"), cancellable = true, require = 0)
+    @Inject(method = "renderRightHand", at = @At("HEAD"), cancellable = true)
     private void enderdragonanthro$rightClaw(PoseStack poseStack, MultiBufferSource buffers,
                                              int light, AbstractClientPlayer player,
                                              CallbackInfo ci) {
@@ -32,7 +33,7 @@ public abstract class PlayerHandMixin {
         }
     }
 
-    @Inject(method = "renderLeftHand", at = @At("HEAD"), cancellable = true, require = 0)
+    @Inject(method = "renderLeftHand", at = @At("HEAD"), cancellable = true)
     private void enderdragonanthro$leftClaw(PoseStack poseStack, MultiBufferSource buffers,
                                             int light, AbstractClientPlayer player,
                                             CallbackInfo ci) {
