@@ -15,13 +15,20 @@ import java.nio.file.Path;
  * config/enderdragonanthro.json — how big the dragon is, and whether the model
  * is trimmed to fit its hitbox.
  *
- * Two separate things, which is why they are two settings. The eight blocks is
- * the canon Ender Dragon's hitbox and sets how tall you actually are. The trim
- * is a fixed 18 percent squash applied so the skull tops out level with that
- * hitbox — the rig is 136 model units to the skull where a player model is 32,
- * so it is a taller build than the box it lives in, at any size. Turning the
- * trim off gives the model exactly the proportions it was drawn at and lets the
- * head overshoot, the way the canon dragon's own does.
+ * Two separate things, which is why they are two settings.
+ *
+ * heightBlocks is the hitbox — how tall you actually are, and what every
+ * size-derived stat comes off. Eight is the canon Ender Dragon.
+ *
+ * trueProportions decides whether the model is drawn as authored. It defaults
+ * to on, because the alternative silently cancels the artist's work: the trim
+ * is RENDER_SCALE = 1.8 * 16 / SKULL_HEIGHT, and with the rig's own height in
+ * the denominator, ANY rig draws at exactly the hitbox height. Lengthen the
+ * legs and the dragon does not get taller — the proportions shift inside the
+ * same eight blocks and nothing else changes. Off, the model fills its hitbox
+ * exactly and rig height is normalised away; on, the rig's real height is what
+ * you see and the head rides about 18 percent above the hitbox, the way the
+ * canon dragon's own model overshoots its.
  */
 public final class DragonConfig {
     /** Vanilla caps the scale attribute at 16, and a player is 1.8 blocks. */
@@ -31,7 +38,7 @@ public final class DragonConfig {
     /** The shape written to and read from disk. */
     private static final class Values {
         double heightBlocks = 8.0;
-        boolean trueProportions = false;
+        boolean trueProportions = true;
     }
 
     private static Values values = new Values();

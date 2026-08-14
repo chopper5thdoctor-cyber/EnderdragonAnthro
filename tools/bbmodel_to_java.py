@@ -102,6 +102,9 @@ def convert(path):
     # the one that reads as the player's right hand -- and the right hand is
     # what first person shows.
     arm = {}
+    # Topmost point of the skull group, in java y, so the rig's own height
+    # drives the scaling instead of a number typed in once.
+    tops = {}
 
     def ident(name):
         s = re.sub(r"\W", "_", name)
@@ -142,6 +145,8 @@ def convert(path):
                     mirrored = want
                 boxes.append(f"{prefix}{tex}.addBox({x - piv[0]:.3f}F, {y - piv[1]:.3f}F, "
                              f"{z - piv[2]:.3f}F, {w:.3f}F, {h:.3f}F, {d:.3f}F)")
+                if name == "skull":
+                    tops["skull"] = min(tops.get("skull", y), y)
                 if name == "left_arm":
                     lo = (x - piv[0], y - piv[1], z - piv[2])
                     hi = (lo[0] + w, lo[1] + h, lo[2] + d)
@@ -210,9 +215,13 @@ def convert(path):
 
     if len(arm) != 6:
         sys.exit("ERROR: could not measure left_arm; the first-person hand needs it")
+    # Java y counts downward from the foot plane, so the topmost point is the
+    # smallest value. Fall back to the whole rig if the skull group is missing.
+    top = tops.get("skull", GROUND - 136.0)
+    skull_height = GROUND - top
     java = TEMPLATE.format(base=base, vanilla=vanilla, parts="\n".join(lines),
                            tw=res["width"], th=res["height"],
-                           ground=f"{GROUND:.1f}", skull="136.0",
+                           ground=f"{GROUND:.1f}", skull=f"{skull_height:.1f}",
                            ax0=f"{arm['lo0']:.3f}", ax1=f"{arm['hi0']:.3f}",
                            ay0=f"{arm['lo1']:.3f}", ay1=f"{arm['hi1']:.3f}",
                            az0=f"{arm['lo2']:.3f}", az1=f"{arm['hi2']:.3f}")
@@ -236,6 +245,12 @@ def convert(path):
 
     print(f"{len(bb['elements'])} cubes -> {java.count('addOrReplaceChild')} parts")
     print(f"textures written ({lit} emissive pixels)")
+    trim = 1.8 * 16.0 / skull_height
+    print(f"rig height: {skull_height:.1f} model units, foot plane to the top of the skull")
+    print(f"  trueProportions on  -> drawn {skull_height * 0.25 / 16 * (8 / 1.8):.2f} blocks "
+          f"at an 8-block hitbox   (rig height shows)")
+    print(f"  trueProportions off -> drawn {skull_height * trim / 16 * (8 / 1.8):.2f} blocks "
+          f"at an 8-block hitbox   (rig height normalised away)")
 
 
 TEMPLATE = '''package com.enderdragonanthro.client.model;

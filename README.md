@@ -176,28 +176,36 @@ them; it exists because three conversion bugs shipped without it. See
 ```json
 {
   "heightBlocks": 8.0,
-  "trueProportions": false
+  "trueProportions": true
 }
 ```
 
-**`heightBlocks`** is how tall you actually stand — the hitbox. 8.0 is the canon
-Ender Dragon. Everything derived from size moves with it: step height, reach, safe
-fall, jump. The canon numbers that are *not* about size — 200 HP, the damage
-figures, the 3× stride — stay put. Vanilla caps the scale attribute at 16, so the
-ceiling is 28.8 blocks; anything outside is clamped with a warning.
+**`trueProportions`** decides whether the rig's own height means anything.
 
-**`trueProportions`** is a separate question. The rig is 136 model units to the top
-of the skull where a player model is 32, so the dragon is a taller build than the
-box it lives in *at any size*. By default the model is trimmed 18% so the skull tops
-out level with the hitbox. Set this true and it is drawn exactly as authored, head
-and horns overshooting — the way the canon dragon's own model does.
+The trim is `RENDER_SCALE = 1.8 * 16 / SKULL_HEIGHT` — the rig's height is in the
+**denominator**, so with the trim on, *any* rig draws at exactly the hitbox height.
+Lengthen the legs and the dragon does not get taller; the proportions shift inside
+the same eight blocks and nothing else changes. That is why this defaults to `true`:
+off, it silently cancels whatever you did in Blockbench.
 
-| | hitbox | model drawn |
+| rig height | trim on | trim off |
 |---|---|---|
-| `8.0`, trimmed *(default)* | 8.00 | 8.00 |
-| `8.0`, true proportions | 8.00 | 9.44 |
-| `12.0`, trimmed | 12.00 | 12.00 |
-| `12.0`, true proportions | 12.00 | 14.17 |
+| 110 units | 8.00 blocks | 7.64 blocks |
+| 133 units *(current)* | 8.00 blocks | 9.24 blocks |
+| 170 units | 8.00 blocks | 11.81 blocks |
+
+The converter prints the rig height and both figures on every run, so a leg change
+tells you what it did.
+
+The cost of `true`: the model stands about 18% above its hitbox, so your camera —
+which sits at 90% of the *hitbox* — ends up around chest height on the model rather
+than at its head. Raising `heightBlocks` does not fix that; the ratio is fixed.
+
+**`heightBlocks`** is the hitbox, and what every size-derived stat comes off — step
+height, reach, safe fall, jump. 8.0 is the canon Ender Dragon. The canon numbers that
+are *not* about size stay put: 200 HP, the damage figures, the 3× stride. Vanilla caps
+the scale attribute at 16, so the ceiling is 28.8 blocks; outside that it clamps with
+a warning.
 
 The first-person hand follows whichever you pick.
 

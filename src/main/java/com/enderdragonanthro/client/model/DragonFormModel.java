@@ -32,7 +32,7 @@ public class DragonFormModel {
 
     /** The rig's foot plane, and the top of the skull above it, in model units. */
     public static final float FOOT_PLANE = 96.0F;
-    public static final float SKULL_HEIGHT = 136.0F;
+    public static final float SKULL_HEIGHT = 133.0F;
     /** The model is authored at four times life size on the sheet. */
     public static final float AUTHORED_SCALE = 4.0F;
 
