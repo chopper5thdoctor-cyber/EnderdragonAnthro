@@ -29,7 +29,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BBMODEL = os.path.join(HERE, "art/dragon_form.bbmodel")
 TEX_DIR = os.path.join(HERE, "src/main/resources/assets/enderdragonanthro/textures/entity")
 OUT = os.path.join(HERE, "art/eyeline_preview.png")
-JAVA = os.path.join(HERE, "src/main/java/com/enderdragonanthro/client/model/DragonFormModel.java")
+RIG = os.path.join(HERE, "src/main/java/com/enderdragonanthro/DragonRig.java")
 
 PLAYER_HEIGHT = 1.8          # blocks
 PLAYER_EYE = 1.62            # blocks — Player.STANDING_DIMENSIONS
@@ -93,17 +93,17 @@ def eye_span(cubes):
     return best
 
 
-def skull_height():
-    """Read the constant the game actually uses, not a number of our own.
+def rig(name):
+    """Read a constant the game actually uses, not a number of our own.
 
-    Taking the rig's overall top instead put this preview eight units out —
-    the horns reach 142 where the skull tops out at 133, and RENDER_SCALE is
-    built on the skull.
+    Measuring the rig here instead put this preview eight units out once — the
+    horns reach 142 where the skull tops out at 133, and RENDER_SCALE is built
+    on the skull.
     """
-    for line in open(JAVA):
-        if "SKULL_HEIGHT =" in line:
+    for line in open(RIG):
+        if f"{name} =" in line:
             return float(line.split("=")[1].strip().rstrip("F;"))
-    raise SystemExit("could not read SKULL_HEIGHT from the generated model")
+    raise SystemExit(f"could not read {name} from the generated DragonRig")
 
 
 def main():
@@ -151,15 +151,17 @@ def main():
         img.alpha_composite(face, (int(tl[0]), int(tl[1])))
 
     eyes = eye_span(cubes)
-    trim = PLAYER_HEIGHT * 16.0 / skull_height()
+    trim = PLAYER_HEIGHT * 16.0 / rig("SKULL_HEIGHT")
+    auto = rig("EYE_RIG_Y")
     lines = [("painted eyes", eyes[0], (60, 230, 110, 255)),
              ("painted eyes", eyes[1], (60, 230, 110, 255))] if eyes else []
     for label, render_scale, colour in (
             ("trueProportions: false", trim, (255, 150, 30, 255)),
             ("trueProportions: true", AUTHORED, (255, 40, 40, 255))):
         lines.append((label, PLAYER_EYE * 16.0 / render_scale, colour))
+    lines.append(("eyeHeightRatio 0 (follows the paint)", auto, (70, 110, 255, 255)))
     if want:
-        lines.append(("wanted", want, (70, 110, 255, 255)))
+        lines.append(("wanted", want, (255, 255, 60, 255)))
 
     placed_labels = []
     for label, y, colour in sorted(lines, key=lambda t: -t[1]):
@@ -186,10 +188,14 @@ def main():
         print("wrote", os.path.relpath(OUT.replace(".png", "_head.png"), HERE))
     print("wrote", os.path.relpath(OUT, HERE))
     print(f"rig {hi:.0f} units tall" + (f", eyes at {eyes[0]:.0f}..{eyes[1]:.0f}" if eyes else ""))
+    print("  vanilla 0.9 of the hitbox puts the plane at:")
     for label, render_scale in (("true ", AUTHORED), ("false", trim)):
         y = PLAYER_EYE * 16.0 / render_scale
         off = f", {abs(y - sum(eyes) / 2):5.1f} off the eye centre" if eyes else ""
-        print(f"  trueProportions {label} -> eye plane at rig y {y:6.1f}{off}")
+        print(f"    trueProportions {label} -> rig y {y:6.1f}{off}")
+    print(f"  eyeHeightRatio 0 puts it on the paint, rig y {auto:.1f}:")
+    for label, render_scale in (("true ", AUTHORED), ("false", trim)):
+        print(f"    trueProportions {label} -> ratio {auto * render_scale / (16.0 * PLAYER_HEIGHT):.4f}")
     if want:
         print(f"\n  to sit at rig y {want:.1f}, eyeHeightRatio must be:")
         for label, render_scale in (("true ", AUTHORED), ("false", trim)):

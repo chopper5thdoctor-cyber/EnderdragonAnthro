@@ -176,8 +176,8 @@ them; it exists because three conversion bugs shipped without it. See
 ```json
 {
   "heightBlocks": 8.0,
-  "trueProportions": true,
-  "eyeHeightRatio": 0.9
+  "trueProportions": false,
+  "eyeHeightRatio": 0.0
 }
 ```
 
@@ -210,23 +210,27 @@ a warning.
 
 **`eyeHeightRatio`** is where the eye sits as a fraction of the hitbox — the red
 plane in F3+B, and the origin for the camera, block picking, line of sight and
-projectiles. Vanilla is `1.62 / 1.8 = 0.9`, and **nothing about that number knows
-where the model's eyes are painted**: `EntityDimensions.scale()` multiplies height
-and eyeHeight by the same factor, so the ratio survives any scaling, and moving the
-head in Blockbench never moves the camera.
+projectiles.
 
-`tools/preview_eyeline.py <rigY>` converts a rig height into the ratio that puts the
-plane there:
+**`0.0`, the default, puts it on the model's painted eyes.** The converter reads
+their centre off the emissive sheet and writes it to `DragonRig.EYE_RIG_Y`; paint
+them somewhere else and the camera follows. That is the whole point: vanilla's
+`1.62 / 1.8 = 0.9` refers to nothing about the model, and `EntityDimensions.scale()`
+multiplies height and eyeHeight together so the ratio survives any scaling — which
+is why moving the head in Blockbench never moved the camera.
+
+Set a number to override it. `tools/preview_eyeline.py <rigY>` converts a rig height
+into the ratio that puts the plane there:
 
 ```
-to sit at rig y 126.5, eyeHeightRatio must be:
-  trueProportions true  -> 1.0981   (vanilla is 0.9000)
-  trueProportions false -> 0.9511   (vanilla is 0.9000)
+eyeHeightRatio 0 puts it on the paint, rig y 123.5:
+  trueProportions true  -> ratio 1.0720
+  trueProportions false -> ratio 0.9286
 ```
 
-Above 1.0 puts the eye outside the hitbox. That is legal, and is what a head that
-overshoots its box needs — but it is also where picking through your own ceiling
-and odd drowning checks begin, so it is not clamped away for you.
+Above 1.0 puts the eye outside the hitbox. Legal, and what a head that overshoots
+its box needs — but also where picking through your own ceiling begins, so it is
+allowed rather than clamped away.
 
 The first-person hand follows whichever you pick.
 

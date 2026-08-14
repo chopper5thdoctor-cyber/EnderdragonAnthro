@@ -1,5 +1,6 @@
 package com.enderdragonanthro.config;
 
+import com.enderdragonanthro.DragonRig;
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -38,8 +39,8 @@ public final class DragonConfig {
     /** The shape written to and read from disk. */
     private static final class Values {
         double heightBlocks = 8.0;
-        boolean trueProportions = true;
-        double eyeHeightRatio = 0.9;
+        boolean trueProportions = false;
+        double eyeHeightRatio = 0.0;
     }
 
     private static Values values = new Values();
@@ -67,19 +68,28 @@ public final class DragonConfig {
         return values.trueProportions;
     }
 
+    /** The scale the model is actually drawn at, under the current setting. */
+    public static float renderScale() {
+        return values.trueProportions ? DragonRig.TRUE_SCALE : DragonRig.RENDER_SCALE;
+    }
+
     /**
-     * Where the eye sits, as a fraction of the hitbox height. Vanilla is
-     * 1.62 / 1.8 = 0.9, and nothing about that number knows where the model's
-     * eyes are painted — see tools/preview_eyeline.py, which converts a rig
-     * height into the ratio that puts the plane there.
+     * Where the eye sits, as a fraction of the hitbox height.
      *
-     * Clamped generously rather than to the box: an eye above the hitbox is
-     * legal and is what a head that overshoots its box needs. It is also where
-     * picking through your own ceiling starts, so it is not clamped away
-     * silently either.
+     * Zero — the default — puts it on the model's painted eyes, measured off
+     * the emissive sheet at conversion time. Vanilla's 1.62 / 1.8 = 0.9 is
+     * fixed and refers to nothing about the model, which is why moving the head
+     * in Blockbench never moved the camera; this follows the paint instead.
+     *
+     * Set a number to override it. Above 1.0 puts the eye outside the hitbox,
+     * which is legal and is what a head that overshoots its box wants — it is
+     * also where picking through your own ceiling begins, so it is allowed
+     * rather than clamped away.
      */
     public static double eyeHeightRatio() {
-        return Math.max(0.1, Math.min(1.4, values.eyeHeightRatio));
+        double set = values.eyeHeightRatio;
+        double ratio = set > 0.0 ? set : DragonRig.eyeRatio(renderScale());
+        return Math.max(0.1, Math.min(1.4, ratio));
     }
 
     public static void load() {
@@ -109,8 +119,10 @@ public final class DragonConfig {
         } catch (IOException e) {
             EnderdragonAnthro.LOGGER.warn("Could not write {}", path, e);
         }
-        EnderdragonAnthro.LOGGER.info("Dragon form: {} blocks tall, {} proportions, eye at {} of height",
+        EnderdragonAnthro.LOGGER.info(
+                "Dragon form: {} blocks tall, {} proportions, eye at {} of height ({})",
                 values.heightBlocks, values.trueProportions ? "authored" : "trimmed to hitbox",
-                eyeHeightRatio());
+                String.format("%.4f", eyeHeightRatio()),
+                values.eyeHeightRatio > 0.0 ? "set by hand" : "following the painted eyes");
     }
 }

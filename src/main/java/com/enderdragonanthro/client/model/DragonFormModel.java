@@ -1,5 +1,6 @@
 package com.enderdragonanthro.client.model;
 
+import com.enderdragonanthro.DragonRig;
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -30,39 +31,17 @@ public class DragonFormModel {
     /** Model units are 4x final units. */
     public static final float AUTHOR_SCALE = 4.0F;
 
-    /** The rig's foot plane, and the top of the skull above it, in model units. */
-    public static final float FOOT_PLANE = 96.0F;
-    public static final float SKULL_HEIGHT = 133.0F;
-    /** The model is authored at four times life size on the sheet. */
-    public static final float AUTHORED_SCALE = 4.0F;
-
     /**
-     * The model at exactly the proportions it was drawn at — an exact undo of
-     * the 4x authoring. At this scale the dragon stands 1.18x its own hitbox:
-     * the model is 136 units to the top of the skull where a player model is
-     * 32, so it is simply a taller build than the box it lives in.
+     * Re-exported from DragonRig, which is where the rig's measurements live —
+     * the eye height they feed is part of the entity's dimensions, so the
+     * server needs them too. Restating them here is what put this preview
+     * eight units out once already.
      */
-    public static final float TRUE_SCALE = 1.0F / AUTHORED_SCALE;
+    public static final float TRUE_SCALE = DragonRig.TRUE_SCALE;
+    public static final float RENDER_SCALE = DragonRig.RENDER_SCALE;
 
-    /**
-     * The model trimmed to fill its hitbox exactly.
-     *
-     * 1.8 * 16 / SKULL_HEIGHT — a player is 1.8 blocks and 16 model units make
-     * a block, so this is the scale at which the skull tops out level with the
-     * hitbox. It does not depend on how tall the form is set to be: the trim is
-     * a fixed 18 percent, not something the eight-block figure imposes. Horn
-     * tips still rise a little above, which is deliberate — the canon dragon
-     * overshoots its own hitbox too.
-     */
-    public static final float RENDER_SCALE = 1.8F * 16.0F / SKULL_HEIGHT;
-
-    /**
-     * The rig puts the foot plane at FOOT_PLANE, which only lands on the ground
-     * at a scale of exactly 0.25. Any other scale lifts the whole dragon, so
-     * the layer drops it back by this much before drawing.
-     */
     public static float groundOffset(float scale) {
-        return 24.0F - FOOT_PLANE * scale;
+        return DragonRig.groundOffset(scale);
     }
 
     /**
@@ -88,7 +67,7 @@ public class DragonFormModel {
      */
     public static final float ARM_SCALE = 12.0F / (ARM_MAX_Y - ARM_MIN_Y);
 
-    private static final float[] BASE_HEAD = {0.000F, -13.000F, -1.000F};
+    private static final float[] BASE_HEAD = {0.000F, -13.000F, 0.000F};
     private static final float[] BASE_BODY = {0.000F, -13.000F, 0.000F};
     private static final float[] BASE_RIGHT_ARM = {-20.000F, -5.000F, 2.000F};
     private static final float[] BASE_LEFT_ARM = {20.000F, -5.000F, 2.000F};
@@ -127,8 +106,8 @@ public class DragonFormModel {
 
         // ---- head ----
         PartDefinition head = root.addOrReplaceChild("head", CubeListBuilder.create()
-                        .texOffs(0, 20).addBox(-8.000F, -8.000F, -8.000F, 16.000F, 14.000F, 16.000F),
-                PartPose.offset(0.000F, -13.000F, -1.000F));
+                        .texOffs(0, 20).addBox(-8.000F, -8.000F, -9.000F, 16.000F, 12.000F, 16.000F),
+                PartPose.offset(0.000F, -13.000F, 0.000F));
         head.addOrReplaceChild("head_spin", CubeListBuilder.create()
                         .texOffs(284, 384).addBox(-2.000F, -3.000F, -3.000F, 4.000F, 6.000F, 6.000F),
                 PartPose.offsetAndRotation(0.000F, -19.000F, 7.786F, 0.7854F, 0.0000F, -0.0000F));
@@ -281,13 +260,15 @@ public class DragonFormModel {
         // ---- left_arm ----
         PartDefinition left_arm = root.addOrReplaceChild("left_arm", CubeListBuilder.create()
                         .texOffs(76, 164).addBox(1.000F, -1.000F, -8.000F, 16.000F, 17.000F, 16.000F)
-                        .texOffs(208, 164).addBox(2.000F, 16.000F, -7.500F, 14.000F, 18.000F, 15.000F)
                         .mirror(true).texOffs(268, 164).addBox(0.500F, 32.000F, -7.000F, 15.000F, 14.000F, 14.000F)
                         .mirror(false),
                 PartPose.offset(20.000F, -5.000F, 2.000F));
         left_arm.addOrReplaceChild("left_arm_spin", CubeListBuilder.create()
                         .mirror(true).texOffs(172, 384).addBox(-9.500F, -6.000F, -9.000F, 19.000F, 12.000F, 18.000F),
                 PartPose.offsetAndRotation(6.726F, -1.708F, 0.000F, -0.0000F, 0.0000F, 0.4800F));
+        left_arm.addOrReplaceChild("left_arm_spin_", CubeListBuilder.create()
+                        .texOffs(208, 164).addBox(1.000F, 16.000F, -7.500F, 14.000F, 18.000F, 15.000F),
+                PartPose.offsetAndRotation(1.000F, 0.000F, 0.000F, 0.3491F, 0.0000F, -0.0000F));
 
         // ---- right_leg ----
         PartDefinition right_leg = root.addOrReplaceChild("right_leg", CubeListBuilder.create()
