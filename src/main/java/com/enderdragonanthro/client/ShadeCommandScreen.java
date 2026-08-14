@@ -147,7 +147,10 @@ public class ShadeCommandScreen extends Screen {
             graphics.drawString(this.font, Component.literal(shade.name()),
                     this.left, y, 0xFFE079FA, true);
             if (shade.awaySeconds() > 0) {
-                String away = "away — back in " + shade.awaySeconds() + "s";
+                // The count is the point: Recall now takes whatever this says,
+                // so it has to be visible while you decide whether to wait.
+                String away = shade.carrying() + " in hand — back in "
+                        + shade.awaySeconds() + "s";
                 graphics.drawString(this.font, Component.literal(away),
                         this.left + PANEL_W - this.font.width(away), y, 0xFFD8B84A, true);
             }

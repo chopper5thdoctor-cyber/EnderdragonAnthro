@@ -107,6 +107,14 @@ public final class DragonMinions {
     private static final int TRIP_TICKS = 600;
     /** Chunk columns searched per tick, so the sweep never lands as one hitch. */
     private static final int CHUNKS_PER_TICK = 3;
+    /**
+     * How often the court screen is refreshed while a shade is away.
+     *
+     * The haul ticks up every TRIP_TICKS/HAUL = 9.375 ticks, so four refreshes a
+     * second shows every increment without ever showing the same number twice in
+     * a row for long. It costs a few dozen bytes and only while someone is out.
+     */
+    private static final int STATE_PULSE = 5;
     /** Past this it has genuinely lost you, and walking will not close it. */
     private static final double FETCH_DISTANCE = 48.0;
     /**
@@ -490,7 +498,8 @@ public final class DragonMinions {
             }
             entries.add(new ShadeStatePayload.Entry(s.slot, NAMES[s.slot], s.order.ordinal(),
                     s.wanted == null ? "" : BuiltInRegistries.BLOCK.getKey(s.wanted).toString(),
-                    away ? (int) Math.max(1, (s.dig.returnAt - level.getGameTime() + 19) / 20) : 0));
+                    away ? (int) Math.max(1, (s.dig.returnAt - level.getGameTime() + 19) / 20) : 0,
+                    away ? carrying(s.dig, level.getGameTime()) : 0));
         }
         entries.sort(Comparator.comparingInt(ShadeStatePayload.Entry::slot));
         ServerPlayNetworking.send(owner, new ShadeStatePayload(open, List.copyOf(entries)));
@@ -522,6 +531,18 @@ public final class DragonMinions {
         // they happen and the standing order carries on untouched.
         if (order.momentary()) {
             if (shade.dig != null) {
+                if (order == Order.RECALL) {
+                    // Cut the errand short and take what has accrued so far.
+                    // returnHome raises the shade again, so it walks back in as
+                    // an entity exactly as a finished trip does.
+                    int hand = carrying(shade.dig, level.getGameTime());
+                    List<BlockPos> haul =
+                            VeinScan.veins(shade.dig.found, shade.dig.origin, hand);
+                    say(owner, NAMES[slot] + ": \"Called back — I bring what I have.\"",
+                            Order.RECALL.colour, false);
+                    returnHome(owner, level, shade, haul);
+                    return;
+                }
                 long left = (shade.dig.returnAt - level.getGameTime() + 19) / 20;
                 say(owner, NAMES[slot] + " is away digging — back in "
                         + Math.max(1, left) + "s.", ChatFormatting.DARK_GRAY, true);
@@ -667,6 +688,19 @@ public final class DragonMinions {
             }
             LivingEntity avenge = grudge(owner, level);
             LivingEntity watched = lookedAt(owner, level);
+
+            // The court screen only knows what it was last told, and until now it
+            // was only ever told when something happened. A haul that climbs a
+            // block every half second is not something happening, so while anyone
+            // is away, keep it fed.
+            if (level.getGameTime() % STATE_PULSE == 0) {
+                for (Shade away : court) {
+                    if (away.dig != null) {
+                        pushState(owner);
+                        break;
+                    }
+                }
+            }
 
             // A copy: an errand that ends can drop its shade from the court, and
             // that happens from inside this loop.
@@ -878,16 +912,48 @@ public final class DragonMinions {
             VeinScan.scanChunk(level, at, dig.quarry, dig.found);
         }
         if (level.getGameTime() < dig.returnAt) {
-            return;                                        // still walking back
+            return;                                        // still gathering
         }
-        List<BlockPos> haul = VeinScan.veins(dig.found, dig.origin, VeinScan.HAUL);
+        List<BlockPos> haul = VeinScan.veins(dig.found, dig.origin,
+                carrying(dig, level.getGameTime()));
         returnHome(owner, level, shade, haul);
+    }
+
+    /**
+     * How much the shade has gathered by now: nothing at the start, the full
+     * haul by the end, one block at a time in between.
+     *
+     * Straight-line accrual is what makes an early Recall a real decision
+     * rather than an exploit. The rate is constant, so recalling at ten seconds
+     * for a third of the load and sending it straight back out earns exactly
+     * what waiting would have -- what you actually buy is the shade standing
+     * next to you again in the meantime, and what you pay is having to give the
+     * order twice.
+     *
+     * The search finishes inside three seconds, long before the meter means
+     * anything, so an early Recall is limited by the meter rather than by how
+     * far the sweep has got.
+     */
+    private static int carrying(Dig dig, long now) {
+        long elapsed = TRIP_TICKS - (dig.returnAt - now);
+        if (elapsed <= 0) {
+            return 0;
+        }
+        if (elapsed >= TRIP_TICKS) {
+            return VeinScan.HAUL;
+        }
+        return (int) (elapsed * VeinScan.HAUL / TRIP_TICKS);
     }
 
     /** The shade steps back out of nowhere, hands over the haul, and stands down. */
     private static void returnHome(ServerPlayer owner, ServerLevel level, Shade shade,
                                    List<BlockPos> haul) {
         Block quarry = shade.dig.quarry;
+        // Cut short, rather than having searched and found nothing. The two look
+        // identical from here -- both come home with an empty haul -- and saying
+        // "none within reach" to someone who recalled after two seconds blames
+        // the world for the player's own impatience.
+        boolean early = level.getGameTime() < shade.dig.returnAt;
         shade.dig = null;
         shade.order = Order.DEFEND;
 
@@ -915,6 +981,9 @@ public final class DragonMinions {
             hand(owner, quarry, taken);
             say(owner, NAMES[shade.slot] + " returns with " + taken + " "
                     + quarry.getName().getString() + ".", Order.COLLECT.colour, false);
+        } else if (early) {
+            say(owner, NAMES[shade.slot] + ": \"Empty-handed — you called too soon.\"",
+                    ChatFormatting.DARK_GRAY, false);
         } else {
             say(owner, NAMES[shade.slot] + ": \"No " + quarry.getName().getString()
                     + " within reach.\"", ChatFormatting.DARK_GRAY, false);

@@ -94,9 +94,19 @@ comes out in one piece rather than a stack of scattered holes), and steps back o
 of nowhere in front of you thirty seconds later with the haul in hand.
 
 That thirty seconds is the cooldown, wearing the shape of a journey. The search
-itself takes about four — it runs three chunk columns a tick so a hundred-block
+itself takes about three — it runs three chunk columns a tick so a hundred-block
 sweep never lands as one hitch, and skips whole 16³ sections whose palette does not
 mention the block, which is what makes a full-height search affordable at all.
+
+**The haul fills as it waits.** The count climbs one block roughly every half
+second, 0 to 64 across the trip, and the court screen shows it running. **Recall
+takes whatever it says** — call the shade in at ten seconds and it walks back
+with about twenty and stands ready.
+
+The rate is constant, which is what keeps that a decision instead of an exploit:
+recalling early and sending it straight back out earns exactly what waiting
+would have. What you buy is a shade at your side in the meantime; what you pay
+is giving the order twice.
 
 Blocks are only removed at the moment of return, so anything you mine out in the
 meantime simply is not there.
@@ -107,9 +117,9 @@ landed inside bedrock, got walled into stone, suffocated once its escape blink w
 taken away, and could not be recalled because it was no longer anywhere. An errand
 with no entity has none of those.
 
-**An errand cannot be called off.** A shade that has gone is gone until it is back —
-orders, Pet and Recall all just tell you how many seconds are left. That is the
-cooldown doing its job; there is no entity out there to argue with. A finished Collect
+**Recall is the way to call an errand off.** It brings the shade back early with
+what it has gathered so far. Orders and Pet still just report the time remaining —
+there is no entity out there to give a duty to or to touch. A finished Collect
 hands the stack over and drops back to **Defend**, as does an Attack order with nothing
 left to hunt — standing with you is the default duty, not a fifth order you have to pick.
 
