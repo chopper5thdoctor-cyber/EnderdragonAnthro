@@ -39,6 +39,12 @@ jobs:
         with:
           python-version: '3.12'
 
+      # verify_model.py rebuilds every cube's corners as arrays; the preview
+      # tools draw PNGs. syntax_check.py needs neither, which is why it was the
+      # one that passed when this step had no dependencies at all.
+      - name: Install tool dependencies
+        run: python3 -m pip install --quiet numpy pillow
+
       # Seconds, and no toolchain needed. Runs first so an obvious break is
       # reported before six minutes of Gradle.
       - name: Static checks
