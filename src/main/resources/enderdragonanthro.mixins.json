@@ -12,6 +12,7 @@
     "LivingEntityTargetabilityMixin",
     "PlayerCrystalImmunityMixin",
     "PlayerDamageResilienceMixin",
+    "PlayerEyeHeightMixin",
     "PlayerTransformDataMixin"
   ],
   "client": [

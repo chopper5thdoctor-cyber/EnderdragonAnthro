@@ -176,7 +176,8 @@ them; it exists because three conversion bugs shipped without it. See
 ```json
 {
   "heightBlocks": 8.0,
-  "trueProportions": true
+  "trueProportions": true,
+  "eyeHeightRatio": 0.9
 }
 ```
 
@@ -206,6 +207,26 @@ height, reach, safe fall, jump. 8.0 is the canon Ender Dragon. The canon numbers
 are *not* about size stay put: 200 HP, the damage figures, the 3× stride. Vanilla caps
 the scale attribute at 16, so the ceiling is 28.8 blocks; outside that it clamps with
 a warning.
+
+**`eyeHeightRatio`** is where the eye sits as a fraction of the hitbox — the red
+plane in F3+B, and the origin for the camera, block picking, line of sight and
+projectiles. Vanilla is `1.62 / 1.8 = 0.9`, and **nothing about that number knows
+where the model's eyes are painted**: `EntityDimensions.scale()` multiplies height
+and eyeHeight by the same factor, so the ratio survives any scaling, and moving the
+head in Blockbench never moves the camera.
+
+`tools/preview_eyeline.py <rigY>` converts a rig height into the ratio that puts the
+plane there:
+
+```
+to sit at rig y 126.5, eyeHeightRatio must be:
+  trueProportions true  -> 1.0981   (vanilla is 0.9000)
+  trueProportions false -> 0.9511   (vanilla is 0.9000)
+```
+
+Above 1.0 puts the eye outside the hitbox. That is legal, and is what a head that
+overshoots its box needs — but it is also where picking through your own ceiling
+and odd drowning checks begin, so it is not clamped away for you.
 
 The first-person hand follows whichever you pick.
 

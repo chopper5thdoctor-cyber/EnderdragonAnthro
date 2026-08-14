@@ -39,6 +39,7 @@ public final class DragonConfig {
     private static final class Values {
         double heightBlocks = 8.0;
         boolean trueProportions = true;
+        double eyeHeightRatio = 0.9;
     }
 
     private static Values values = new Values();
@@ -64,6 +65,21 @@ public final class DragonConfig {
     /** True: draw the model as authored. False: trim it to fill the hitbox. */
     public static boolean trueProportions() {
         return values.trueProportions;
+    }
+
+    /**
+     * Where the eye sits, as a fraction of the hitbox height. Vanilla is
+     * 1.62 / 1.8 = 0.9, and nothing about that number knows where the model's
+     * eyes are painted — see tools/preview_eyeline.py, which converts a rig
+     * height into the ratio that puts the plane there.
+     *
+     * Clamped generously rather than to the box: an eye above the hitbox is
+     * legal and is what a head that overshoots its box needs. It is also where
+     * picking through your own ceiling starts, so it is not clamped away
+     * silently either.
+     */
+    public static double eyeHeightRatio() {
+        return Math.max(0.1, Math.min(1.4, values.eyeHeightRatio));
     }
 
     public static void load() {
@@ -93,7 +109,8 @@ public final class DragonConfig {
         } catch (IOException e) {
             EnderdragonAnthro.LOGGER.warn("Could not write {}", path, e);
         }
-        EnderdragonAnthro.LOGGER.info("Dragon form: {} blocks tall, {} proportions",
-                values.heightBlocks, values.trueProportions ? "authored" : "trimmed to hitbox");
+        EnderdragonAnthro.LOGGER.info("Dragon form: {} blocks tall, {} proportions, eye at {} of height",
+                values.heightBlocks, values.trueProportions ? "authored" : "trimmed to hitbox",
+                eyeHeightRatio());
     }
 }

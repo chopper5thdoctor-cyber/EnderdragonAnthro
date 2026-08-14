@@ -87,7 +87,8 @@ instead of `[wing]` for two builds running. See `MIRROR_OVERRIDE` in
 ## preview_eyeline.py
 
 ```bash
-python3 tools/preview_eyeline.py     # writes art/eyeline_preview.png
+python3 tools/preview_eyeline.py           # writes art/eyeline_preview.png
+python3 tools/preview_eyeline.py 126.5     # ...and what ratio puts the eye at rig y 126.5
 ```
 
 Draws the rig front-on with the game's eye plane — the red line in F3+B — laid
@@ -98,3 +99,7 @@ connected. The eye sits at a fixed 1.62/1.8 of the **hitbox**, and the model is
 sized separately, so `rigY = 1.62 * 16 / renderScale` — where the plane lands on
 the model depends entirely on the render scale and not at all on where the eyes
 are painted. Move the head and the camera does not follow it.
+
+It reads `SKULL_HEIGHT` out of the generated model rather than measuring the rig
+itself. Measuring took the overall top — the horn tips at 142 — where the game
+builds `RENDER_SCALE` on the skull at 133, and put the line eight units wrong.
