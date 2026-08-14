@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""Front view of the rig with the game's eye plane drawn on it.
+"""Front view of the rig, textured, with the game's eye plane drawn across it.
 
-Answers "where will the red line in F3+B actually cut across the model", which
-is otherwise only findable by transforming and looking. The eye height is a
-fixed fraction of the HITBOX (1.62 / 1.8 = 0.9) and the model is a separate
-size, so the two drift apart as soon as the rig's proportions change.
+Answers "where will the red line in F3+B actually cut the model", which is
+otherwise only findable by transforming and looking. Eye height is a fixed
+fraction of the HITBOX (1.62 / 1.8) while the model is sized separately, so the
+entity scale cancels and the plane lands at
+
+    rigY = 1.62 * 16 / renderScale
+
+— which depends on the render scale alone, and not at all on where the eyes are
+painted. Moving the head in Blockbench does not move the camera.
 
     python3 tools/preview_eyeline.py        # writes art/eyeline_preview.png
 """
@@ -18,76 +23,84 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from verify_model import from_bbmodel  # noqa: E402  (needs the path above)
+from verify_model import rzyx  # noqa: E402  (needs the path above)
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BBMODEL = os.path.join(HERE, "art/dragon_form.bbmodel")
-EYES_TEX = os.path.join(HERE, "src/main/resources/assets/enderdragonanthro"
-                              "/textures/entity/dragon_form_eyes.png")
+TEX_DIR = os.path.join(HERE, "src/main/resources/assets/enderdragonanthro/textures/entity")
 OUT = os.path.join(HERE, "art/eyeline_preview.png")
 
 PLAYER_HEIGHT = 1.8          # blocks
 PLAYER_EYE = 1.62            # blocks — Player.STANDING_DIMENSIONS
 AUTHORED = 0.25              # exact undo of the 4x authoring
-SCALE = 3                    # pixels per rig unit
+SCALE = 4                    # pixels per rig unit
+GRID = 16                    # rig units per grid square
 
 
-def hull(points):
-    """Monotone chain, so a rotated cube draws as its real outline."""
-    pts = sorted(set(map(tuple, points)))
-    if len(pts) < 3:
-        return pts
+def placed(path):
+    """Every cube with its world-space corners, keeping the element itself."""
+    bb = json.load(open(path))
+    groups = {g["uuid"]: g for g in bb.get("groups", [])}
+    els = {e["uuid"]: e for e in bb["elements"]}
+    out = []
 
-    def half(seq):
-        out = []
-        for p in seq:
-            while len(out) >= 2:
-                (ax, ay), (bx, by) = out[-2], out[-1]
-                if (bx - ax) * (p[1] - ay) - (by - ay) * (p[0] - ax) > 0:
-                    break
-                out.pop()
-            out.append(p)
-        return out
+    def walk(nodes, chain):
+        for n in nodes:
+            if isinstance(n, str):
+                e = els.get(n)
+                if not e:
+                    continue
+                f, t = np.array(e["from"], float), np.array(e["to"], float)
+                pts = [np.array([a, b, c]) for a in (f[0], t[0])
+                       for b in (f[1], t[1]) for c in (f[2], t[2])]
+                if any(abs(v) > 1e-9 for v in e.get("rotation", [0, 0, 0])):
+                    o = np.array(e.get("origin", [0, 0, 0]), float)
+                    rc = rzyx(*[math.radians(v) for v in e["rotation"]])
+                    pts = [o + rc @ (q - o) for q in pts]
+                for (o, r) in reversed(chain):
+                    pts = [o + r @ (q - o) for q in pts]
+                out.append((e, np.array(pts)))
+            else:
+                g = groups.get(n["uuid"], {})
+                walk(n.get("children", []),
+                     chain + [(np.array(g.get("origin", [0, 0, 0]), float),
+                               rzyx(*[math.radians(v) for v in g.get("rotation", [0, 0, 0])]))])
 
-    return half(pts)[:-1] + half(reversed(pts))[:-1]
+    walk(bb["outliner"], [])
+    return out
 
 
-def eye_row():
-    """The rig height of the painted eyes, from the emissive sheet."""
-    bb = json.load(open(BBMODEL))
-    lit_img = Image.open(EYES_TEX).convert("RGBA")
+def eye_span(cubes):
+    """The rig height of the painted eyes, read off the emissive sheet."""
+    lit_img = Image.open(os.path.join(TEX_DIR, "dragon_form_eyes.png")).convert("RGBA")
     alpha = lit_img.split()[3]
     lit = [(x, y) for y in range(lit_img.height) for x in range(lit_img.width)
            if alpha.getpixel((x, y)) > 0]
-    corners = {n: c for n, c in from_bbmodel(BBMODEL)}
     best = None
-    for e in bb["elements"]:
-        if e.get("type", "cube") != "cube" or e["name"] not in corners:
-            continue
+    for e, c in cubes:
         u, v = e["uv_offset"]
         w, h, d = [e["to"][i] - e["from"][i] for i in range(3)]
-        fx, fy, fw, fh = u + d, v + d, w, h          # the north (front) face
-        inside = [p for p in lit if fx <= p[0] < fx + fw and fy <= p[1] < fy + fh]
-        if not inside:
+        fx, fy = u + d, v + d                          # the north (front) face
+        rows = [p[1] for p in lit if fx <= p[0] < fx + w and fy <= p[1] < fy + h]
+        if not rows:
             continue
-        c = corners[e["name"]]
         top, bot = c[:, 1].max(), c[:, 1].min()
-        rows = [p[1] for p in inside]
-        span = (top - (max(rows) + 1 - fy) / fh * (top - bot),
-                top - (min(rows) - fy) / fh * (top - bot))
+        span = (top - (max(rows) + 1 - fy) / h * (top - bot),
+                top - (min(rows) - fy) / h * (top - bot))
         if best is None or span[1] > best[1]:
-            best = span                              # the highest lit face is the face
+            best = span                                # highest lit face is the face
     return best
 
 
 def main():
-    cubes = from_bbmodel(BBMODEL)
-    lo = min(c[:, 1].min() for _, c in cubes)
-    hi = max(c[:, 1].max() for _, c in cubes)
-    left = min(c[:, 0].min() for _, c in cubes)
-    right = max(c[:, 0].max() for _, c in cubes)
+    cubes = placed(BBMODEL)
+    sheet = Image.open(os.path.join(TEX_DIR, "dragon_form.png")).convert("RGBA")
 
-    pad = 12
+    xs = np.concatenate([c[:, 0] for _, c in cubes])
+    ys = np.concatenate([c[:, 1] for _, c in cubes])
+    left, right, lo, hi = xs.min(), xs.max(), ys.min(), ys.max()
+
+    pad = 20
     width = int((right - left) * SCALE) + pad * 2
     height = int((hi - lo) * SCALE) + pad * 2
     img = Image.new("RGBA", (width, height), (150, 150, 155, 255))
@@ -96,44 +109,71 @@ def main():
     def px(x, y):
         return (pad + (x - left) * SCALE, pad + (hi - y) * SCALE)
 
-    # back to front, so the chest reads over the wings
-    for name, c in sorted(cubes, key=lambda nc: nc[1][:, 2].max()):
-        shade = int(60 + 60 * (c[:, 2].max() - lo) / max(1.0, hi - lo))
-        poly = hull([px(p[0], p[1]) for p in
-                     [(c[i, 0], c[j, 1]) for i in (0, -1) for j in (0, -1)]])
-        if len(poly) >= 3:
-            draw.polygon(poly, fill=(shade, shade, shade + 4, 255),
-                         outline=(40, 40, 44, 255))
+    for gx in range(int(left // GRID) * GRID, int(right) + GRID, GRID):
+        draw.line([px(gx, lo), px(gx, hi)], fill=(120, 120, 126, 255))
+    for gy in range(int(lo // GRID) * GRID, int(hi) + GRID, GRID):
+        draw.line([px(left, gy), px(right, gy)], fill=(120, 120, 126, 255))
 
-    # the model's own eyes
-    eyes = eye_row()
-    if eyes:
-        for y in eyes:
-            draw.line([px(left, y), px(right, y)], fill=(80, 255, 120, 255), width=2)
-        draw.text((pad + 4, px(left, eyes[1])[1] - 14),
-                  f"painted eyes  rig y {eyes[0]:.0f}..{eyes[1]:.0f}", fill=(20, 90, 40, 255))
+    # Back to front, drawing each cube's front face from the sheet. Rotated
+    # cubes are pasted into their projected bounds rather than warped — enough
+    # for placement, which is all this is for.
+    for e, c in sorted(cubes, key=lambda ec: ec[1][:, 2].max()):
+        u, v = e["uv_offset"]
+        w, h, d = [e["to"][i] - e["from"][i] for i in range(3)]
+        if w <= 0 or h <= 0:
+            continue
+        face = sheet.crop((int(u + d), int(v + d), int(u + d + w), int(v + d + h)))
+        x0, x1 = c[:, 0].min(), c[:, 0].max()
+        y0, y1 = c[:, 1].min(), c[:, 1].max()
+        tl, br = px(x0, y1), px(x1, y0)
+        pw, ph = max(1, int(br[0] - tl[0])), max(1, int(br[1] - tl[1]))
+        face = face.resize((pw, ph), Image.NEAREST)
+        # A rotated cube pasted into its projected bounds is a stretched slab,
+        # and the wings swept out to the sides swamp everything. Faded, so the
+        # silhouette still reads without burying the part being measured.
+        if "wing" in e.get("name", ""):
+            face.putalpha(face.split()[3].point(lambda a: a // 3))
+        img.alpha_composite(face, (int(tl[0]), int(tl[1])))
 
-    # where the game puts the red plane, in rig units, for each setting.
-    # blocks = rigY * renderScale / 16 * entityScale, and the eye is
-    # 1.62 * entityScale, so entityScale cancels: rigY = 1.62 * 16 / renderScale.
+    eyes = eye_span(cubes)
     skull = hi
     trim = PLAYER_HEIGHT * 16.0 / skull
-    for label, render_scale, colour in (("trueProportions: true", AUTHORED, (255, 40, 40, 255)),
-                                        ("trueProportions: false", trim, (255, 150, 40, 255))):
-        rig_y = PLAYER_EYE * 16.0 / render_scale
-        if lo <= rig_y <= hi:
-            draw.line([px(left, rig_y), px(right, rig_y)], fill=colour, width=3)
-            draw.text((pad + 4, px(left, rig_y)[1] + 3),
-                      f"{label}  ->  rig y {rig_y:.0f}", fill=colour)
+    lines = [("painted eyes", eyes[0], (60, 230, 110, 255)),
+             ("painted eyes", eyes[1], (60, 230, 110, 255))] if eyes else []
+    for label, render_scale, colour in (
+            ("trueProportions: false", trim, (255, 150, 30, 255)),
+            ("trueProportions: true", AUTHORED, (255, 40, 40, 255))):
+        lines.append((label, PLAYER_EYE * 16.0 / render_scale, colour))
+
+    placed_labels = []
+    for label, y, colour in sorted(lines, key=lambda t: -t[1]):
+        if not lo <= y <= hi:
+            continue
+        draw.line([px(left, y), px(right, y)], fill=colour, width=2)
+        ly = px(left, y)[1] - 11
+        while any(abs(ly - other) < 11 for other in placed_labels):
+            ly += 11                                  # stagger, do not overlap
+        placed_labels.append(ly)
+        draw.text((pad + 3, ly), f"{label}  y {y:.0f}", fill=colour)
 
     img.save(OUT)
+
+    # The head on its own, which is the comparison that actually settles it.
+    if eyes:
+        top = px(left, min(hi, eyes[1] + 26))[1]
+        bottom = px(left, max(lo, eyes[0] - 34))[1]
+        mid = (left + right) / 2
+        head = img.crop((int(px(mid - 26, 0)[0]), int(top),
+                         int(px(mid + 26, 0)[0]), int(bottom)))
+        head = head.resize((head.width * 3, head.height * 3), Image.NEAREST)
+        head.save(OUT.replace(".png", "_head.png"))
+        print("wrote", os.path.relpath(OUT.replace(".png", "_head.png"), HERE))
     print("wrote", os.path.relpath(OUT, HERE))
-    print(f"rig: {hi:.0f} units tall, eyes at {eyes[0]:.0f}..{eyes[1]:.0f}"
-          if eyes else f"rig: {hi:.0f} units tall")
+    print(f"rig {hi:.0f} units tall" + (f", eyes at {eyes[0]:.0f}..{eyes[1]:.0f}" if eyes else ""))
     for label, render_scale in (("true ", AUTHORED), ("false", trim)):
-        rig_y = PLAYER_EYE * 16.0 / render_scale
-        print(f"  trueProportions {label} -> eye plane at rig y {rig_y:6.1f}"
-              + (f", {abs(rig_y - sum(eyes) / 2):5.1f} units off the eye centre" if eyes else ""))
+        y = PLAYER_EYE * 16.0 / render_scale
+        off = f", {abs(y - sum(eyes) / 2):5.1f} off the eye centre" if eyes else ""
+        print(f"  trueProportions {label} -> eye plane at rig y {y:6.1f}{off}")
 
 
 if __name__ == "__main__":
