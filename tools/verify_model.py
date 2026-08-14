@@ -163,6 +163,49 @@ def check_symbols():
                  "Add them to the template in tools/bbmodel_to_java.py, not to "
                  "the generated file.")
     print("PASS: every DragonFormModel symbol the mod references is declared")
+    check_form_guards()
+
+
+def check_form_guards():
+    """Human form is meant to be vanilla, so every mixin has to ask first.
+
+    A mixin on Player, LivingEntity, Entity or one of the renderers fires for
+    everybody. Without a form check it would quietly change the game for an
+    untransformed player, which is the one promise this mod makes about not
+    touching anything. Guards count if they are in the mixin or one hop away in
+    a mod class it imports — the first-person hand checks inside its renderer.
+    """
+    targets = ("Player.class", "LivingEntity.class", "Entity.class",
+               "GameRenderer.class", "PlayerRenderer.class", "LivingEntityRenderer.class")
+    guards = ("isDragon(", "isDragonForm(")
+    mixins = os.path.join(HERE, "src/main/java/com/enderdragonanthro/mixin")
+    unguarded = []
+    for name in sorted(os.listdir(mixins)):
+        if not name.endswith(".java"):
+            continue
+        body = open(os.path.join(mixins, name)).read()
+        if not any(f"@Mixin({t})" in body for t in targets):
+            continue
+        reach = [body]
+        for imported in re.findall(r"import (com\.enderdragonanthro\.[\w.]+);", body):
+            path = os.path.join(HERE, "src/main/java",
+                                imported.replace(".", os.sep) + ".java")
+            if not os.path.exists(path):
+                continue
+            text = open(path).read()
+            # Skip wherever the guard is DECLARED, or every mixin that merely
+            # imports DragonFormManager would look guarded by its definition.
+            if re.search(r"boolean is(Dragon|DragonForm)\s*\(", text):
+                continue
+            reach.append(text)
+        if not any(g in text for text in reach for g in guards):
+            unguarded.append(name)
+
+    if unguarded:
+        for name in unguarded:
+            print(f"  UNGUARDED {name} injects into every player, transformed or not")
+        sys.exit("FAIL: a mixin would change vanilla behaviour in human form")
+    print("PASS: every player-facing mixin checks the form first")
 
 
 if __name__ == "__main__":

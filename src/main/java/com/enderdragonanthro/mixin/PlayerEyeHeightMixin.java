@@ -29,9 +29,12 @@ public abstract class PlayerEyeHeightMixin {
     private void enderdragonanthro$eyeHeight(Pose pose,
                                              CallbackInfoReturnable<EntityDimensions> cir) {
         Player self = (Player) (Object) this;
+        if (!DragonFormManager.isDragon(self)) {
+            return;                                // human form is vanilla, untouched
+        }
         double ratio = DragonConfig.eyeHeightRatio();
-        if (!DragonFormManager.isDragon(self) || Math.abs(ratio - 0.9) < 1.0e-4) {
-            return;                                // human, or vanilla anyway
+        if (Math.abs(ratio - 0.9) < 1.0e-4) {
+            return;                                // configured to vanilla anyway
         }
         EntityDimensions dims = cir.getReturnValue();
         cir.setReturnValue(dims.withEyeHeight((float) (dims.height() * ratio)));

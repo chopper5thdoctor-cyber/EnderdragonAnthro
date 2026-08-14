@@ -62,12 +62,22 @@ described above shipped because this check did not exist yet.
 It checks **where the corners are, not what is painted on them** — a cube can
 pass this and still render with its texture running backwards.
 
-It also checks that every `DragonFormModel.X` the rest of the mod references is
-still declared. `DragonFormModel.java` is **generated**, so anything hand-added
+It runs two more checks after the geometry.
+
+**Symbols:** every `DragonFormModel.X` the rest of the mod references is still
+declared. `DragonFormModel.java` is **generated**, so anything hand-added
 to it survives only until the next conversion: `GROUND_OFFSET` was added by
 hand once and vanished the next time the wings changed, breaking the build.
 **A new constant goes in the template in `bbmodel_to_java.py`, never in the
 generated file.**
+
+**Form guards:** every mixin on `Player`, `LivingEntity`, `Entity` or a renderer
+must check `isDragon`/`isDragonForm` before doing anything. Those injections fire
+for *everybody*, so an unguarded one silently changes the game for an untransformed
+player — and human form being untouched vanilla is the one promise this mod makes.
+A guard counts if it is in the mixin or one hop away in a mod class it imports (the
+first-person hand checks inside its renderer); the file that *declares* the guard
+does not count, or importing `DragonFormManager` would be enough to look safe.
 
 ## preview_wings.py
 
