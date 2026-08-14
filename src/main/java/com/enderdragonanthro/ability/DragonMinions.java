@@ -249,7 +249,9 @@ public final class DragonMinions {
                 e -> e.isAlive() && e.getTags().contains(ownerTag))) {
             boolean known = false;
             for (Shade s : court) {
-                if (s.entity.equals(stray.getUUID())) {
+                // A shade away on an errand has no entity at all, so this has
+                // to be null-safe or summoning one while another digs throws.
+                if (stray.getUUID().equals(s.entity)) {
                     known = true;
                     break;
                 }
@@ -551,12 +553,20 @@ public final class DragonMinions {
             return;
         }
 
-        EnderMan minion = level.getEntity(shade.entity) instanceof EnderMan e ? e : null;
+        // A shade that is away is away. Its entity does not exist to be given a
+        // new duty, and setting the field anyway loses the order silently:
+        // returnHome puts it back on Defend the moment it walks in. Say what is
+        // actually happening and how long it has left.
+        if (shade.dig != null) {
+            long left = (shade.dig.returnAt - level.getGameTime() + 19) / 20;
+            say(owner, NAMES[slot] + " is away digging — back in "
+                    + Math.max(1, left) + "s.", ChatFormatting.DARK_GRAY, true);
+            return;
+        }
+
+        EnderMan minion = resolve(level, shade);
         shade.order = order;
         shade.idleTicks = 0;
-        shade.awayTicks = 0;
-        shade.dryHops = 0;
-        shade.site = null;
         if (order == Order.COLLECT) {
             Block wanted = parseBlock(quarry);
             if (wanted == null) {
@@ -658,7 +668,9 @@ public final class DragonMinions {
             LivingEntity avenge = grudge(owner, level);
             LivingEntity watched = lookedAt(owner, level);
 
-            for (Shade shade : court) {
+            // A copy: an errand that ends can drop its shade from the court, and
+            // that happens from inside this loop.
+            for (Shade shade : List.copyOf(court)) {
                 if (shade.dig != null) {
                     digTick(owner, level, shade);
                     continue;                  // away; there is no entity to drive
@@ -789,9 +801,6 @@ public final class DragonMinions {
         shade.order = Order.DEFEND;
         shade.wanted = null;
         shade.idleTicks = 0;
-        shade.awayTicks = 0;
-        shade.dryHops = 0;
-        shade.site = null;
         minion.setTarget(null);
         rename(minion, shade);
         say(owner, NAMES[shade.slot] + ": " + line, Order.DEFEND.colour, false);
@@ -889,10 +898,19 @@ public final class DragonMinions {
             }
         }
         EnderMan minion = spawnShade(owner, level, shade.slot);
-        if (minion != null) {
-            shade.entity = minion.getUUID();
-            rename(minion, shade);
+        if (minion == null) {
+            // Nothing came back and nothing can: a shade with neither an entity
+            // nor an errand is invisible to every loop here but still holds its
+            // slot, so the court would silently shrink by one for good. Give the
+            // slot back instead.
+            COURT.getOrDefault(owner.getUUID(), new ArrayList<>()).remove(shade);
+            say(owner, NAMES[shade.slot] + " does not return.",
+                    ChatFormatting.DARK_GRAY, false);
+            pushState(owner);
+            return;
         }
+        shade.entity = minion.getUUID();
+        rename(minion, shade);
         if (taken > 0) {
             hand(owner, quarry, taken);
             say(owner, NAMES[shade.slot] + " returns with " + taken + " "

@@ -107,10 +107,11 @@ landed inside bedrock, got walled into stone, suffocated once its escape blink w
 taken away, and could not be recalled because it was no longer anywhere. An errand
 with no entity has none of those.
 
-**Nothing you interrupt is lost.** Change a shade's order mid-errand and it comes back,
-sets down what it dug up, and only then takes the new one. A finished Collect hands the
-stack over and drops back to **Defend**, as does an Attack order with nothing left to
-hunt — standing with you is the default duty, not a fifth order you have to pick.
+**An errand cannot be called off.** A shade that has gone is gone until it is back —
+orders, Pet and Recall all just tell you how many seconds are left. That is the
+cooldown doing its job; there is no entity out there to argue with. A finished Collect
+hands the stack over and drops back to **Defend**, as does an Attack order with nothing
+left to hunt — standing with you is the default duty, not a fifth order you have to pick.
 
 **They answer for you.** Take two hits from the same attacker inside five seconds and
 every shade within 48 blocks breaks off and goes for it, for fifteen seconds. Ones away
@@ -174,6 +175,12 @@ python3 tools/bbmodel_to_java.py art/dragon_form.bbmodel
 python3 tools/verify_model.py          # always run this
 python3 tools/preview_wings.py         # and this, if you touched the wings
 ```
+
+`python3 tools/syntax_check.py` is the one to run after editing **Java**. It
+catches parse errors and references to fields and methods that do not exist on
+this mod's own classes — which is what broke the last two builds. It cannot
+check anything touching a vanilla class; there is no Minecraft on the machine
+this is written on. See [tools/README.md](tools/README.md#syntax_checkpy).
 
 `DragonFormModel.java` is **generated** — never hand-edit it. A constant you add
 by hand survives exactly until the next conversion; put it in the template in

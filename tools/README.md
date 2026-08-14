@@ -79,6 +79,38 @@ A guard counts if it is in the mixin or one hop away in a mod class it imports (
 first-person hand checks inside its renderer); the file that *declares* the guard
 does not count, or importing `DragonFormManager` would be enough to look safe.
 
+## syntax_check.py
+
+```bash
+python3 tools/syntax_check.py
+```
+
+Catches the two kinds of build break that can be found **without Minecraft on
+disk**. Fabric's maven is unreachable from the machine this mod is written on,
+so `javac` cannot resolve one vanilla class and buries everything under
+thousands of `cannot find symbol`.
+
+The obvious workaround — drop every line with that phrase — is what let six
+stale field references ship at once. `shade.awayTicks` reads exactly like
+`particle.xd`, and only one of them is a mistake: `PurpleHeartParticle` extends
+a class we cannot see, so none of its inherited members resolve either. Nothing
+in javac's output separates a real typo from that cascade.
+
+So it checks two things it can be certain of instead.
+
+**Syntax.** Parse errors — a missing brace, a dropped semicolon — happen before
+name resolution, so they are sound with an empty classpath and are reported
+as javac prints them.
+
+**Our own members.** For every type this repository declares whose ancestry is
+*entirely ours*, so the whole member surface is known, every `x.member` where
+`x` was declared with that type is checked against it. That is exactly the
+shape of the six that got through. A type that extends anything vanilla is
+skipped rather than guessed at.
+
+It cannot see a wrong argument type, a bad vanilla method name, or a mixin that
+does not apply. Those still need a real build.
+
 ## preview_wings.py
 
 ```bash
