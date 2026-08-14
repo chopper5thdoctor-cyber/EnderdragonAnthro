@@ -80,18 +80,32 @@ happened to be looking at on the way through; nothing is passed through now.
 |---|---|
 | **Defend** | Stays close, attacks anything that targets you |
 | **Attack** | Attacks whatever you look at, else the nearest hostile |
-| **Collect** | Forages up to 1000 blocks, brings back exactly one stack, sets it down |
+| **Collect** | Leaves, digs out a vein within 100 blocks, walks back in with it |
 | **Crystal** | Finds bedrock and **forges** an End Crystal on it every 20 s |
 
 Shades make crystals rather than spending yours — a dragon has no hands for a workbench,
 so stocking a domain is the court's trade.
 
-**Collect** takes a named quarry: type a block id into the row's field, or leave it blank
-and the shade takes whatever you are looking at. With one named the shade digs for it,
-teleporting into that ore's **real generation band** — diamond near Y −59, iron near 16,
-copper near 48 — and it remembers the depth it last struck the seam at, so it sharpens the
-longer it works. With no quarry named it only strips surface blocks, so it will not
-swiss-cheese the landscape by accident.
+**Collect** needs a named quarry — pick one from the row's block picker. The shade
+says its piece and **leaves the world**: no entity, nothing to lose. It searches 100
+blocks in every direction and the world's full height, takes up to **64 blocks in
+whole veins** (flood-filled through touching blocks, diagonals included, so a seam
+comes out in one piece rather than a stack of scattered holes), and steps back out
+of nowhere in front of you thirty seconds later with the haul in hand.
+
+That thirty seconds is the cooldown, wearing the shape of a journey. The search
+itself takes about four — it runs three chunk columns a tick so a hundred-block
+sweep never lands as one hitch, and skips whole 16³ sections whose palette does not
+mention the block, which is what makes a full-height search affordable at all.
+
+Blocks are only removed at the moment of return, so anything you mine out in the
+meantime simply is not there.
+
+This replaced a version that sent a real enderman roaming. Every failure it had came
+from being a real entity in real terrain: it hopped into ungenerated chunks and
+landed inside bedrock, got walled into stone, suffocated once its escape blink was
+taken away, and could not be recalled because it was no longer anywhere. An errand
+with no entity has none of those.
 
 **Nothing you interrupt is lost.** Change a shade's order mid-errand and it comes back,
 sets down what it dug up, and only then takes the new one. A finished Collect hands the

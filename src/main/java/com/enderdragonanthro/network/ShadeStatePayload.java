@@ -16,8 +16,12 @@ import static com.enderdragonanthro.EnderdragonAnthro.id;
  * a screen that is already up.
  */
 public record ShadeStatePayload(boolean open, List<Entry> shades) implements CustomPacketPayload {
-    /** One shade. {@code quarry} is a block id, or empty for "whatever it finds". */
-    public record Entry(int slot, String name, int order, String quarry, int cargo) {
+    /**
+     * One shade. {@code quarry} is the block id it digs for, and
+     * {@code awaySeconds} counts down while it is off fetching one — zero
+     * whenever it is standing in front of you.
+     */
+    public record Entry(int slot, String name, int order, String quarry, int awaySeconds) {
     }
 
     public static final CustomPacketPayload.Type<ShadeStatePayload> TYPE =
@@ -32,7 +36,7 @@ public record ShadeStatePayload(boolean open, List<Entry> shades) implements Cus
                     buf.writeUtf(entry.name(), 64);
                     buf.writeVarInt(entry.order());
                     buf.writeUtf(entry.quarry(), 128);
-                    buf.writeVarInt(entry.cargo());
+                    buf.writeVarInt(entry.awaySeconds());
                 }
             },
             buf -> {

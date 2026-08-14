@@ -28,7 +28,9 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -84,9 +86,6 @@ public final class DragonMinions {
 
     public static final int MAX_PER_PLAYER = 4;
     private static final double SCALE = 4.0 / 2.9;      // enderman is 2.9 blocks tall
-    private static final double FORAGE_RANGE = 1000.0;  // how far afield they will roam
-    private static final int WORK_RADIUS = 16;          // mining reach around themselves
-    private static final int CARGO_MAX = 64;            // one stack, then home
     private static final int CRYSTAL_WORK = 400;        // 20s of work per crystal
     /** Two hits inside this window counts as "you keep getting damaged". */
     private static final int GRUDGE_WINDOW = 100;
@@ -101,10 +100,13 @@ public final class DragonMinions {
     private static final double HEEL = 6.0;
     /** Bedrock this far above the world floor is fair game; below it is not. */
     private static final int BEDROCK_FLOOR = 5;
-    /** A Collect order that has got nowhere in this long comes home anyway. */
-    private static final int COLLECT_TIMEOUT = 3600;
-    /** Fruitless hops around one patch before trying somewhere else entirely. */
-    private static final int DRY_HOPS = 12;
+    /**
+     * How long a shade is away on a Collect order — the errand's cooldown,
+     * wearing the shape of a journey rather than a number on a bar.
+     */
+    private static final int TRIP_TICKS = 600;
+    /** Chunk columns searched per tick, so the sweep never lands as one hitch. */
+    private static final int CHUNKS_PER_TICK = 3;
     /** Past this it has genuinely lost you, and walking will not close it. */
     private static final double FETCH_DISTANCE = 48.0;
     /**
@@ -127,27 +129,37 @@ public final class DragonMinions {
         UUID entity;
         int slot;
         Order order = Order.DEFEND;
-        BlockState cargoType;
-        /** Depth the quarry was last actually found at, so searching improves. */
-        Integer learnedY;
         /** What the owner asked for. Null means "whatever is worth taking". */
         Block wanted;
-        int cargo;
-        boolean headingHome;
         /** Ticks an Attack order has spent with nothing to hunt. */
         int idleTicks;
         /** Last place we actually saw it, so an unloaded shade can be fetched. */
         BlockPos lastPos;
-        /** The patch it is working, and how many fruitless hops it has had. */
-        BlockPos site;
-        int dryHops;
-        /** Ticks spent away on a Collect order without finishing. */
-        int awayTicks;
+        /** Set while it is away digging; the entity does not exist meanwhile. */
+        Dig dig;
         /** The chunk we are currently holding open for it. */
         ChunkPos ticket;
         /** The crystal this shade raised, and the block it stands on. */
         UUID crystal;
         BlockPos bedrock;
+    }
+
+    /**
+     * A shade's errand, while it is away.
+     *
+     * It has left the world entirely for the duration — no entity to lose, no
+     * chunk to keep open, nothing to walk into a wall. The search runs a few
+     * chunk columns per tick so a hundred-block sweep never lands as one hitch,
+     * and the trip home is the cooldown.
+     */
+    private static final class Dig {
+        Block quarry;
+        BlockPos origin;
+        ResourceKey<Level> dimension;
+        List<ChunkPos> route;
+        int cursor;
+        final List<BlockPos> found = new ArrayList<>();
+        long returnAt;
     }
 
     /** Who the court is angry at, and until when. */
@@ -182,23 +194,10 @@ public final class DragonMinions {
         }
         int slot = freeSlot(court);
 
-        Vec3 look = owner.getLookAngle();
-        Vec3 at = owner.position().add(look.x * 5.0, 0.0, look.z * 5.0);
-        EnderMan minion = EntityType.ENDERMAN.create(level);
+        EnderMan minion = spawnShade(owner, level, slot);
         if (minion == null) {
             return;
         }
-        minion.moveTo(at.x, at.y, at.z, owner.getYRot(), 0.0F);
-        AttributeInstance scale = minion.getAttribute(Attributes.SCALE);
-        if (scale != null) {
-            scale.addPermanentModifier(new AttributeModifier(
-                    SCALE_ID, SCALE - 1.0, AttributeModifier.Operation.ADD_VALUE));
-        }
-        minion.setPersistenceRequired();
-        minion.setCustomNameVisible(true);
-        minion.addTag(OWNER_TAG + owner.getUUID().toString().replace("-", ""));
-        minion.addTag(SLOT_TAG + slot);
-        level.addFreshEntity(minion);
 
         Shade shade = new Shade();
         shade.entity = minion.getUUID();
@@ -224,6 +223,9 @@ public final class DragonMinions {
      */
     private static void prune(ServerLevel level, List<Shade> court) {
         court.removeIf(s -> {
+            if (s.entity == null) {
+                return false;                  // away on an errand, not dead
+            }
             if (level.getEntity(s.entity) instanceof EnderMan e && !e.isAlive()) {
                 releaseChunk(level, s);
                 return true;
@@ -352,8 +354,8 @@ public final class DragonMinions {
         }
         ServerLevel level = owner.serverLevel();
         for (Shade shade : court) {
-            if (shade.order == Order.COLLECT) {
-                continue;                       // away on business; let it work
+            if (shade.dig != null) {
+                continue;                       // away digging; it comes back on its own
             }
             EnderMan minion = resolve(level, shade);
             if (minion == null) {
@@ -369,6 +371,9 @@ public final class DragonMinions {
 
     /** The shade's entity, loading the chunk it was last seen in if need be. */
     private static EnderMan resolve(ServerLevel level, Shade shade) {
+        if (shade.entity == null) {
+            return null;                          // away on an errand; there is no entity
+        }
         if (level.getEntity(shade.entity) instanceof EnderMan found) {
             return found;
         }
@@ -379,6 +384,30 @@ public final class DragonMinions {
             }
         }
         return null;
+    }
+
+    /** Raise one, scaled and tagged, a few paces in front of the dragon. */
+    private static EnderMan spawnShade(ServerPlayer owner, ServerLevel level, int slot) {
+        EnderMan minion = EntityType.ENDERMAN.create(level);
+        if (minion == null) {
+            return null;
+        }
+        Vec3 look = owner.getLookAngle();
+        Vec3 at = owner.position().add(look.x * 5.0, 0.0, look.z * 5.0);
+        minion.moveTo(at.x, at.y, at.z, owner.getYRot(), 0.0F);
+        AttributeInstance scale = minion.getAttribute(Attributes.SCALE);
+        if (scale != null) {
+            scale.addPermanentModifier(new AttributeModifier(
+                    SCALE_ID, SCALE - 1.0, AttributeModifier.Operation.ADD_VALUE));
+        }
+        minion.setPersistenceRequired();
+        minion.setCustomNameVisible(true);
+        minion.addTag(OWNER_TAG + owner.getUUID().toString().replace("-", ""));
+        minion.addTag(SLOT_TAG + slot);
+        level.addFreshEntity(minion);
+        level.sendParticles(net.minecraft.core.particles.ParticleTypes.PORTAL,
+                minion.getX(), minion.getY() + 2.0, minion.getZ(), 40, 0.5, 1.2, 0.5, 0.3);
+        return minion;
     }
 
     private static int freeSlot(List<Shade> court) {
@@ -452,12 +481,14 @@ public final class DragonMinions {
         List<ShadeStatePayload.Entry> entries = new ArrayList<>();
         ServerLevel level = owner.serverLevel();
         for (Shade s : List.copyOf(COURT.getOrDefault(owner.getUUID(), List.of()))) {
-            if (!(level.getEntity(s.entity) instanceof EnderMan e) || !e.isAlive()) {
+            boolean away = s.dig != null;
+            if (!away && (s.entity == null
+                    || !(level.getEntity(s.entity) instanceof EnderMan e) || !e.isAlive())) {
                 continue;
             }
             entries.add(new ShadeStatePayload.Entry(s.slot, NAMES[s.slot], s.order.ordinal(),
                     s.wanted == null ? "" : BuiltInRegistries.BLOCK.getKey(s.wanted).toString(),
-                    s.cargo));
+                    away ? (int) Math.max(1, (s.dig.returnAt - level.getGameTime() + 19) / 20) : 0));
         }
         entries.sort(Comparator.comparingInt(ShadeStatePayload.Entry::slot));
         ServerPlayNetworking.send(owner, new ShadeStatePayload(open, List.copyOf(entries)));
@@ -466,8 +497,8 @@ public final class DragonMinions {
     /**
      * One shade, one order, straight from the screen.
      *
-     * Changing a shade's mind never costs you its cargo: whatever it is
-     * carrying is handed over first, wherever in the world it had got to.
+     * Collect despatches rather than sets a duty: the shade leaves at once and
+     * the order reverts to Defend when it walks back in.
      */
     public static void applyOrder(ServerPlayer owner, int slot, int ordinal, String quarry) {
         Shade shade = null;
@@ -488,9 +519,15 @@ public final class DragonMinions {
         // Pet and Recall are things you do to a shade, not jobs you give it:
         // they happen and the standing order carries on untouched.
         if (order.momentary()) {
+            if (shade.dig != null) {
+                long left = (shade.dig.returnAt - level.getGameTime() + 19) / 20;
+                say(owner, NAMES[slot] + " is away digging — back in "
+                        + Math.max(1, left) + "s.", ChatFormatting.DARK_GRAY, true);
+                return;
+            }
             EnderMan target = resolve(level, shade);
             if (target == null) {
-                say(owner, NAMES[slot] + " is too far to hear you.",
+                say(owner, NAMES[slot] + " cannot be reached — not in this world.",
                         ChatFormatting.DARK_GRAY, true);
                 return;
             }
@@ -500,13 +537,11 @@ public final class DragonMinions {
                         owner.getZ() - look.z * 3.0, 16)) {
                     target.teleportTo(owner.getX(), owner.getY(), owner.getZ());
                 }
-                // Recall has to end the errand, not just interrupt it. A shade
-                // still under Collect arrived, was told nothing had changed, and
-                // hopped straight back out to its patch inside two seconds — so
-                // it looked as though it had never come. It hands over what it
-                // dug up and stays.
-                deliver(owner, target, shade);
-                standDown(owner, target, shade, "\"At your side.\"");
+                // Recall has to end the errand, not just interrupt it: a shade
+                // that arrives and is told nothing has changed goes straight
+                // back out, which looks exactly like never having come.
+                int moved = (int) Math.sqrt(target.distanceToSqr(owner));
+                standDown(owner, target, shade, "\"At your side.\" (" + moved + "m away)");
             } else {
                 target.getLookControl().setLookAt(owner, 60.0F, 60.0F);
                 EndermanAffection.adore(level, target);
@@ -517,21 +552,27 @@ public final class DragonMinions {
         }
 
         EnderMan minion = level.getEntity(shade.entity) instanceof EnderMan e ? e : null;
-        if (minion != null) {
-            handOver(owner, level, minion, shade);
-        }
         shade.order = order;
-        shade.headingHome = false;
         shade.idleTicks = 0;
         shade.awayTicks = 0;
         shade.dryHops = 0;
         shade.site = null;
         if (order == Order.COLLECT) {
-            Block wanted = parseBlock(quarry);     // named from the picker, or nothing
-            if (wanted != shade.wanted) {
-                shade.learnedY = null;
+            Block wanted = parseBlock(quarry);
+            if (wanted == null) {
+                wanted = shade.wanted;             // keep what it was already after
+            }
+            if (wanted == null) {
+                say(owner, NAMES[slot] + ": \"Name what you want and I will find it.\"",
+                        ChatFormatting.DARK_GRAY, true);
+                return;                            // a vein needs something to follow
             }
             shade.wanted = wanted;
+            if (minion != null) {
+                despatch(owner, minion, level, shade, wanted);
+                pushState(owner);
+                return;
+            }
         }
         // A quarry is a standing preference, not part of the order: switching
         // to Defend and back should not make the shade forget what it digs for.
@@ -618,7 +659,12 @@ public final class DragonMinions {
             LivingEntity watched = lookedAt(owner, level);
 
             for (Shade shade : court) {
-                if (!(level.getEntity(shade.entity) instanceof EnderMan minion)) {
+                if (shade.dig != null) {
+                    digTick(owner, level, shade);
+                    continue;                  // away; there is no entity to drive
+                }
+                if (shade.entity == null
+                        || !(level.getEntity(shade.entity) instanceof EnderMan minion)) {
                     continue;
                 }
                 if (minion.getTarget() == owner) {
@@ -650,8 +696,8 @@ public final class DragonMinions {
                     }
                 }
                 // Someone is beating on Jean. Any shade close enough to see it
-                // stops what it is doing; the ones away on business keep their
-                // cargo and their errand.
+                // stops what it is doing; the ones away digging are not here to
+                // be asked.
                 if (avenge != null && minion.distanceToSqr(owner) < GRUDGE_RANGE * GRUDGE_RANGE) {
                     minion.setTarget(avenge);
                     if (minion.distanceToSqr(avenge) > 9.0) {
@@ -661,7 +707,6 @@ public final class DragonMinions {
                 }
                 switch (shade.order) {
                     case ATTACK -> attack(owner, minion, level, shade);
-                    case COLLECT -> collect(owner, minion, level, shade);
                     case CRYSTAL -> crystal(owner, minion, level, shade);
                     case DISMANTLE -> dismantle(owner, minion, level, shade);
                     // Pet and Recall are never standing orders; if one somehow
@@ -743,7 +788,6 @@ public final class DragonMinions {
     private static void standDown(ServerPlayer owner, EnderMan minion, Shade shade, String line) {
         shade.order = Order.DEFEND;
         shade.wanted = null;
-        shade.headingHome = false;
         shade.idleTicks = 0;
         shade.awayTicks = 0;
         shade.dryHops = 0;
@@ -769,151 +813,106 @@ public final class DragonMinions {
     }
 
     /**
-     * Forage far and wide, then bring back exactly one stack.
+     * Send a shade off to fetch a seam.
      *
-     * Walking a thousand blocks would take an age, so the shade does what
-     * endermen do: it teleports. It settles on one patch and works it rather
-     * than bouncing to a fresh random point across the world every two seconds
-     * — that used to force a chunk to generate each time, and gave it no chance
-     * to find a seam before it moved on.
+     * It leaves the world outright rather than walking there. Everything that
+     * went wrong with the old Collect came from a real entity out in real
+     * terrain: it hopped into ungenerated chunks, got walled into stone,
+     * suffocated where its escape blink had been taken away, and could not be
+     * recalled because it was no longer anywhere. An errand with no entity has
+     * none of those failure modes.
      *
-     * Every hop goes through {@link #blink}, so it can only ever land somewhere
-     * it can stand. And the whole errand is on a clock: a shade that has got
-     * nowhere in {@value #COLLECT_TIMEOUT} ticks comes home with whatever it
-     * has, rather than staying out forever and holding its slot.
+     * The trip is the cooldown. The search itself finishes in a few seconds;
+     * the shade stays away for {@value #TRIP_TICKS} ticks regardless, because a
+     * retinue that returns instantly is a vending machine.
      */
-    private static void collect(ServerPlayer owner, EnderMan minion, ServerLevel level, Shade shade) {
-        minion.setTarget(null);
-        if (shade.cargo >= CARGO_MAX) {
-            shade.headingHome = true;
-        }
-        if (!shade.headingHome && ++shade.awayTicks > COLLECT_TIMEOUT) {
-            shade.headingHome = true;
-            say(owner, NAMES[shade.slot] + ": \"The seam is dry. Returning.\"",
-                    Order.COLLECT.colour, false);
-        }
-        if (shade.headingHome) {
-            if (minion.distanceToSqr(owner) < 64.0) {
-                deliver(owner, minion, shade);
-                standDown(owner, minion, shade, "\"It is yours. I stand with you.\"");
-            } else if (level.getGameTime() % 20 == 0) {
-                hopToward(level, minion, owner.getX(), owner.getZ(), 24.0);
-            }
-            return;
-        }
-        if (level.getGameTime() % 10 != 0) {
-            return;
-        }
-        BlockPos found = findHarvest(level, minion.blockPosition(), shade);
-        if (found != null) {
-            BlockState state = level.getBlockState(found);
-            level.removeBlock(found, false);
-            shade.cargoType = state;
-            shade.learnedY = found.getY();       // remember where the seam was
-            shade.cargo++;
-            shade.dryHops = 0;                   // this patch is paying out
-            minion.setCarriedBlock(state);
-            if (shade.cargo >= CARGO_MAX) {
-                shade.headingHome = true;
-                say(owner, NAMES[shade.slot] + ": \"A full stack. Returning.\"",
-                        Order.COLLECT.colour, false);
-            }
-            return;
-        }
-        if (level.getGameTime() % 40 != 0) {
-            return;
-        }
-        // Nothing in reach. Pick a patch if we have not got one, otherwise
-        // shuffle around inside it; give up on a patch that keeps coming up
-        // empty and choose somewhere else entirely.
-        if (shade.site == null || ++shade.dryHops > DRY_HOPS) {
-            double angle = level.random.nextDouble() * Math.PI * 2;
-            double dist = 64.0 + level.random.nextDouble() * FORAGE_RANGE;
-            shade.site = BlockPos.containing(owner.getX() + Math.cos(angle) * dist,
-                    owner.getY(), owner.getZ() + Math.sin(angle) * dist);
-            shade.dryHops = 0;
-        }
-        int depth = shade.wanted == null ? Integer.MIN_VALUE
-                : chooseDepth(level, shade, shade.wanted);
-        double x = shade.site.getX() + level.random.nextInt(65) - 32;
-        double z = shade.site.getZ() + level.random.nextInt(65) - 32;
-        if (depth != Integer.MIN_VALUE) {
-            int y = Math.max(level.getMinBuildHeight() + 2,
-                    Math.min(level.getMaxBuildHeight() - 5, depth));
-            if (blink(level, minion, x, y, z, 24)) {
-                return;
-            }
-            // no pocket anywhere near that depth: work the surface instead
-        }
-        hopToward(level, minion, x, z, 0.0);
-    }
+    private static void despatch(ServerPlayer owner, EnderMan minion, ServerLevel level,
+                                 Shade shade, Block quarry) {
+        Dig dig = new Dig();
+        dig.quarry = quarry;
+        dig.origin = owner.blockPosition();
+        dig.dimension = level.dimension();
+        dig.route = VeinScan.route(new ChunkPos(dig.origin));
+        dig.returnAt = level.getGameTime() + TRIP_TICKS;
+        shade.dig = dig;
 
-    private static void deliver(ServerPlayer owner, EnderMan minion, Shade shade) {
-        if (shade.cargoType != null && shade.cargo > 0) {
-            ItemStack stack = new ItemStack(shade.cargoType.getBlock(), shade.cargo);
-            if (!stack.isEmpty()) {
-                minion.spawnAtLocation(stack);
-            }
-            say(owner, NAMES[shade.slot] + " sets down " + shade.cargo + " "
-                    + shade.cargoType.getBlock().getName().getString() + ".",
-                    Order.COLLECT.colour, false);
-        }
-        shade.cargoType = null;
-        shade.cargo = 0;
-        shade.headingHome = false;
-        minion.setCarriedBlock(null);
+        level.sendParticles(net.minecraft.core.particles.ParticleTypes.PORTAL,
+                minion.getX(), minion.getY() + 2.0, minion.getZ(), 40, 0.5, 1.2, 0.5, 0.3);
+        level.playSound(null, minion.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
+                SoundSource.HOSTILE, 1.0F, 0.7F);
+        releaseChunk(level, shade);
+        minion.discard();
+        shade.entity = null;
+
+        say(owner, NAMES[shade.slot] + ": \"" + quarry.getName().getString()
+                + ". I will find it.\"", Order.COLLECT.colour, false);
     }
 
     /**
-     * Interrupting a shade never costs you what it dug up: it comes back,
-     * sets the load down, and only then takes the new order.
+     * Work the errand: a few chunk columns a tick, then come back.
+     *
+     * The blocks are only taken from the world at the moment of return, so a
+     * seam the dragon mines out in the meantime simply is not there any more.
      */
-    private static void handOver(ServerPlayer owner, ServerLevel level, EnderMan minion, Shade shade) {
-        if (shade.cargo <= 0 || shade.cargoType == null) {
-            shade.cargoType = null;
-            shade.cargo = 0;
-            minion.setCarriedBlock(null);
+    private static void digTick(ServerPlayer owner, ServerLevel level, Shade shade) {
+        Dig dig = shade.dig;
+        if (!level.dimension().equals(dig.dimension)) {
+            returnHome(owner, level, shade, List.of());   // followed you somewhere else
             return;
         }
-        if (minion.distanceToSqr(owner) > 64.0) {
-            hopToward(level, minion, owner.getX(), owner.getZ(), 4.0);
+        for (int i = 0; i < CHUNKS_PER_TICK && dig.cursor < dig.route.size(); i++) {
+            ChunkPos at = dig.route.get(dig.cursor++);
+            if (dig.origin.distSqr(new BlockPos(at.getMiddleBlockX(), dig.origin.getY(),
+                    at.getMiddleBlockZ())) > (VeinScan.RADIUS + 12) * (VeinScan.RADIUS + 12)) {
+                continue;                                  // corner of the square, out of reach
+            }
+            VeinScan.scanChunk(level, at, dig.quarry, dig.found);
         }
-        deliver(owner, minion, shade);
+        if (level.getGameTime() < dig.returnAt) {
+            return;                                        // still walking back
+        }
+        List<BlockPos> haul = VeinScan.veins(dig.found, dig.origin, VeinScan.HAUL);
+        returnHome(owner, level, shade, haul);
     }
 
-    /**
-     * Find something worth taking.
-     *
-     * With no quarry named it only strips surface blocks, so it will not
-     * swiss-cheese the landscape. Once you name one it will dig for it — an
-     * enderman can stand anywhere, so buried ore is fair game.
-     */
-    private static BlockPos findHarvest(ServerLevel level, BlockPos base, Shade shade) {
-        Block quarry = shade.wanted != null ? shade.wanted
-                : (shade.cargoType != null ? shade.cargoType.getBlock() : null);
-        int samples = quarry != null ? 160 : 24;
-        for (BlockPos pos : BlockPos.randomInCube(level.random, samples, base, WORK_RADIUS)) {
-            BlockState state = level.getBlockState(pos);
-            if (state.isAir() || state.hasBlockEntity()
-                    || state.getDestroySpeed(level, pos) < 0
-                    || !state.getFluidState().isEmpty()
-                    || state.is(Blocks.BEDROCK)
-                    || state.getBlock().asItem() == Items.AIR) {
-                continue;
+    /** The shade steps back out of nowhere, hands over the haul, and stands down. */
+    private static void returnHome(ServerPlayer owner, ServerLevel level, Shade shade,
+                                   List<BlockPos> haul) {
+        Block quarry = shade.dig.quarry;
+        shade.dig = null;
+        shade.order = Order.DEFEND;
+
+        int taken = 0;
+        for (BlockPos pos : haul) {
+            if (level.getBlockState(pos).is(quarry) && level.removeBlock(pos, false)) {
+                taken++;                                   // only what is still there
             }
-            if (quarry != null) {
-                if (!state.is(quarry)) {
-                    continue;
-                }
-            } else if (!level.getBlockState(pos.above()).isAir()) {
-                continue;                       // unnamed: surface only, no tunnelling
-            }
-            if (shade.cargoType != null && !state.is(shade.cargoType.getBlock())) {
-                continue;                       // one kind per trip, so it stacks
-            }
-            return pos.immutable();
         }
-        return null;
+        EnderMan minion = spawnShade(owner, level, shade.slot);
+        if (minion != null) {
+            shade.entity = minion.getUUID();
+            rename(minion, shade);
+        }
+        if (taken > 0) {
+            hand(owner, quarry, taken);
+            say(owner, NAMES[shade.slot] + " returns with " + taken + " "
+                    + quarry.getName().getString() + ".", Order.COLLECT.colour, false);
+        } else {
+            say(owner, NAMES[shade.slot] + ": \"No " + quarry.getName().getString()
+                    + " within reach.\"", ChatFormatting.DARK_GRAY, false);
+        }
+        pushState(owner);
+    }
+
+    /** Into your hands, or at your feet if there is no room. */
+    private static void hand(ServerPlayer owner, Block block, int count) {
+        while (count > 0) {
+            ItemStack stack = new ItemStack(block, Math.min(count, block.asItem().getDefaultMaxStackSize()));
+            count -= stack.getCount();
+            if (!owner.getInventory().add(stack)) {
+                owner.drop(stack, false);
+            }
+        }
     }
 
     /**
@@ -1090,49 +1089,6 @@ public final class DragonMinions {
         } else if (gap > leash * leash) {
             minion.getNavigation().moveTo(owner.getX(), owner.getY(), owner.getZ(), speed);
         }
-    }
-
-    /**
-     * Where a given block actually lives.
-     *
-     * Blind-searching every depth wastes a shade's time, so the common ores
-     * carry their real generation band and it aims there. Anything unlisted
-     * returns null and is treated as a surface material. A shade also
-     * remembers the depth it last struck the quarry at and favours that,
-     * so it gets better at a seam the longer it works it.
-     */
-    private static int[] oreBand(Block block) {
-        String key = BuiltInRegistries.BLOCK.getKey(block).getPath();
-        if (key.contains("diamond_ore")) return new int[]{-63, 16, -59};
-        if (key.contains("redstone_ore")) return new int[]{-63, 15, -59};
-        if (key.contains("lapis_ore")) return new int[]{-64, 64, 0};
-        if (key.contains("gold_ore") && !key.contains("nether")) return new int[]{-64, 32, -16};
-        if (key.contains("iron_ore")) return new int[]{-24, 56, 16};
-        if (key.contains("copper_ore")) return new int[]{-16, 112, 48};
-        if (key.contains("coal_ore")) return new int[]{0, 192, 96};
-        if (key.contains("emerald_ore")) return new int[]{-16, 256, 200};
-        if (key.equals("ancient_debris")) return new int[]{8, 22, 15};
-        if (key.contains("amethyst")) return new int[]{-64, 30, -20};
-        if (key.equals("deepslate") || key.contains("deepslate_")) return new int[]{-64, 8, -30};
-        if (key.equals("granite") || key.equals("diorite") || key.equals("andesite")
-                || key.equals("tuff") || key.equals("calcite")) return new int[]{-64, 80, 0};
-        if (key.equals("gravel") || key.equals("clay")) return new int[]{-20, 70, 50};
-        return null;
-    }
-
-    /** Pick a depth to search, favouring what the shade has already learned. */
-    private static int chooseDepth(ServerLevel level, Shade shade, Block quarry) {
-        if (shade.learnedY != null && level.random.nextFloat() < 0.7F) {
-            return shade.learnedY + level.random.nextInt(17) - 8;
-        }
-        int[] band = oreBand(quarry);
-        if (band == null) {
-            return Integer.MIN_VALUE;                 // surface material
-        }
-        // triangular pull toward the peak, so most stops land in the rich part
-        int a = level.random.nextInt(band[1] - band[0] + 1) + band[0];
-        int b = band[2] + level.random.nextInt(17) - 8;
-        return Math.max(band[0], Math.min(band[1], (a + b * 3) / 4));
     }
 
     /**

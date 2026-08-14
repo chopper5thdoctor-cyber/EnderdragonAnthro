@@ -146,10 +146,10 @@ public class ShadeCommandScreen extends Screen {
             int y = this.top + i * ROW_H;
             graphics.drawString(this.font, Component.literal(shade.name()),
                     this.left, y, 0xFFE079FA, true);
-            if (shade.cargo() > 0) {
-                String carrying = "carrying " + shade.cargo();
-                graphics.drawString(this.font, Component.literal(carrying),
-                        this.left + PANEL_W - this.font.width(carrying), y, 0xFF7DBF7D, true);
+            if (shade.awaySeconds() > 0) {
+                String away = "away — back in " + shade.awaySeconds() + "s";
+                graphics.drawString(this.font, Component.literal(away),
+                        this.left + PANEL_W - this.font.width(away), y, 0xFFD8B84A, true);
             }
         }
     }
