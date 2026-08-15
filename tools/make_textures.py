@@ -176,9 +176,9 @@ def happy_face():
     # Three wide with two clear pixels between them: at four wide the inner
     # legs met in the middle and the pair read as one flat bar.
     for cx in (0, 5):                                      # one caret per eye
-        sheet.putpixel((x0 + cx + 1, y0 + 2), bright)      # apex
-        sheet.putpixel((x0 + cx, y0 + 3), bright)          # legs falling away
-        sheet.putpixel((x0 + cx + 2, y0 + 3), bright)
+        sheet.putpixel((x0 + cx + 1, y0 + 3), bright)      # apex
+        sheet.putpixel((x0 + cx, y0 + 4), bright)          # legs falling away
+        sheet.putpixel((x0 + cx + 2, y0 + 4), bright)
     return sheet
 
 
@@ -195,7 +195,8 @@ def happy_mask():
     x0, y0, _, _ = box_slots(0, 0, 8, 8, 8)["north"]
     skin = (0x0F, 0x0F, 0x12, 255)
     for x in range(8):
-        for y in range(1, 5):                              # the whole eye band
+        for y in range(1, 6):                              # the whole eye band, and the
+            # row the carets sit on after being nudged down one
             sheet.putpixel((x0 + x, y0 + y), skin)
     return sheet
 

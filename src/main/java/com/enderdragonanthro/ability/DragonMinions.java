@@ -4,6 +4,7 @@ import com.enderdragonanthro.network.ShadeStatePayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -81,9 +82,10 @@ public final class DragonMinions {
 
     /** The four of them. Jean's court, in order of summoning. */
     private static final String[] NAMES = {"Vael", "Kesh", "Nyra", "Orrin"};
+    /** One colour each, and everything they say is spoken in it. */
     private static final ChatFormatting[] TINTS = {
-            ChatFormatting.DARK_PURPLE, ChatFormatting.BLUE,
-            ChatFormatting.DARK_AQUA, ChatFormatting.GOLD};
+            ChatFormatting.RED, ChatFormatting.BLUE,
+            ChatFormatting.GREEN, ChatFormatting.GOLD};
 
     public static final int MAX_PER_PLAYER = 4;
     private static final double SCALE = 4.0 / 2.9;      // enderman is 2.9 blocks tall
@@ -425,8 +427,7 @@ public final class DragonMinions {
         minion.addTag(OWNER_TAG + owner.getUUID().toString().replace("-", ""));
         minion.addTag(SLOT_TAG + slot);
         level.addFreshEntity(minion);
-        level.sendParticles(net.minecraft.core.particles.ParticleTypes.PORTAL,
-                minion.getX(), minion.getY() + 2.0, minion.getZ(), 40, 0.5, 1.2, 0.5, 0.3);
+        burst(level, minion);
         return minion;
     }
 
@@ -550,7 +551,7 @@ public final class DragonMinions {
                             VeinScan.veins(shade.dig.found, shade.dig.origin, hand);
                     say(owner, NAMES[slot] + ": "
                             + ShadeVoice.duty(Order.RECALL, level.random, ""),
-                            Order.RECALL.colour, false);
+                            TINTS[slot], false);
                     returnHome(owner, level, shade, haul);
                     return;
                 }
@@ -566,6 +567,7 @@ public final class DragonMinions {
                 return;
             }
             if (order == Order.RECALL) {
+                burst(level, target);          // where it left
                 Vec3 look = owner.getLookAngle();
                 if (!blink(level, target, owner.getX() - look.x * 3.0, owner.getY(),
                         owner.getZ() - look.z * 3.0, 16)) {
@@ -574,6 +576,7 @@ public final class DragonMinions {
                 // Recall has to end the errand, not just interrupt it: a shade
                 // that arrives and is told nothing has changed goes straight
                 // back out, which looks exactly like never having come.
+                burst(level, target);          // and where it arrived
                 int moved = (int) Math.sqrt(target.distanceToSqr(owner));
                 standDown(owner, target, shade,
                         ShadeVoice.duty(Order.RECALL, level.random, "")
@@ -583,7 +586,7 @@ public final class DragonMinions {
                 EndermanAffection.adore(level, target);
                 say(owner, NAMES[slot] + ": "
                         + ShadeVoice.duty(Order.PET, level.random, ""),
-                        Order.PET.colour, false);
+                        TINTS[slot], false);
             }
             pushState(owner);
             return;
@@ -627,7 +630,7 @@ public final class DragonMinions {
             rename(minion, shade);
             minion.setTarget(null);
         }
-        say(owner, NAMES[slot] + ": " + line(shade, level.random), order.colour, false);
+        say(owner, NAMES[slot] + ": " + line(shade, level.random), TINTS[slot], false);
         pushState(owner);
     }
 
@@ -853,6 +856,27 @@ public final class DragonMinions {
         pushState(owner);
     }
 
+    /**
+     * The end tearing open around a shade.
+     *
+     * Endermen trail portal particles constantly, so a departure or an arrival
+     * has to be an order of magnitude more than the ambient drift to read as an
+     * event rather than as the same idle shimmer. Scaled to the shade's own
+     * height so a four-block minion is wrapped in it rather than standing in a
+     * puff around its ankles.
+     */
+    private static void burst(ServerLevel level, double x, double y, double z, double height) {
+        level.sendParticles(ParticleTypes.PORTAL, x, y + height * 0.5, z,
+                180, 0.6, height * 0.45, 0.6, 1.1);
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, x, y + height * 0.5, z,
+                60, 0.4, height * 0.35, 0.4, 0.5);
+    }
+
+    private static void burst(ServerLevel level, EnderMan minion) {
+        burst(level, minion.getX(), minion.getY(), minion.getZ(),
+                minion.getBbHeight());
+    }
+
     private static void defend(ServerPlayer owner, EnderMan minion, ServerLevel level) {
         LivingEntity threat = minion.getTarget();
         if (threat == null || !threat.isAlive()) {
@@ -891,8 +915,7 @@ public final class DragonMinions {
         dig.returnAt = level.getGameTime() + TRIP_TICKS;
         shade.dig = dig;
 
-        level.sendParticles(net.minecraft.core.particles.ParticleTypes.PORTAL,
-                minion.getX(), minion.getY() + 2.0, minion.getZ(), 40, 0.5, 1.2, 0.5, 0.3);
+        burst(level, minion);
         level.playSound(null, minion.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                 SoundSource.HOSTILE, 1.0F, 0.7F);
         releaseChunk(level, shade);
@@ -901,7 +924,7 @@ public final class DragonMinions {
 
         say(owner, NAMES[shade.slot] + ": "
                 + ShadeVoice.duty(Order.COLLECT, level.random, quarry.getName().getString()),
-                Order.COLLECT.colour, false);
+                TINTS[shade.slot], false);
     }
 
     /**
@@ -997,14 +1020,14 @@ public final class DragonMinions {
             hand(owner, quarry, taken);
             say(owner, NAMES[shade.slot] + ": "
                     + ShadeVoice.haul(level.random, taken, quarry.getName().getString()),
-                    Order.COLLECT.colour, false);
+                    TINTS[shade.slot], false);
         } else if (early) {
             say(owner, NAMES[shade.slot] + ": " + ShadeVoice.early(level.random),
-                    ChatFormatting.DARK_GRAY, false);
+                    TINTS[shade.slot], false);
         } else {
             say(owner, NAMES[shade.slot] + ": "
                     + ShadeVoice.barren(level.random, quarry.getName().getString()),
-                    ChatFormatting.DARK_GRAY, false);
+                    TINTS[shade.slot], false);
         }
         pushState(owner);
     }

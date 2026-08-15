@@ -4,6 +4,10 @@ import com.enderdragonanthro.ability.CrystalHealing;
 import com.enderdragonanthro.boss.DragonBossBars;
 import com.enderdragonanthro.config.DragonConfig;
 import net.minecraft.core.Holder;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,7 +17,10 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import static com.enderdragonanthro.EnderdragonAnthro.id;
 
@@ -96,6 +103,7 @@ public final class DragonFormManager {
         dress(player);
         player.setHealth(player.getMaxHealth());
         DragonBossBars.add(player);
+        transformBurst(player);
     }
 
     public static void removeForm(ServerPlayer player) {
@@ -104,6 +112,7 @@ public final class DragonFormManager {
         player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
         DragonBossBars.remove(player);
         CrystalHealing.unlink(player);
+        transformBurst(player);
     }
 
     public static void copyState(ServerPlayer oldPlayer, ServerPlayer newPlayer) {
@@ -130,10 +139,59 @@ public final class DragonFormManager {
         CrystalHealing.unlink(player);
     }
 
-    /** Hook point for per-tick form upkeep. */
+    /**
+     * How long the end takes to close behind a transformation.
+     *
+     * Not a balance cost -- Y costs nothing and should stay free -- but the
+     * burst is six hundred particles, and a key you can hold down would post
+     * that to every client in view distance as fast as the server ticks.
+     */
+    private static final int BURST_COOLDOWN = 40;
+    /** Ambient drift, in ticks between puffs. Endermen do this constantly. */
+    private static final int AMBIENT_EVERY = 3;
+    private static final Map<UUID, Long> LAST_BURST = new HashMap<>();
+
     public static void tick(MinecraftServer server) {
-        // nothing to re-assert now that flight is elytra-based; kept as the
-        // hook point for future per-tick form upkeep.
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (!isDragon(player)) {
+                continue;
+            }
+            ServerLevel level = player.serverLevel();
+            if (level.getGameTime() % AMBIENT_EVERY != 0) {
+                continue;
+            }
+            // The same drift an enderman carries, sized to a body eight blocks
+            // tall instead of three so it wraps the whole dragon.
+            level.sendParticles(ParticleTypes.PORTAL,
+                    player.getX(), player.getY() + player.getBbHeight() * 0.5, player.getZ(),
+                    4, player.getBbWidth() * 0.5, player.getBbHeight() * 0.4,
+                    player.getBbWidth() * 0.5, 0.35);
+        }
+        LAST_BURST.keySet().removeIf(u -> server.getPlayerList().getPlayer(u) == null);
+    }
+
+    /** The end tearing open around a transformation, both directions. */
+    private static void transformBurst(ServerPlayer player) {
+        ServerLevel level = player.serverLevel();
+        long now = level.getGameTime();
+        Long last = LAST_BURST.get(player.getUUID());
+        if (last != null && now - last < BURST_COOLDOWN) {
+            return;
+        }
+        LAST_BURST.put(player.getUUID(), now);
+
+        double h = player.getBbHeight();
+        level.sendParticles(ParticleTypes.PORTAL,
+                player.getX(), player.getY() + h * 0.5, player.getZ(),
+                500, 1.2, h * 0.6, 1.2, 1.4);
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL,
+                player.getX(), player.getY() + h * 0.5, player.getZ(),
+                140, 0.8, h * 0.5, 0.8, 0.7);
+        level.sendParticles(ParticleTypes.DRAGON_BREATH,
+                player.getX(), player.getY() + h * 0.35, player.getZ(),
+                60, 0.9, h * 0.3, 0.9, 0.05);
+        level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
+                SoundSource.PLAYERS, 1.4F, 0.5F);
     }
 
     private static void dress(ServerPlayer player) {

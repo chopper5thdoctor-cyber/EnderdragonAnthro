@@ -41,8 +41,16 @@ fall-flying flag set so the untouched vanilla elytra code path runs. Double-tap 
 mid-air to start; `H` beats the wings — twice a firework rocket's push toward a 2.6
 target speed, because these are wings and a rocket is a firework.
 
-**The court.** Four named elite endermen — **Vael, Kesh, Nyra, Orrin** — scaled to 4
-blocks, each addressed and ordered separately. They never turn on you.
+**The court.** Four named elite endermen — **Vael** (red), **Kesh** (blue), **Nyra**
+(green) and **Orrin** (orange) — scaled to 4 blocks, each addressed and ordered
+separately. Everything a shade says is spoken in its own colour, so a four-shade
+court reads as four voices rather than one wall of text. They never turn on you.
+
+**The end goes with you.** In dragon form you trail portal particles the way an
+enderman does, sized to an eight-block body. Transforming either way tears the end
+open — a few hundred particles, a reverse-portal implosion through it and a wash of
+dragon's breath — on a two-second cooldown, since `Y` is free and holdable and the
+burst is not something to post to every client in view distance every tick.
 
 ---
 
@@ -51,7 +59,7 @@ blocks, each addressed and ordered separately. They never turn on you.
 | Key | Ability | Cooldown |
 |---|---|---|
 | `Y` | Transform (dragon ⇄ human) | — |
-| `R` | Dragon's Breath — raytraced so the pool always lands on ground | 4 s |
+| `R` | Dragon's Breath — a visible jet along the raytrace; the pool always lands on ground | 4 s |
 | `G` | Dragon Fireball — canon lingering cloud **plus** an entity-only blast | 3 s |
 | `V` | Wing Buffet — canon 3/5/7 damage, huge knockback | 5 s |
 | `C` | Charge dash — canon 6/10/15. Sprinting alone also deals charge damage | 4 s |
@@ -140,14 +148,36 @@ only ends when it arrives, and arriving meant standing where you were standing,
 which is why they shoved. Walk into one yourself and vanilla collision still
 applies; they simply no longer come to you.
 
-**They speak like a court.** Ten lines per order, picked at random, addressing
-Jean as a sovereign — *"At your side, my liege."* Four shades answering one
-order with one identical sentence was what made them read as spawned mobs
-rather than as anyone's retinue.
+**They speak like a court.** Ten lines per order, picked at random, each in the
+shade's own colour, addressing Jean as a sovereign — *"At your side, my liege."*
+Four shades answering one order with one identical sentence was what made them
+read as spawned mobs rather than as anyone's retinue.
+
+**They arrive and leave like endermen.** Departing on an errand, walking back in
+with a haul, and both ends of a Recall hop all tear open in portal particles —
+an order of magnitude past the drift they carry idly, so it reads as an event
+and not as the same shimmer.
 
 **They answer for you.** Take two hits from the same attacker inside five seconds and
 every shade within 48 blocks breaks off and goes for it, for fifteen seconds. Ones away
 on business keep their cargo and their errand.
+
+## The breath
+
+`R` traces a ray to the ground and lays the pool where it lands — and now draws
+the ray. Dragon's breath runs the whole segment from the mouth to the landing
+point for half a second, tight at the mouth and spreading as it falls, so the
+cloud is visibly connected to the dragon that exhaled it rather than appearing
+at the far end on its own.
+
+Anything standing in that jet takes the exhale, once, at the moment it happens.
+It is given the **same `MobEffectInstance` the pool carries**, not a damage
+figure of this mod's own — so what dragon's breath does to a thing is vanilla's
+answer, undead included: they are healed standing in the jet exactly as they are
+healed standing in the pool.
+
+Once, not per tick. The jet stays drawn for ten ticks afterwards, but a beam
+reapplying instant damage on every one of them would be twenty times the ability.
 
 ## Crater punch
 

@@ -17,7 +17,9 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.DragonFireball;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
@@ -45,6 +47,11 @@ public final class DragonAbilities {
 
     /** How far the breath will look for ground before giving up. */
     private static final double BREATH_REACH = 100.0;
+    /** How long the exhale stays drawn, in ticks. */
+    private static final int JET_TICKS = 10;
+    /** How wide the jet counts as, for what it catches. */
+    private static final double JET_RADIUS = 1.5;
+    private static final List<Jet> JETS = new ArrayList<>();
     /** Evasive jump always lands at least this far away. */
     private static final double EVADE_MIN_DISTANCE = 1000.0;
     /** Player warp only considers people beyond this. */
@@ -91,6 +98,7 @@ public final class DragonAbilities {
     }
 
     public static void tick(MinecraftServer server) {
+        drawJets(server);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (DragonFormManager.isDragon(player) && player.isSprinting()) {
                 chargeContactDamage(player);
@@ -151,8 +159,77 @@ public final class DragonAbilities {
             Vec3 at = mouth.add(landing.subtract(mouth).scale((double) i / steps));
             spawnCloud(level, player, at, i == steps ? 4.0F : 2.0F);
         }
+        scorch(level, player, mouth, landing);
+        JETS.add(new Jet(player.getUUID(), level.dimension(), mouth, landing,
+                level.getGameTime() + JET_TICKS));
         level.playSound(null, player.blockPosition(), SoundEvents.ENDER_DRAGON_GROWL,
                 SoundSource.PLAYERS, 2.0F, 1.0F);
+    }
+
+    /**
+     * Everything standing in the jet, hurt exactly as the pool would hurt it.
+     *
+     * The same MobEffectInstance the cloud carries, rather than a damage figure
+     * of this mod's own, so the answer to "what does dragon's breath do to this"
+     * is vanilla's answer -- undead are healed by it here too, because they are
+     * healed by it standing in the pool.
+     *
+     * Once, at the moment of the exhale. The jet stays lit for half a second
+     * afterwards, but a beam that reapplied instant damage every tick it was
+     * drawn would be twenty times the ability anyone asked for.
+     */
+    private static void scorch(ServerLevel level, ServerPlayer player, Vec3 mouth, Vec3 landing) {
+        Vec3 along = landing.subtract(mouth);
+        double span = along.length();
+        if (span < 1.0e-3) {
+            return;
+        }
+        Vec3 dir = along.scale(1.0 / span);
+        Set<UUID> struck = new HashSet<>();
+        for (double d = 0.0; d <= span; d += 1.0) {
+            Vec3 at = mouth.add(dir.scale(d));
+            AABB slice = new AABB(at, at).inflate(JET_RADIUS);
+            for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, slice,
+                    e -> e != player && e.isAlive() && !DragonMinions.isOwnedBy(player, e))) {
+                if (struck.add(target.getUUID())) {
+                    target.addEffect(new MobEffectInstance(MobEffects.HARM, 1, 1), player);
+                }
+            }
+        }
+    }
+
+    /** One exhale, still being drawn. */
+    private record Jet(UUID owner, ResourceKey<Level> dimension, Vec3 mouth, Vec3 landing,
+                       long until) {
+    }
+
+    /**
+     * Draw the jets that are still burning.
+     *
+     * The ray was always there -- it is how the landing point is chosen -- but
+     * nothing ever drew it, so the breath appeared at the far end with nothing
+     * connecting it to the dragon. This lays dragon's breath along the same
+     * segment the raytrace used, so what you see is literally what was traced.
+     */
+    private static void drawJets(MinecraftServer server) {
+        JETS.removeIf(jet -> {
+            ServerPlayer owner = server.getPlayerList().getPlayer(jet.owner());
+            ServerLevel level = owner == null ? null : owner.serverLevel();
+            if (level == null || !level.dimension().equals(jet.dimension())) {
+                return true;
+            }
+            Vec3 along = jet.landing().subtract(jet.mouth());
+            double span = along.length();
+            for (double d = 0.0; d < span; d += 0.6) {
+                Vec3 at = jet.mouth().add(along.scale(d / span));
+                // Thickening with distance, the way a jet spreads: tight at the
+                // mouth, broad where it meets the ground.
+                double spread = 0.08 + 0.35 * (d / Math.max(span, 1.0e-3));
+                level.sendParticles(ParticleTypes.DRAGON_BREATH,
+                        at.x, at.y, at.z, 1, spread, spread, spread, 0.01);
+            }
+            return level.getGameTime() >= jet.until();
+        });
     }
 
     private static void spawnCloud(ServerLevel level, ServerPlayer owner, Vec3 at, float radius) {
