@@ -16,6 +16,7 @@
     "PlayerTransformDataMixin"
   ],
   "client": [
+    "CrystalBeamSmoothMixin",
     "EndCrystalTextureMixin",
     "GameRendererBobMixin",
     "PlayerBodyHideMixin",

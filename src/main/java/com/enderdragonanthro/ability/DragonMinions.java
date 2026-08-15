@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -80,8 +81,14 @@ public final class DragonMinions {
         }
     }
 
-    /** The four of them. Jean's court, in order of summoning. */
-    private static final String[] NAMES = {"Vael", "Kesh", "Nyra", "Orrin"};
+    /**
+     * The four of them, in order of summoning.
+     *
+     * Jean is a French name, so the court is French too -- each one the old name
+     * carried into French spelling rather than four strangers: the diaeresis,
+     * the -aire, the -elle, the doubled consonant. The End is in the vowels.
+     */
+    private static final String[] NAMES = {"Vaëlle", "Keshaire", "Nyrelle", "Orrinne"};
     /** One colour each, and everything they say is spoken in it. */
     private static final ChatFormatting[] TINTS = {
             ChatFormatting.RED, ChatFormatting.BLUE,
@@ -162,6 +169,8 @@ public final class DragonMinions {
         /** The crystal this shade raised, and the block it stands on. */
         UUID crystal;
         BlockPos bedrock;
+        /** Where it has gone off to build. Null when it is not on a job. */
+        BlockPos work;
     }
 
     /**
@@ -448,33 +457,6 @@ public final class DragonMinions {
 
     // ------------------------------------------------------------- commands
 
-    /** Pick who you are talking to: whoever you are looking at, else the next one. */
-    public static void select(ServerPlayer owner) {
-        List<Shade> court = living(owner);
-        if (court.isEmpty()) {
-            say(owner, "No shade answers yet.", ChatFormatting.DARK_GRAY, true);
-            return;
-        }
-        ServerLevel level = owner.serverLevel();
-        LivingEntity aimed = lookedAt(owner, level);
-        for (Shade s : court) {
-            if (aimed != null && aimed.getUUID().equals(s.entity)) {
-                SELECTED.put(owner.getUUID(), s.slot);
-                say(owner, NAMES[s.slot] + " is listening.", TINTS[s.slot], true);
-                return;
-            }
-        }
-        int current = SELECTED.getOrDefault(owner.getUUID(), -1);
-        Shade next = court.get(0);
-        for (Shade s : court) {
-            if (s.slot > current) {
-                next = s;
-                break;
-            }
-        }
-        SELECTED.put(owner.getUUID(), next.slot);
-        say(owner, NAMES[next.slot] + " is listening.", TINTS[next.slot], true);
-    }
 
     /**
      * Open the court screen.
@@ -636,7 +618,7 @@ public final class DragonMinions {
 
     /** Name the quarry for the shade currently being addressed. */
     public static boolean setQuarry(ServerPlayer owner, Block block) {
-        Shade shade = selected(owner);
+        Shade shade = lookedAtShade(owner);
         if (shade == null) {
             return false;
         }
@@ -668,6 +650,31 @@ public final class DragonMinions {
         return block == Blocks.AIR ? null : block;
     }
 
+
+    /**
+     * Who a typed command speaks to.
+     *
+     * There used to be a key for this: N cycled a "listening" shade that only
+     * /shade collect ever read. The court screen addresses each shade by name on
+     * its own row, so the key was a second, worse way to say the same thing --
+     * and one whose state you could not see. Look at a shade to name it, or say
+     * nothing and the first one answers.
+     */
+    private static Shade lookedAtShade(ServerPlayer owner) {
+        List<Shade> court = living(owner);
+        if (court.isEmpty()) {
+            return null;
+        }
+        LivingEntity aimed = lookedAt(owner, owner.serverLevel());
+        if (aimed != null) {
+            for (Shade s : court) {
+                if (aimed.getUUID().equals(s.entity)) {
+                    return s;
+                }
+            }
+        }
+        return court.get(0);
+    }
 
     private static Shade selected(ServerPlayer owner) {
         int slot = SELECTED.getOrDefault(owner.getUUID(), -1);
@@ -878,6 +885,7 @@ public final class DragonMinions {
     }
 
     private static void defend(ServerPlayer owner, EnderMan minion, ServerLevel level) {
+        minion.setCarriedBlock(null);              // off duty, empty-handed
         LivingEntity threat = minion.getTarget();
         if (threat == null || !threat.isAlive()) {
             for (Monster m : level.getEntitiesOfClass(Monster.class,
@@ -1057,19 +1065,53 @@ public final class DragonMinions {
         if (shade.crystal != null
                 && level.getEntity(shade.crystal) instanceof EndCrystal standing
                 && standing.isAlive()) {
+            minion.setCarriedBlock(null);
+            shade.work = null;
             follow(owner, minion, HEEL, 1.1);      // its crystal still stands; guard it
             return;
         }
         shade.crystal = null;
-        if (level.getGameTime() % CRYSTAL_WORK != 0) {
-            follow(owner, minion, HEEL, 1.1);
+
+        // Pick somewhere to build, well clear of the dragon, and set off for it
+        // carrying the stone. An enderman holding a block already reads as one
+        // about to put it down -- vanilla renders it in both hands -- so the
+        // errand tells its own story on the way out.
+        if (shade.work == null) {
+            if (level.getGameTime() % CRYSTAL_WORK != 0) {
+                minion.setCarriedBlock(null);
+                follow(owner, minion, HEEL, 1.1);
+                return;
+            }
+            shade.work = worksite(level, owner);
+            if (shade.work == null) {
+                follow(owner, minion, HEEL, 1.1);
+                return;
+            }
+            minion.setCarriedBlock(Blocks.BEDROCK.defaultBlockState());
+            say(owner, NAMES[shade.slot] + ": "
+                    + ShadeVoice.duty(Order.CRYSTAL, level.random, ""),
+                    TINTS[shade.slot], false);
+        }
+        BlockPos spot = shade.work;
+        if (!minion.blockPosition().closerThan(spot, 3.0)) {
+            if (minion.blockPosition().distSqr(spot) > FETCH_DISTANCE * FETCH_DISTANCE) {
+                hopToward(level, minion, spot.getX(), spot.getZ(), 0.0);
+            } else {
+                minion.getNavigation().moveTo(spot.getX() + 0.5, spot.getY() + 1,
+                        spot.getZ() + 0.5, 1.15);
+            }
+            return;                                // still walking it over
+        }
+        if (!buildable(level, spot)) {
+            shade.work = null;                     // somebody built there while it walked
+            minion.setCarriedBlock(null);
             return;
         }
-        BlockPos spot = crystalSpot(level, minion.blockPosition());
-        if (spot == null) {
-            follow(owner, minion, HEEL, 1.1);
-            return;
-        }
+        // Arrived. Face the work and swing at it, then set the stone down.
+        minion.getLookControl().setLookAt(spot.getX() + 0.5, spot.getY() + 1, spot.getZ() + 0.5);
+        minion.swing(InteractionHand.MAIN_HAND);
+        minion.setCarriedBlock(null);
+        shade.work = null;
         level.setBlockAndUpdate(spot, Blocks.BEDROCK.defaultBlockState());
         EndCrystal crystal = new EndCrystal(level,
                 spot.getX() + 0.5, spot.getY() + 1, spot.getZ() + 0.5);
@@ -1081,22 +1123,52 @@ public final class DragonMinions {
                 SoundSource.HOSTILE, 1.0F, 1.4F);
         say(owner, NAMES[shade.slot] + " raises a crystal at "
                 + spot.getX() + ", " + (spot.getY() + 1) + ", " + spot.getZ() + ".",
-                Order.CRYSTAL.colour, false);
+                TINTS[shade.slot], false);
+    }
+
+    /**
+     * Somewhere to build, chosen well away from the dragon.
+     *
+     * A crystal wants clear sky and a wide berth, and watching a shade set one
+     * down inside your own footprint reads as clutter rather than as work. Ten
+     * to sixteen blocks out is far enough to be an errand and near enough to
+     * watch.
+     */
+    private static BlockPos worksite(ServerLevel level, ServerPlayer owner) {
+        for (int attempt = 0; attempt < 12; attempt++) {
+            double angle = level.random.nextDouble() * Math.PI * 2.0;
+            double out = 10.0 + level.random.nextDouble() * 6.0;
+            int x = (int) Math.floor(owner.getX() + Math.cos(angle) * out);
+            int z = (int) Math.floor(owner.getZ() + Math.sin(angle) * out);
+            // The heightmap answers minBuildHeight for a chunk it does not hold,
+            // which is how things used to end up inside the bedrock. Load first.
+            level.getChunk(x >> 4, z >> 4);
+            BlockPos ground = new BlockPos(x,
+                    level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z);
+            if (buildable(level, ground)) {
+                return ground;
+            }
+        }
+        return null;
+    }
+
+    /** Ordinary ground with three blocks of sky over it. */
+    private static boolean buildable(ServerLevel level, BlockPos pos) {
+        BlockState here = level.getBlockState(pos);
+        if (here.isAir() || here.is(Blocks.BEDROCK) || here.getDestroySpeed(level, pos) < 0) {
+            return false;
+        }
+        return level.getBlockState(pos.above()).isAir()
+                && level.getBlockState(pos.above(2)).isAir()
+                && level.getBlockState(pos.above(3)).isAir();
     }
 
     /** Somewhere near the shade with solid footing and headroom for a crystal. */
     private static BlockPos crystalSpot(ServerLevel level, BlockPos base) {
         for (BlockPos pos : BlockPos.randomInCube(level.random, 64, base, 6)) {
-            BlockState here = level.getBlockState(pos);
-            if (here.isAir() || here.is(Blocks.BEDROCK) || here.getDestroySpeed(level, pos) < 0) {
-                continue;                          // want ordinary ground to build on
+            if (buildable(level, pos)) {
+                return pos.immutable();
             }
-            if (!level.getBlockState(pos.above()).isAir()
-                    || !level.getBlockState(pos.above(2)).isAir()
-                    || !level.getBlockState(pos.above(3)).isAir()) {
-                continue;
-            }
-            return pos.immutable();
         }
         return null;
     }
@@ -1132,17 +1204,21 @@ public final class DragonMinions {
             }
             return;
         }
+        minion.getLookControl().setLookAt(target.getX() + 0.5, target.getY() + 1,
+                target.getZ() + 0.5);
+        minion.swing(InteractionHand.MAIN_HAND);
         for (EndCrystal sitting : level.getEntitiesOfClass(EndCrystal.class,
                 new AABB(target.above()).inflate(0.9))) {
             forget(owner, sitting.getUUID(), null);
             sitting.discard();
         }
         level.removeBlock(target, false);
+        minion.setCarriedBlock(Blocks.BEDROCK.defaultBlockState());   // carries it off
         forget(owner, null, target);
         level.playSound(null, target, SoundEvents.STONE_BREAK, SoundSource.HOSTILE, 1.0F, 0.6F);
         say(owner, NAMES[shade.slot] + " pulls down the bedrock at "
                 + target.getX() + ", " + target.getY() + ", " + target.getZ() + ".",
-                Order.DISMANTLE.colour, false);
+                TINTS[shade.slot], false);
     }
 
     /** The court's own platforms first, then whatever bedrock is lying about. */

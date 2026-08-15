@@ -16,9 +16,8 @@ public enum AbilityAction {
     WARP(200, "Warp"),
     RETURN(100, "Home"),
     GLIDE(0, "Glide"),
-    BOOST(20, "Boost"),
+    BOOST(20, "Boost (Hold)"),
     SUMMON(200, "Summon"),
-    SELECT(5, "Shade"),
     // opens a screen rather than firing anything, so no cooldown
     COMMAND(0, "Court");
 

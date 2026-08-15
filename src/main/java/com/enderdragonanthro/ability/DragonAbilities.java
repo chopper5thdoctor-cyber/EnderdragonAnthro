@@ -90,7 +90,6 @@ public final class DragonAbilities {
             case GLIDE -> DragonFlight.start(player);
             case BOOST -> DragonFlight.boost(player);
             case SUMMON -> DragonMinions.summon(player);
-            case SELECT -> DragonMinions.select(player);
             case COMMAND -> DragonMinions.openCommandUi(player);
             case TRANSFORM -> {
             }

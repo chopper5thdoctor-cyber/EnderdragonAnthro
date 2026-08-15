@@ -48,6 +48,9 @@ public final class DragonFormManager {
      * depend on the configured height, which is not known until the config has
      * been read.
      */
+    /** The player's own jump strength, which everything here is measured against. */
+    private static final double VANILLA_JUMP = 0.42;
+
     private static List<Mod> modifiers() {
         double size = DragonConfig.sizeRatio();      // 1.0 at the canon eight blocks
         return List.of(
@@ -68,12 +71,22 @@ public final class DragonFormManager {
                     AttributeModifier.Operation.ADD_VALUE),
             new Mod(id("dragon_entity_reach"), Attributes.ENTITY_INTERACTION_RANGE, 8.0 * size,
                     AttributeModifier.Operation.ADD_VALUE),
-            // 3x stride. Fully proportional (4.44x) outran elytra cruising and
-            // made terrain unreadable at ground level; 3x still reads as a giant.
-            new Mod(id("dragon_speed"), Attributes.MOVEMENT_SPEED, 2.0,
+            // Stride proportional to height: speed/size holds at 1, the same
+            // ratio the first-person bob keeps. At the canon eight blocks that
+            // is 4.44x rather than the 3x this used to be capped at -- which was
+            // a deliberate trim, so expect ground travel to outrun elytra
+            // cruising and terrain to read faster than it used to.
+            new Mod(id("dragon_speed"), Attributes.MOVEMENT_SPEED,
+                    DragonConfig.scaleFactor() - 1.0,
                     AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL),
-            // base 0.42 -> 0.60: hops ~2.5 blocks, proportional to leg length
-            new Mod(id("dragon_jump"), Attributes.JUMP_STRENGTH, 0.18 * size,
+            // Jump HEIGHT proportional, which is not the same as jump strength
+            // proportional: height goes as the square of the launch speed, so
+            // multiplying strength by the size ratio would give a jump 4.44x too
+            // energetic and about twenty blocks tall. The square root is what
+            // makes a creature 4.44x your size clear 4.44x your hop -- roughly
+            // 5.5 blocks at the canon eight, well inside the 13-block safe fall.
+            new Mod(id("dragon_jump"), Attributes.JUMP_STRENGTH,
+                    VANILLA_JUMP * (Math.sqrt(DragonConfig.scaleFactor()) - 1.0),
                     AttributeModifier.Operation.ADD_VALUE),
             // canon head-hit is 10 on Normal: bare fist 1 -> 10
             new Mod(id("dragon_attack"), Attributes.ATTACK_DAMAGE, 9.0,
@@ -164,7 +177,7 @@ public final class DragonFormManager {
             // tall instead of three so it wraps the whole dragon.
             level.sendParticles(ParticleTypes.PORTAL,
                     player.getX(), player.getY() + player.getBbHeight() * 0.5, player.getZ(),
-                    4, player.getBbWidth() * 0.5, player.getBbHeight() * 0.4,
+                    12, player.getBbWidth() * 0.5, player.getBbHeight() * 0.4,
                     player.getBbWidth() * 0.5, 0.35);
         }
         LAST_BURST.keySet().removeIf(u -> server.getPlayerList().getPlayer(u) == null);

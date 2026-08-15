@@ -53,7 +53,6 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         register("home", GLFW.GLFW_KEY_J, AbilityAction.RETURN);
         register("boost", GLFW.GLFW_KEY_H, AbilityAction.BOOST);
         register("summon", GLFW.GLFW_KEY_Z, AbilityAction.SUMMON);
-        register("select", GLFW.GLFW_KEY_N, AbilityAction.SELECT);
         register("command", GLFW.GLFW_KEY_M, AbilityAction.COMMAND);
 
         // The court screen is server-driven: the command key asks for the

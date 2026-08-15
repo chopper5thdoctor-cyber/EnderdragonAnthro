@@ -168,3 +168,26 @@ are painted. Move the head and the camera does not follow it.
 It reads `SKULL_HEIGHT` out of the generated model rather than measuring the rig
 itself. Measuring took the overall top — the horn tips at 142 — where the game
 builds `RENDER_SCALE` on the skull at 133, and put the line eight units wrong.
+
+## make_shade_rig.py
+
+```bash
+python3 tools/make_shade_rig.py       # writes art/shade_base.bbmodel
+```
+
+A starting rig for giving the four shades their own models — **original
+geometry, not Mojang's enderman**. No vanilla model ships here and none can,
+and a copy would not be the useful thing anyway: what an artist needs is a blank
+with the right proportions and the right bone names.
+
+An enderman in outline — very tall, very narrow, long limbs, small head — at
+vanilla scale, 47 units for 2.94 blocks. The mod scales a shade by 4/2.9 at
+runtime, so it reads as four blocks in game without the rig knowing about it.
+
+Six root bones, the same contract the dragon keeps: `head`, `body`,
+`right_arm`, `left_arm`, `right_leg`, `left_leg`. Keep those and the rest is
+yours.
+
+**Nothing renders this yet.** The shades are still drawn as vanilla endermen;
+swapping in a per-shade model needs a renderer that recognises a tagged shade
+and picks a model by slot. This is the geometry half.

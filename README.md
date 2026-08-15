@@ -17,7 +17,15 @@ keeping every normal player mechanic: inventory, tools, hunger, crafting, all of
 ## What works
 
 **The form.** `Y` transforms. It survives relogging and death. You become 8 blocks tall
-with 200 HP, a 3× stride, 2.5-block step height, scaled reach, and dragon-grade melee.
+with 200 HP, 2.5-block step height, scaled reach, and dragon-grade melee.
+
+Stride and jump are **proportional to size**, so speed/height holds at 1 — the same
+ratio the first-person bob keeps. At the canon eight blocks that is a 4.44× stride,
+up from the 3× it used to be trimmed to; expect ground travel to outrun elytra
+cruising. Jump takes the *square root* of that ratio, because jump height goes as the
+square of launch speed — 4.44× the strength would be a twenty-block hop. The square
+root is what makes a creature 4.44× your size clear 4.44× your jump, about 5.5 blocks,
+well inside the 13-block safe fall.
 
 **The body.** A 75-cube anthro dragon built in Blockbench and compiled into the mod by
 `tools/bbmodel_to_java.py`. The vanilla player body is hidden and this replaces it,
@@ -41,8 +49,8 @@ fall-flying flag set so the untouched vanilla elytra code path runs. Double-tap 
 mid-air to start; `H` beats the wings — twice a firework rocket's push toward a 2.6
 target speed, because these are wings and a rocket is a firework.
 
-**The court.** Four named elite endermen — **Vael** (red), **Kesh** (blue), **Nyra**
-(green) and **Orrin** (orange) — scaled to 4 blocks, each addressed and ordered
+**The court.** Four named elite endermen — **Vaëlle** (red), **Keshaire** (blue),
+**Nyrelle** (green) and **Orrinne** (orange), French like Jean — scaled to 4 blocks, each addressed and ordered
 separately. Everything a shade says is spoken in its own colour, so a four-shade
 court reads as four voices rather than one wall of text. They never turn on you.
 
@@ -67,9 +75,8 @@ burst is not something to post to every client in view distance every tick.
 | `X` | Evasive jump — somewhere random 1000+ blocks out, under open sky | 60 s |
 | `K` | Warp to a random player beyond 100 blocks | 10 s |
 | `J` | Return to your anchor | 5 s |
-| `H` | Wing boost | 1 s |
+| `H` | Wing boost — **hold** | 1 s |
 | `Z` | Summon a shade (four maximum) | 10 s |
-| `N` | Address a shade — the one you look at, else the next | — |
 | `M` | Open **the court** — the orders screen | — |
 | double-`Space` | Start gliding (mid-air) | — |
 
@@ -77,7 +84,11 @@ All rebindable. The HUD is a column down the left edge, each key chip with its a
 name beside it; chips flash on press, drain while recharging, and stay lit while a toggle
 is armed.
 
-`/shade collect <block>` names a quarry by typing rather than by looking at one.
+`/shade collect <block>` names a quarry by typing rather than by looking at one. It
+speaks to the shade you are looking at, else the first. There used to be an `N` key
+that cycled a "listening" shade for this one command to read; the court screen names
+every shade on its own row, so `N` was a second and worse way to say the same thing,
+with state you could not see.
 
 ---
 
