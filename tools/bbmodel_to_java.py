@@ -382,6 +382,15 @@ public class DragonFormModel {{
     public static final float AUTHOR_SCALE = 4.0F;
 
     /**
+     * How much of the player's head pitch this head actually takes.
+     *
+     * The rest is the neck's share. At 1.0 the skull swings through the whole
+     * arc the camera does, which on a head this far from its pivot throws it
+     * out ahead of the body on a look-down.
+     */
+    public static final float HEAD_PITCH = 0.6F;
+
+    /**
      * Re-exported from DragonRig, which is where the rig's measurements live —
      * the eye height they feed is part of the entity's dimensions, so the
      * server needs them too. Restating them here is what put this preview
@@ -457,6 +466,14 @@ public class DragonFormModel {{
      */
     public void copyPose(PlayerModel<AbstractClientPlayer> m) {{
         apply(this.head, m.head, BASE_HEAD, V_HEAD);
+        // A dragon's skull sits well forward of the pivot it turns on, and at
+        // four times the player's scale that lever is long -- so the same pitch
+        // that moves a player's face an inch swings this head through an arc you
+        // can see. A real neck would take up some of that. Damping the pitch is
+        // the honest version of the same thing, and it shrinks the swing in
+        // every direction rather than guessing which one is wrong.
+        // HEAD_PITCH is the knob: 1.0 is the vanilla-identical behaviour.
+        this.head.xRot = m.head.xRot * HEAD_PITCH;
         apply(this.body, m.body, BASE_BODY, V_BODY);
         apply(this.rightArm, m.rightArm, BASE_RIGHT_ARM, V_RIGHT_ARM);
         apply(this.leftArm, m.leftArm, BASE_LEFT_ARM, V_LEFT_ARM);

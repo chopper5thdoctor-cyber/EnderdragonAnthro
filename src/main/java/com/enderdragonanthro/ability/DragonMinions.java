@@ -13,6 +13,7 @@ import net.minecraft.server.level.TicketType;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -98,6 +99,15 @@ public final class DragonMinions {
     private static final int IDLE_REVERT = 200;
     /** How close a shade keeps to the dragon when it has nothing else to do. */
     private static final double HEEL = 6.0;
+    /**
+     * How close a shade will stand. Inside this it stops dead and watches you.
+     *
+     * A guard holds a post; it does not stand on the person it is guarding.
+     * Two and a half blocks clears the dragon's own bulk, so they no longer walk
+     * into you and shove — which they did because follow() used to path them to
+     * your exact feet and a path is only finished when it arrives.
+     */
+    private static final double GUARD_RING = 2.5;
     /** Bedrock this far above the world floor is fair game; below it is not. */
     private static final int BEDROCK_FLOOR = 5;
     /**
@@ -538,7 +548,8 @@ public final class DragonMinions {
                     int hand = carrying(shade.dig, level.getGameTime());
                     List<BlockPos> haul =
                             VeinScan.veins(shade.dig.found, shade.dig.origin, hand);
-                    say(owner, NAMES[slot] + ": \"Called back — I bring what I have.\"",
+                    say(owner, NAMES[slot] + ": "
+                            + ShadeVoice.duty(Order.RECALL, level.random, ""),
                             Order.RECALL.colour, false);
                     returnHome(owner, level, shade, haul);
                     return;
@@ -564,11 +575,15 @@ public final class DragonMinions {
                 // that arrives and is told nothing has changed goes straight
                 // back out, which looks exactly like never having come.
                 int moved = (int) Math.sqrt(target.distanceToSqr(owner));
-                standDown(owner, target, shade, "\"At your side.\" (" + moved + "m away)");
+                standDown(owner, target, shade,
+                        ShadeVoice.duty(Order.RECALL, level.random, "")
+                                + " (" + moved + "m away)");
             } else {
                 target.getLookControl().setLookAt(owner, 60.0F, 60.0F);
                 EndermanAffection.adore(level, target);
-                say(owner, NAMES[slot] + " leans into it.", Order.PET.colour, false);
+                say(owner, NAMES[slot] + ": "
+                        + ShadeVoice.duty(Order.PET, level.random, ""),
+                        Order.PET.colour, false);
             }
             pushState(owner);
             return;
@@ -612,7 +627,7 @@ public final class DragonMinions {
             rename(minion, shade);
             minion.setTarget(null);
         }
-        say(owner, NAMES[slot] + ": " + line(shade), order.colour, false);
+        say(owner, NAMES[slot] + ": " + line(shade, level.random), order.colour, false);
         pushState(owner);
     }
 
@@ -627,18 +642,15 @@ public final class DragonMinions {
         return true;
     }
 
-    private static String line(Shade shade) {
-        return switch (shade.order) {
-            case ATTACK -> "\"I hunt what you look upon.\"";
-            case DEFEND -> "\"I stand with you.\"";
-            case COLLECT -> shade.wanted == null
-                    ? "\"I will bring you a stack of whatever I find.\""
-                    : "\"I will bring you a stack of "
-                      + shade.wanted.getName().getString() + ".\"";
-            case CRYSTAL -> "\"I will raise a crystal and keep it.\"";
-            case DISMANTLE -> "\"I will pull the bedrock down.\"";
-            case PET, RECALL -> "\"I stand with you.\"";     // never a standing order
-        };
+    /**
+     * What a shade says on taking an order. Ten answers per duty, picked at
+     * random -- four of them replying with the same sentence was what made the
+     * court read as spawned mobs rather than as anyone's retinue.
+     */
+    private static String line(Shade shade, RandomSource random) {
+        String quarry = shade.wanted == null ? "whatever I can find"
+                                             : shade.wanted.getName().getString();
+        return ShadeVoice.duty(shade.order, random, quarry);
     }
 
     private static Block parseBlock(String raw) {
@@ -887,8 +899,9 @@ public final class DragonMinions {
         minion.discard();
         shade.entity = null;
 
-        say(owner, NAMES[shade.slot] + ": \"" + quarry.getName().getString()
-                + ". I will find it.\"", Order.COLLECT.colour, false);
+        say(owner, NAMES[shade.slot] + ": "
+                + ShadeVoice.duty(Order.COLLECT, level.random, quarry.getName().getString()),
+                Order.COLLECT.colour, false);
     }
 
     /**
@@ -936,13 +949,16 @@ public final class DragonMinions {
      */
     private static int carrying(Dig dig, long now) {
         long elapsed = TRIP_TICKS - (dig.returnAt - now);
-        if (elapsed <= 0) {
-            return 0;
-        }
-        if (elapsed >= TRIP_TICKS) {
-            return VeinScan.HAUL;
-        }
-        return (int) (elapsed * VeinScan.HAUL / TRIP_TICKS);
+        int meter = elapsed <= 0 ? 0
+                  : elapsed >= TRIP_TICKS ? VeinScan.HAUL
+                  : (int) (elapsed * VeinScan.HAUL / TRIP_TICKS);
+        // Bounded by what the sweep actually turned up. The clock is a pace, not
+        // a promise: a quarry with ten blocks of it inside a hundred stops the
+        // count at ten and holds there, and one with none never leaves zero.
+        // Nothing is conjured — every block counted here is a real position
+        // found in the world, and returnHome checks each is still there before
+        // taking it.
+        return Math.min(meter, Math.min(dig.found.size(), VeinScan.HAUL));
     }
 
     /** The shade steps back out of nowhere, hands over the haul, and stands down. */
@@ -979,14 +995,16 @@ public final class DragonMinions {
         rename(minion, shade);
         if (taken > 0) {
             hand(owner, quarry, taken);
-            say(owner, NAMES[shade.slot] + " returns with " + taken + " "
-                    + quarry.getName().getString() + ".", Order.COLLECT.colour, false);
+            say(owner, NAMES[shade.slot] + ": "
+                    + ShadeVoice.haul(level.random, taken, quarry.getName().getString()),
+                    Order.COLLECT.colour, false);
         } else if (early) {
-            say(owner, NAMES[shade.slot] + ": \"Empty-handed — you called too soon.\"",
+            say(owner, NAMES[shade.slot] + ": " + ShadeVoice.early(level.random),
                     ChatFormatting.DARK_GRAY, false);
         } else {
-            say(owner, NAMES[shade.slot] + ": \"No " + quarry.getName().getString()
-                    + " within reach.\"", ChatFormatting.DARK_GRAY, false);
+            say(owner, NAMES[shade.slot] + ": "
+                    + ShadeVoice.barren(level.random, quarry.getName().getString()),
+                    ChatFormatting.DARK_GRAY, false);
         }
         pushState(owner);
     }
@@ -1173,8 +1191,25 @@ public final class DragonMinions {
         if (gap > FETCH_DISTANCE * FETCH_DISTANCE) {
             hopToward(minion.level() instanceof ServerLevel sl ? sl : null,
                     minion, owner.getX(), owner.getZ(), 6.0);
-        } else if (gap > leash * leash) {
-            minion.getNavigation().moveTo(owner.getX(), owner.getY(), owner.getZ(), speed);
+            return;
+        }
+        // Inside the ring it holds station. Navigation is stopped rather than
+        // merely left alone, because a path issued a moment ago is still being
+        // walked and would carry it the rest of the way in.
+        if (gap < GUARD_RING * GUARD_RING) {
+            minion.getNavigation().stop();
+            minion.getLookControl().setLookAt(owner, 30.0F, 30.0F);
+            return;
+        }
+        if (gap > leash * leash) {
+            // Walk to the ring, not to the dragon. Pathing to the owner's own
+            // feet is what made them crowd in and shove: the path only ends when
+            // they arrive, and arriving means standing where you are standing.
+            Vec3 out = new Vec3(minion.getX() - owner.getX(), 0.0, minion.getZ() - owner.getZ());
+            out = out.lengthSqr() < 1.0e-4 ? new Vec3(GUARD_RING, 0.0, 0.0)
+                                           : out.normalize().scale(GUARD_RING);
+            minion.getNavigation().moveTo(owner.getX() + out.x, owner.getY(),
+                    owner.getZ() + out.z, speed);
         }
     }
 

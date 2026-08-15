@@ -78,7 +78,7 @@ happened to be looking at on the way through; nothing is passed through now.
 
 | Order | Behaviour |
 |---|---|
-| **Defend** | Stays close, attacks anything that targets you |
+| **Defend** | Holds a post 2.5 blocks off and attacks anything that targets you |
 | **Attack** | Attacks whatever you look at, else the nearest hostile |
 | **Collect** | Leaves, digs out a vein within 100 blocks, walks back in with it |
 | **Crystal** | Finds bedrock and **forges** an End Crystal on it every 20 s |
@@ -103,6 +103,13 @@ second, 0 to 64 across the trip, and the court screen shows it running. **Recall
 takes whatever it says** — call the shade in at ten seconds and it walks back
 with about twenty and stands ready.
 
+**The count is real, not a timer wearing a number.** It is capped by what the
+sweep actually found: a quarry with ten blocks of it inside a hundred stops the
+count at ten and holds there, and one with none never leaves zero, however long
+you wait. Every block counted is a position found in the world, and each is
+re-checked and removed at the moment of return — so the stack you are handed is
+exactly the stone that left the ground.
+
 The rate is constant, which is what keeps that a decision instead of an exploit:
 recalling early and sending it straight back out earns exactly what waiting
 would have. What you buy is a shade at your side in the meantime; what you pay
@@ -122,6 +129,17 @@ what it has gathered so far. Orders and Pet still just report the time remaining
 there is no entity out there to give a duty to or to touch. A finished Collect
 hands the stack over and drops back to **Defend**, as does an Attack order with nothing
 left to hunt — standing with you is the default duty, not a fifth order you have to pick.
+
+**They keep their distance.** A shade walks to a ring two and a half blocks out
+and stops there, watching you. They used to path to your exact feet — a path
+only ends when it arrives, and arriving meant standing where you were standing,
+which is why they shoved. Walk into one yourself and vanilla collision still
+applies; they simply no longer come to you.
+
+**They speak like a court.** Ten lines per order, picked at random, addressing
+Jean as a sovereign — *"At your side, my liege."* Four shades answering one
+order with one identical sentence was what made them read as spawned mobs
+rather than as anyone's retinue.
 
 **They answer for you.** Take two hits from the same attacker inside five seconds and
 every shade within 48 blocks breaks off and goes for it, for fifteen seconds. Ones away
@@ -232,6 +250,11 @@ tells you what it did.
 The cost of `true`: the model stands about 18% above its hitbox, so your camera —
 which sits at 90% of the *hitbox* — ends up around chest height on the model rather
 than at its head. Raising `heightBlocks` does not fix that; the ratio is fixed.
+
+**`HEAD_PITCH`** (in `tools/bbmodel_to_java.py`, not the config) is how much of your
+look-pitch the skull takes; the rest is the neck's share. At `1.0` the head swings
+through the whole arc the camera does, which on a head this far from its pivot throws
+it out ahead of the body on a look-down. It is `0.6`.
 
 **`heightBlocks`** is the hitbox, and what every size-derived stat comes off — step
 height, reach, safe fall, jump. 8.0 is the canon Ender Dragon. The canon numbers that
