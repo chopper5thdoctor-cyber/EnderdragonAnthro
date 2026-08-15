@@ -206,6 +206,48 @@ def check_form_guards():
             print(f"  UNGUARDED {name} injects into every player, transformed or not")
         sys.exit("FAIL: a mixin would change vanilla behaviour in human form")
     print("PASS: every player-facing mixin checks the form first")
+    check_mirror_pairs()
+
+
+def check_mirror_pairs():
+    """A symmetric pair must mirror exactly once, not twice and not never.
+
+    A cube's u runs from its box origin, so a left/right pair already runs its
+    texture in opposite directions with no flag at all. Setting mirror_uv on one
+    of them is therefore correct and setting it on both -- or neither -- is not.
+
+    This has now shipped twice. The wings read "ng][wi" for two builds, and the
+    left arm ran two of its four pieces backwards for longer than that, which is
+    the sort of thing you only see in game and only if you look. Named pairs are
+    cheap to check here.
+    """
+    import json
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from bbmodel_to_java import MIRROR_OVERRIDE
+
+    bb = json.load(open(os.path.join(HERE, "art/dragon_form.bbmodel")))
+    flags = {}
+    for e in bb["elements"]:
+        name = e.get("name", "")
+        flags[name] = MIRROR_OVERRIDE.get(name, bool(e.get("mirror_uv")))
+
+    bad = []
+    for name, mirrored in sorted(flags.items()):
+        if not name.endswith("_left"):
+            continue
+        twin = name[:-5] + "_right"
+        if twin not in flags:
+            continue
+        if mirrored == flags[twin]:
+            bad.append(f"  {name} and {twin} are both "
+                       f"{'mirrored' if mirrored else 'unmirrored'} — "
+                       f"one of the pair must be flipped, and only one")
+    if bad:
+        print("FAIL: mirrored pairs disagree")
+        print("\n".join(bad))
+        sys.exit(1)
+    pairs = sum(1 for n in flags if n.endswith("_left") and n[:-5] + "_right" in flags)
+    print(f"PASS: all {pairs} left/right cube pairs mirror exactly once")
 
 
 if __name__ == "__main__":

@@ -71,6 +71,18 @@ hand once and vanished the next time the wings changed, breaking the build.
 **A new constant goes in the template in `bbmodel_to_java.py`, never in the
 generated file.**
 
+**Mirrored pairs:** every cube named `x_left` must mirror exactly once against
+its `x_right` twin — not twice, and not never. A cube's `u` runs from its box
+origin, so a symmetric pair already runs its texture in opposite directions with
+no flag at all; setting `mirror_uv` on one of them is right and setting it on
+both, or neither, is not.
+
+This shipped twice before the check existed. The wings read `ng][wi` for two
+builds. The left arm ran two of its four pieces backwards for longer, which is
+what finally made it look broken from every angle including first person — and
+when the check was added it immediately found a third case nobody had noticed,
+in the legs. Overrides live in `MIRROR_OVERRIDE` in `bbmodel_to_java.py`.
+
 **Form guards:** every mixin on `Player`, `LivingEntity`, `Entity` or a renderer
 must check `isDragon`/`isDragonForm` before doing anything. Those injections fire
 for *everybody*, so an unguarded one silently changes the game for an untransformed

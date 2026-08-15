@@ -48,6 +48,36 @@ RIG_OUT = os.path.join(HERE, "src/main/java/com/enderdragonanthro/DragonRig.java
 # handedness the art was painted for is a fact about the art, not about the
 # geometry -- there is nothing in the model to derive it from.
 MIRROR_OVERRIDE = {
+    # The arms have the same disease as the wings, caught later and only on
+    # half the pieces. Same rule: a cube's u runs from its box origin, so the
+    # -x twin gets low-u = OUTBOARD for free and the +x twin has to be flipped
+    # to match. Every left-arm cube therefore wants the flag.
+    #
+    # In the rig only delt_left and fist_left carry mirror_uv; upper_arm_left
+    # and forearm_left do not. So two pieces of the left arm ran their texture
+    # one way and two ran it the other, on the same limb -- which is what makes
+    # it read as broken from any angle, and in first person, where that arm is
+    # what the player's right hand shows.
+    "delt_left": True,
+    "upper_arm_left": True,
+    "forearm_left": True,
+    "fist_left": True,
+    "delt_right": False,
+    "upper_arm_right": False,
+    "forearm_right": False,
+    "fist_right": False,
+
+    # And the legs, which verify_model found the moment it was taught to look:
+    # thigh and calf were unmirrored on both sides, foot was mirrored on both.
+    # Every one of these pairs is a clean +-x mirror, so the rule is the same
+    # for all of them and there is no judgement left to make.
+    "thigh_left": True,
+    "calf_left": True,
+    "foot_left": True,
+    "thigh_right": False,
+    "calf_right": False,
+    "foot_right": False,
+
     "wing_bone_left": True,
     "wing_membrane_left": True,
     "wing_tip_bone_left": True,
