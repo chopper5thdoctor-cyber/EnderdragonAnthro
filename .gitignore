@@ -20,3 +20,7 @@ remappedSrc/
 # Vanilla game assets must never be committed (Mojang EULA — see DESIGN.md 5.4 #20)
 *.png.vanilla
 reference-assets/
+
+# Python bytecode from the model tools
+__pycache__/
+*.pyc

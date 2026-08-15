@@ -21,7 +21,11 @@ with 200 HP, a 3× stride, 2.5-block step height, scaled reach, and dragon-grade
 
 **The body.** A 75-cube anthro dragon built in Blockbench and compiled into the mod by
 `tools/bbmodel_to_java.py`. The vanilla player body is hidden and this replaces it,
-riding the player skeleton so every vanilla animation drives it for free. Eyes and mouth
+riding the player skeleton so every vanilla animation drives it for free. The head
+is handed the torso's rotation, because this rig has a neck and vanilla's does not:
+a player's head is a cube on a flat chest, so crouching can pitch the body and leave
+the head behind without showing a seam. Here four units of neck are hidden inside the
+chest, and the chest used to rotate straight off them. Eyes and mouth
 render on a fullbright pass, so they glow in the dark.
 
 **Canon toughness.** Everything you take is `damage/4 + 1`. Immune to fire, lava, every
@@ -250,11 +254,6 @@ tells you what it did.
 The cost of `true`: the model stands about 18% above its hitbox, so your camera —
 which sits at 90% of the *hitbox* — ends up around chest height on the model rather
 than at its head. Raising `heightBlocks` does not fix that; the ratio is fixed.
-
-**`HEAD_PITCH`** (in `tools/bbmodel_to_java.py`, not the config) is how much of your
-look-pitch the skull takes; the rest is the neck's share. At `1.0` the head swings
-through the whole arc the camera does, which on a head this far from its pivot throws
-it out ahead of the body on a look-down. It is `0.6`.
 
 **`heightBlocks`** is the hitbox, and what every size-derived stat comes off — step
 height, reach, safe fall, jump. 8.0 is the canon Ender Dragon. The canon numbers that
