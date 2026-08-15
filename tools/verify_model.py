@@ -248,6 +248,42 @@ def check_mirror_pairs():
         sys.exit(1)
     pairs = sum(1 for n in flags if n.endswith("_left") and n[:-5] + "_right" in flags)
     print(f"PASS: all {pairs} left/right cube pairs mirror exactly once")
+    check_mirror_rotations(bb)
+
+
+def check_mirror_rotations(bb):
+    """A pair must be posed as mirror images, not just painted as them.
+
+    Mirroring across x negates the y and z rotations and leaves x alone, so
+    delt_right at (0, 0, 27.5) demands delt_left at (0, 0, -27.5). It had it.
+    forearm_left carried (-20, 0, 0) against a twin with no rotation at all,
+    which the converter faithfully turned into its own rotated bone -- so one
+    forearm sat bent forward and the first-person hand, which clones that arm,
+    was bent with it.
+
+    Geometry the corner check cannot see: it compares the generated Java to the
+    .bbmodel, and both agreed. They were only ever both wrong together.
+    """
+    byname = {}
+    for e in bb["elements"]:
+        byname.setdefault(e.get("name", ""), []).append(e.get("rotation") or [0, 0, 0])
+
+    bad = []
+    for name, rots in sorted(byname.items()):
+        if not name.endswith("_left"):
+            continue
+        twin = name[:-5] + "_right"
+        if twin not in byname or len(byname[twin]) != len(rots):
+            continue
+        want = sorted([[r[0], -r[1], -r[2]] for r in byname[twin]])
+        if sorted(rots) != want:
+            bad.append(f"  {name} is posed {sorted(rots)}, but {twin} at "
+                       f"{sorted(byname[twin])} mirrors to {want}")
+    if bad:
+        print("FAIL: mirrored pairs are posed differently")
+        print("\n".join(bad))
+        sys.exit(1)
+    print("PASS: every left/right pair is posed as its twin's mirror")
 
 
 if __name__ == "__main__":

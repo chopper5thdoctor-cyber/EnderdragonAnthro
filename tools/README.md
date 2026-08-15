@@ -83,6 +83,17 @@ what finally made it look broken from every angle including first person — and
 when the check was added it immediately found a third case nobody had noticed,
 in the legs. Overrides live in `MIRROR_OVERRIDE` in `bbmodel_to_java.py`.
 
+**Mirrored poses:** a pair must be *posed* as mirror images too, not merely
+painted as them. Mirroring across x negates the `y` and `z` rotations and leaves
+`x` alone, so `delt_right` at `(0, 0, 27.5)` demands `delt_left` at
+`(0, 0, -27.5)`.
+
+`forearm_left` carried `(-20, 0, 0)` against a twin with no rotation, so the
+converter correctly gave it its own rotated bone and one forearm sat bent
+forward — including in first person, which clones that arm. The corner check
+could not see it: it compares the generated Java against the `.bbmodel`, and
+those two agreed. They were only ever both wrong together.
+
 **Form guards:** every mixin on `Player`, `LivingEntity`, `Entity` or a renderer
 must check `isDragon`/`isDragonForm` before doing anything. Those injections fire
 for *everybody*, so an unguarded one silently changes the game for an untransformed

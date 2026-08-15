@@ -269,15 +269,13 @@ public class DragonFormModel {
         // ---- left_arm ----
         PartDefinition left_arm = root.addOrReplaceChild("left_arm", CubeListBuilder.create()
                         .mirror(true).texOffs(76, 164).addBox(1.000F, -1.000F, -8.000F, 16.000F, 17.000F, 16.000F)
+                        .texOffs(208, 164).addBox(2.000F, 16.000F, -7.500F, 14.000F, 18.000F, 15.000F)
                         .texOffs(268, 164).addBox(0.500F, 32.000F, -7.000F, 15.000F, 14.000F, 14.000F)
                         .mirror(false),
                 PartPose.offset(20.000F, -5.000F, 2.000F));
         left_arm.addOrReplaceChild("left_arm_spin", CubeListBuilder.create()
                         .mirror(true).texOffs(172, 384).addBox(-9.500F, -6.000F, -9.000F, 19.000F, 12.000F, 18.000F),
                 PartPose.offsetAndRotation(6.726F, -1.708F, 0.000F, -0.0000F, 0.0000F, 0.4800F));
-        left_arm.addOrReplaceChild("left_arm_spin_", CubeListBuilder.create()
-                        .mirror(true).texOffs(208, 164).addBox(1.000F, 16.000F, -7.500F, 14.000F, 18.000F, 15.000F),
-                PartPose.offsetAndRotation(1.000F, 0.000F, 0.000F, 0.3491F, 0.0000F, -0.0000F));
 
         // ---- right_leg ----
         PartDefinition right_leg = root.addOrReplaceChild("right_leg", CubeListBuilder.create()
