@@ -23,7 +23,7 @@
       "rescale": false,
       "locked": false,
       "type": "cube",
-      "uuid": "93521f28-bcfe-45d7-807d-174e179de7e7",
+      "uuid": "cda09556-7e3f-46ff-95ba-db93a3e46bd0",
       "from": [
         -4,
         39,
@@ -108,7 +108,7 @@
       "rescale": false,
       "locked": false,
       "type": "cube",
-      "uuid": "845310a3-9884-4dec-a3be-f44d8384bdd2",
+      "uuid": "d39e501c-ce39-4fd8-80a9-95da1bea2073",
       "from": [
         -4,
         26,
@@ -128,7 +128,7 @@
       ],
       "uv_offset": [
         32,
-        16
+        0
       ],
       "faces": {
         "north": {
@@ -193,7 +193,7 @@
       "rescale": false,
       "locked": false,
       "type": "cube",
-      "uuid": "e8564bf4-acfa-4270-8454-454c106d042e",
+      "uuid": "183df745-fb86-474f-94d6-647a9d3c19e6",
       "from": [
         -6,
         20,
@@ -212,8 +212,8 @@
         0
       ],
       "uv_offset": [
-        56,
-        0
+        0,
+        16
       ],
       "faces": {
         "north": {
@@ -278,7 +278,7 @@
       "rescale": false,
       "locked": false,
       "type": "cube",
-      "uuid": "ed7a7c11-6041-45fa-b68f-e2a8627026e8",
+      "uuid": "f1669550-3d23-4817-a745-9297dfd1d6a9",
       "from": [
         4,
         20,
@@ -297,8 +297,8 @@
         0
       ],
       "uv_offset": [
-        56,
-        0
+        8,
+        16
       ],
       "faces": {
         "north": {
@@ -363,7 +363,7 @@
       "rescale": false,
       "locked": false,
       "type": "cube",
-      "uuid": "b36f76e0-5f55-4f80-9a9e-8331d03847c6",
+      "uuid": "d92d4e86-1e6a-4ac5-aead-79f10826ffa8",
       "from": [
         -3,
         0,
@@ -382,8 +382,8 @@
         0
       ],
       "uv_offset": [
-        56,
-        0
+        16,
+        16
       ],
       "faces": {
         "north": {
@@ -448,7 +448,7 @@
       "rescale": false,
       "locked": false,
       "type": "cube",
-      "uuid": "16179530-9599-4719-ad80-aad37a9c87e2",
+      "uuid": "1ad99bd3-b858-44a0-90a9-b2babcd53b46",
       "from": [
         1,
         0,
@@ -467,8 +467,8 @@
         0
       ],
       "uv_offset": [
-        56,
-        0
+        24,
+        16
       ],
       "faces": {
         "north": {
@@ -541,14 +541,14 @@
         0,
         0
       ],
-      "uuid": "7aec8342-b3a2-4c7f-8b7f-af9c7c95b01f",
+      "uuid": "bb772d53-f22a-433b-a569-f1cab5b6dd5d",
       "export": true,
       "isOpen": true,
       "locked": false,
       "visibility": true,
       "autouv": false,
       "children": [
-        "93521f28-bcfe-45d7-807d-174e179de7e7"
+        "cda09556-7e3f-46ff-95ba-db93a3e46bd0"
       ]
     },
     {
@@ -563,14 +563,14 @@
         0,
         0
       ],
-      "uuid": "78f87038-d9da-4bb6-9be1-3e9c5db01512",
+      "uuid": "641299b4-989c-43f8-b47f-5c79c0b29a27",
       "export": true,
       "isOpen": true,
       "locked": false,
       "visibility": true,
       "autouv": false,
       "children": [
-        "845310a3-9884-4dec-a3be-f44d8384bdd2"
+        "d39e501c-ce39-4fd8-80a9-95da1bea2073"
       ]
     },
     {
@@ -585,14 +585,14 @@
         0,
         0
       ],
-      "uuid": "ebc842d0-eb60-4a9e-9317-5ed1e9de3a27",
+      "uuid": "94d0a611-8aea-45dd-a86c-e703587dd74f",
       "export": true,
       "isOpen": true,
       "locked": false,
       "visibility": true,
       "autouv": false,
       "children": [
-        "e8564bf4-acfa-4270-8454-454c106d042e"
+        "183df745-fb86-474f-94d6-647a9d3c19e6"
       ]
     },
     {
@@ -607,14 +607,14 @@
         0,
         0
       ],
-      "uuid": "b8b48f9b-0e60-403b-a2d4-c5733f3033b8",
+      "uuid": "ae793296-12ef-4bab-8ca7-82093dae1389",
       "export": true,
       "isOpen": true,
       "locked": false,
       "visibility": true,
       "autouv": false,
       "children": [
-        "ed7a7c11-6041-45fa-b68f-e2a8627026e8"
+        "f1669550-3d23-4817-a745-9297dfd1d6a9"
       ]
     },
     {
@@ -629,14 +629,14 @@
         0,
         0
       ],
-      "uuid": "d9d85313-04d7-42e5-a11f-0ab10f20f2e2",
+      "uuid": "340f5e84-4af6-4cdf-b566-16e779900ef3",
       "export": true,
       "isOpen": true,
       "locked": false,
       "visibility": true,
       "autouv": false,
       "children": [
-        "b36f76e0-5f55-4f80-9a9e-8331d03847c6"
+        "d92d4e86-1e6a-4ac5-aead-79f10826ffa8"
       ]
     },
     {
@@ -651,14 +651,14 @@
         0,
         0
       ],
-      "uuid": "779db5e8-dcf7-48c9-9f0e-196b385dc0fc",
+      "uuid": "cc579d2d-7c2c-4932-a0b6-fa5a4c3974ba",
       "export": true,
       "isOpen": true,
       "locked": false,
       "visibility": true,
       "autouv": false,
       "children": [
-        "16179530-9599-4719-ad80-aad37a9c87e2"
+        "1ad99bd3-b858-44a0-90a9-b2babcd53b46"
       ]
     }
   ],
@@ -675,7 +675,7 @@
         0,
         0
       ],
-      "uuid": "7aec8342-b3a2-4c7f-8b7f-af9c7c95b01f",
+      "uuid": "bb772d53-f22a-433b-a569-f1cab5b6dd5d",
       "export": true,
       "isOpen": true,
       "locked": false,
@@ -694,7 +694,7 @@
         0,
         0
       ],
-      "uuid": "78f87038-d9da-4bb6-9be1-3e9c5db01512",
+      "uuid": "641299b4-989c-43f8-b47f-5c79c0b29a27",
       "export": true,
       "isOpen": true,
       "locked": false,
@@ -713,7 +713,7 @@
         0,
         0
       ],
-      "uuid": "ebc842d0-eb60-4a9e-9317-5ed1e9de3a27",
+      "uuid": "94d0a611-8aea-45dd-a86c-e703587dd74f",
       "export": true,
       "isOpen": true,
       "locked": false,
@@ -732,7 +732,7 @@
         0,
         0
       ],
-      "uuid": "b8b48f9b-0e60-403b-a2d4-c5733f3033b8",
+      "uuid": "ae793296-12ef-4bab-8ca7-82093dae1389",
       "export": true,
       "isOpen": true,
       "locked": false,
@@ -751,7 +751,7 @@
         0,
         0
       ],
-      "uuid": "d9d85313-04d7-42e5-a11f-0ab10f20f2e2",
+      "uuid": "340f5e84-4af6-4cdf-b566-16e779900ef3",
       "export": true,
       "isOpen": true,
       "locked": false,
@@ -770,7 +770,7 @@
         0,
         0
       ],
-      "uuid": "779db5e8-dcf7-48c9-9f0e-196b385dc0fc",
+      "uuid": "cc579d2d-7c2c-4932-a0b6-fa5a4c3974ba",
       "export": true,
       "isOpen": true,
       "locked": false,

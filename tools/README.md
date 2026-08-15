@@ -188,6 +188,31 @@ Six root bones, the same contract the dragon keeps: `head`, `body`,
 `right_arm`, `left_arm`, `right_leg`, `left_leg`. Keep those and the rest is
 yours.
 
+It refuses to write a sheet whose islands overlap or run off the edge. The
+first version of this file stacked both arms and both legs on one UV offset, so
+four limbs sampled the same pixels — paint one and all four changed. That is
+cheap to assert and invisible until somebody paints it.
+
 **Nothing renders this yet.** The shades are still drawn as vanilla endermen;
 swapping in a per-shade model needs a renderer that recognises a tagged shade
 and picks a model by slot. This is the geometry half.
+
+## make_shade_texture.py
+
+```bash
+python3 tools/make_shade_texture.py    # writes art/shade_*.png
+```
+
+Skins for the four, laid out to `shade_base.bbmodel`'s own islands — **original
+art, not the vanilla enderman sheet**, which cannot ship here.
+
+Near-black in the DESIGN.md palette with a little noise so it does not read as
+flat plastic, lit on the front and top faces and dark on the back and
+underside, and one accent per shade matching the colour their chat is spoken
+in: a stripe down the spine and a band across the crown. Each gets an `_eyes`
+sheet for the emissive pass.
+
+`shade_guide.png` is the same layout with every island outlined in a different
+colour and every face boundary drawn. Open it beside the rig in Blockbench and
+it is obvious which rectangle is which limb — the one thing a blank sheet
+cannot tell you.
