@@ -169,33 +169,35 @@ It reads `SKULL_HEIGHT` out of the generated model rather than measuring the rig
 itself. Measuring took the overall top — the horn tips at 142 — where the game
 builds `RENDER_SCALE` on the skull at 133, and put the line eight units wrong.
 
-## make_shade_rig.py
+## pack_shade_rig.py
 
 ```bash
-python3 tools/make_shade_rig.py       # writes art/shade_base.bbmodel
+python3 tools/pack_shade_rig.py art/shade_source.bbmodel   # -> art/shade_base.bbmodel
 ```
 
-A starting rig for giving the four shades their own models — **original
-geometry, not Mojang's enderman**. No vanilla model ships here and none can,
-and a copy would not be the useful thing anyway: what an artist needs is a blank
-with the right proportions and the right bone names.
+Takes the artist's hand-built shade rig, leaves every cube's geometry exactly
+where it is, and rewrites only the UV: one island per cube, packed so nothing
+overlaps and nothing runs off the sheet, at twice the texel density.
 
-An enderman in outline — very tall, very narrow, long limbs, small head — at
-vanilla scale, 47 units for 2.94 blocks. The mod scales a shade by 4/2.9 at
-runtime, so it reads as four blocks in game without the rig knowing about it.
+Hand-placed box UV drifts. The rig this was written for arrived with four cubes
+at **negative** offsets — off the top-left corner of the sheet — and several
+islands sitting on top of each other. No amount of painting fixes that.
 
-Six root bones, the same contract the dragon keeps: `head`, `body`,
-`right_arm`, `left_arm`, `right_leg`, `left_leg`. Keep those and the rest is
-yours.
+**On resolution.** Box UV gives one texel per model unit by default, so a
+48-unit shade gets 48 texels head to foot however large the PNG is; enlarging
+the sheet alone buys empty space, not detail. `DENSITY` doubles the UV
+rectangles as well as the sheet, which is what actually buys detail.
+Minecraft can express it: `CubeListBuilder.addBox` has an overload taking
+`texScale`, so the renderer for these passes `texScale(DENSITY, DENSITY)`.
 
-It refuses to write a sheet whose islands overlap or run off the edge. The
-first version of this file stacked both arms and both legs on one UV offset, so
-four limbs sampled the same pixels — paint one and all four changed. That is
-cheap to assert and invisible until somebody paints it.
+Mirrored pairs keep sharing one island — that is what the artist meant by
+giving them one offset and setting `mirror_uv`.
 
-**Nothing renders this yet.** The shades are still drawn as vanilla endermen;
-swapping in a per-shade model needs a renderer that recognises a tagged shade
-and picks a model by slot. This is the geometry half.
+Face rectangles are written in Blockbench's own conventions, orientation
+included: the two square slots are stored flipped, and a mirrored cube swaps
+east with west and reverses x on every face. That was read back off the
+artist's file rather than guessed, and `face_rects` reproduces all sixty
+rectangles of it exactly.
 
 ## make_shade_texture.py
 
@@ -203,8 +205,10 @@ and picks a model by slot. This is the geometry half.
 python3 tools/make_shade_texture.py    # writes art/shade_*.png
 ```
 
-Skins for the four, laid out to `shade_base.bbmodel`'s own islands — **original
-art, not the vanilla enderman sheet**, which cannot ship here.
+Skins for the four, read straight out of `art/shade_base.bbmodel` rather than
+from a copy of the layout — **original art, not a vanilla sheet**, which cannot
+ship here. Re-rig, re-pack, re-run: whatever pieces the artist added get
+painted, at whatever offsets the packer gave them.
 
 Near-black in the DESIGN.md palette with a little noise so it does not read as
 flat plastic, lit on the front and top faces and dark on the back and
