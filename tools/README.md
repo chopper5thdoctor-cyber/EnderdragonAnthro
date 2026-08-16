@@ -183,12 +183,23 @@ Hand-placed box UV drifts. The rig this was written for arrived with four cubes
 at **negative** offsets — off the top-left corner of the sheet — and several
 islands sitting on top of each other. No amount of painting fixes that.
 
-**On resolution.** Box UV gives one texel per model unit by default, so a
-48-unit shade gets 48 texels head to foot however large the PNG is; enlarging
-the sheet alone buys empty space, not detail. `DENSITY` doubles the UV
-rectangles as well as the sheet, which is what actually buys detail.
-Minecraft can express it: `CubeListBuilder.addBox` has an overload taking
-`texScale`, so the renderer for these passes `texScale(DENSITY, DENSITY)`.
+**On resolution.** One texel per model unit is welded into box UV, and
+Blockbench enforces it — raise the sheet on its own and it resizes the model to
+match. That is not a bug and there is no setting for it.
+
+The only way to buy detail is to **author the rig oversize and divide it back
+down at render time**. `dragon_form.bbmodel` already does exactly this: 142
+units on a 512 sheet with `AUTHORED_SCALE = 4`, undone by `TRUE_SCALE = 1/4`.
+The shades follow it at `AUTHOR_SCALE = 2`, so a 47.8-unit rig is drawn at 95.6
+on a 128 sheet and the renderer applies ½.
+
+Geometry is scaled *after* packing, so the UV stays laid out in source units —
+one texel per original unit, therefore `AUTHOR_SCALE` texels per final unit.
+
+An earlier cut wrote UV rectangles at twice the cube size instead, meaning to
+lean on `CubeListBuilder`'s `texScale` overload. That is real in Java and
+useless in Blockbench, which will not author against it — the artist got a rig
+that fought them every time they touched the resolution.
 
 Mirrored pairs keep sharing one island — that is what the artist meant by
 giving them one offset and setting `mirror_uv`.

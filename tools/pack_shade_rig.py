@@ -12,12 +12,11 @@ four cubes at negative offsets -- running off the top-left corner of the sheet
 -- and several islands sitting on top of each other, which no amount of
 painting can fix.
 
-DENSITY is the resolution bump. Box UV gives one texel per model unit by
-default, so a 48-unit shade gets 48 texels head to foot however big the sheet
-is; making the PNG larger on its own buys nothing but empty space. Doubling the
-UV rectangles as well as the sheet is what actually buys detail. Minecraft can
-express that: CubeListBuilder.addBox has an overload taking texScale, so the
-renderer for these will pass texScale(DENSITY, DENSITY).
+It also draws the rig oversize, which is the only way box UV gets more texels.
+One texel per model unit is welded into the format and Blockbench enforces it:
+raise the sheet on its own and it resizes the model to match. dragon_form
+already works around this -- 142 units on a 512 sheet, AUTHORED_SCALE 4, undone
+by TRUE_SCALE at render. The shades do the same at 2. See AUTHOR_SCALE.
 
 Mirrored pairs keep sharing one island, which is what the artist meant by
 giving them the same offset and setting mirror_uv.
@@ -33,8 +32,22 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(HERE, "art/shade_base.bbmodel")
 GUIDE = os.path.join(HERE, "art/shade_guide.png")
 
-DENSITY = 2                 # texels per model unit
-RES = 128                   # sheet is DENSITY x the 64 it was authored against
+# Box UV is welded to one texel per model unit, and Blockbench enforces it --
+# push the sheet up on its own and it resizes the model to match. There is no
+# way round that in the format, so the way to buy detail is to author the model
+# oversize and divide it back down at render time.
+#
+# dragon_form.bbmodel already does exactly this: 142 units on a 512 sheet with
+# AUTHORED_SCALE 4, and TRUE_SCALE = 1/4 undoes it. The shades follow the same
+# pattern at 2, which puts a 47.8-unit rig at 95.6 and doubles its texels.
+#
+# An earlier cut of this file tried to be clever and wrote UV rectangles at
+# twice the cube size, meaning to lean on CubeListBuilder's texScale overload.
+# That is real in Java and useless in Blockbench, which will not author against
+# it -- so the artist got a rig that fought them every time they touched the
+# resolution.
+AUTHOR_SCALE = 2            # geometry is drawn this many times oversize
+RES = 128                   # ...which needs a sheet this big at 1 texel/unit
 PAD = 1                     # a texel of gutter, so filtering cannot bleed
 
 
@@ -113,8 +126,7 @@ def pack(model):
     boxes = []
     for key, members in groups.items():
         w, h, d = key[1]
-        boxes.append([math.ceil(2 * (d + w) * DENSITY),
-                      math.ceil((d + h) * DENSITY), members])
+        boxes.append([math.ceil(2 * (d + w)), math.ceil(d + h), members])
     boxes.sort(key=lambda b: -b[1])
 
     x = y = shelf = 0
@@ -135,11 +147,36 @@ def pack(model):
             e["uv_offset"] = [ox, oy]
             e["faces"] = {
                 face: {"uv": rect, "texture": 0}
-                for face, rect in face_rects(ox, oy, w * DENSITY, h * DENSITY,
-                                             d * DENSITY,
+                for face, rect in face_rects(ox, oy, w, h, d,
                                              bool(e.get("mirror_uv"))).items()
             }
     return placed
+
+
+def enlarge(model):
+    """Draw the rig oversize, so box UV gives it more texels.
+
+    Geometry only -- rotations are angles and do not scale, and the UV was
+    packed in source units before this runs, which is what keeps one texel per
+    ORIGINAL unit and therefore AUTHOR_SCALE texels per final unit.
+    """
+    for e in model["elements"]:
+        for key in ("from", "to", "origin"):
+            if key in e:
+                e[key] = [round(c * AUTHOR_SCALE, 4) for c in e[key]]
+    for g in model.get("groups", []):
+        if "origin" in g:
+            g["origin"] = [round(c * AUTHOR_SCALE, 4) for c in g["origin"]]
+    _scale_outliner(model.get("outliner", []))
+
+
+def _scale_outliner(nodes):
+    for n in nodes:
+        if isinstance(n, str):
+            continue
+        if "origin" in n:
+            n["origin"] = [round(c * AUTHOR_SCALE, 4) for c in n["origin"]]
+        _scale_outliner(n.get("children", []))
 
 
 def check(model, placed):
@@ -179,8 +216,9 @@ def main():
     with open(src) as f:
         model = json.load(f)
 
-    placed = pack(model)
+    placed = pack(model)          # UV first, in source units
     check(model, placed)
+    enlarge(model)                # then blow the geometry up around it
     model["resolution"] = {"width": RES, "height": RES}
     model["textures"] = embed_guide()
     model["name"] = "shade_base"
@@ -192,9 +230,13 @@ def main():
     tall = max(ys) - min(ys)
     print(f"read  {os.path.relpath(src, HERE)}")
     print(f"wrote {os.path.relpath(OUT, HERE)}")
-    print(f"  {len(model['elements'])} cubes, {tall:.1f} units "
-          f"({tall / 16:.2f} blocks, {tall / 16 * (4 / 2.9):.2f} in game)")
-    print(f"  sheet {RES}x{RES} at {DENSITY} texels per unit")
+    real = tall / AUTHOR_SCALE
+    print(f"  {len(model['elements'])} cubes, {tall:.1f} units drawn "
+          f"= {real:.1f} true ({real / 16:.2f} blocks, "
+          f"{real / 16 * (4 / 2.9):.2f} in game)")
+    print(f"  sheet {RES}x{RES}, drawn {AUTHOR_SCALE}x oversize "
+          f"= {AUTHOR_SCALE} texels per final unit")
+    print(f"  the renderer must apply a scale of 1/{AUTHOR_SCALE} to undo it")
     for ox, oy, bw, bh, members in sorted(placed, key=lambda p: (p[1], p[0])):
         names = "+".join(e["name"] for e in members)
         print(f"    {names:<22} ({ox:3d},{oy:3d}) {bw:3d}x{bh:<3d}")

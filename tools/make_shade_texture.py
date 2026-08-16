@@ -24,7 +24,7 @@ import sys
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from pack_shade_rig import bb_slots, dims, DENSITY   # noqa: E402
+from pack_shade_rig import bb_slots, dims, AUTHOR_SCALE   # noqa: E402
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(HERE, "art")
@@ -59,8 +59,10 @@ def rig():
     for e in model["elements"]:
         w, h, d = dims(e)
         u, v = e["uv_offset"]
+        # Back to source units: the sheet is laid out in those, and the
+        # geometry was inflated around it afterwards.
         parts.append((e["name"], u, v,
-                      w * DENSITY, h * DENSITY, d * DENSITY))
+                      w / AUTHOR_SCALE, h / AUTHOR_SCALE, d / AUTHOR_SCALE))
     return res["width"], res["height"], parts
 
 
@@ -166,7 +168,7 @@ def main():
         image = Image.open(path)
         print(f"wrote {os.path.relpath(path, HERE):<32} {image.width}x{image.height}")
     print(f"\n{len(parts)} pieces on a {w}x{h} sheet, "
-          f"{DENSITY} texels per model unit")
+          f"{AUTHOR_SCALE} texels per final model unit")
 
 
 if __name__ == "__main__":
