@@ -231,3 +231,35 @@ sheet for the emissive pass.
 colour and every face boundary drawn. Open it beside the rig in Blockbench and
 it is obvious which rectangle is which limb — the one thing a blank sheet
 cannot tell you.
+
+## mottle_skin.py
+
+```bash
+python3 tools/mottle_skin.py art/shade_vaelle.png
+python3 tools/mottle_skin.py in.png -o out.png --lift 24 --seed 7
+```
+
+Breaks up flat black on a hand-painted skin. `#000000` across a whole limb reads
+as a hole rather than a surface — there is nothing for light to catch, so all
+you see is the silhouette. A vanilla enderman is not flat black either: the hide
+is near-black with a fine scatter of slightly lifted pixels, and that is what
+keeps it looking like a creature in a dark room instead of a cutout.
+
+**Only black pixels are touched.** Anything painted keeps its exact colour, and
+so does alpha, so transparent regions stay transparent and the sheet still packs
+identically. `--threshold` widens what counts as black; `--lift` sets how bright
+a mottled pixel may become.
+
+Three layers, because any one of them alone looks wrong:
+
+| | |
+|---|---|
+| **patches** | coarse value noise, bilinear-sampled — broad lighter and darker areas rather than uniform static |
+| **grain** | per-pixel speckle, fine and low-amplitude; this is the part that actually reads as texture at Minecraft's resolution |
+| **sheen** | a gentle vertical gradient, lighter at the top, measured per column-run so a leg low on the sheet is not uniformly darker than an arm high on it |
+
+The lift carries slightly more blue than red, so the hide reads as the End's
+violet-black rather than as grey.
+
+Deterministic for a given file and `--seed`, so re-running after a repaint does
+not reshuffle what you kept.
