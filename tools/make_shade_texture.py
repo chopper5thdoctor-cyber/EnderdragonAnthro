@@ -23,7 +23,7 @@ import sys
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from make_shade_rig import PARTS, TEX_W, TEX_H, islands   # noqa: E402
+from make_shade_rig import PARTS, TEX_W, TEX_H, islands, bb_slots   # noqa: E402
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(HERE, "art")
@@ -43,16 +43,8 @@ COURT = {
 }
 
 
-def slots(u, v, w, h, d):
-    """Box UV, the way ModelPart.Cube lays it out."""
-    return {
-        "down":  (u + d, v, w, d),
-        "up":    (u + d + w, v, w, d),
-        "east":  (u, v + d, d, h),
-        "north": (u + d, v + d, w, h),
-        "west":  (u + d + w, v + d, d, h),
-        "south": (u + d + w + d, v + d, w, h),
-    }
+# One definition of the layout, shared with the rig, in Blockbench's naming.
+slots = bb_slots
 
 
 def part_boxes():

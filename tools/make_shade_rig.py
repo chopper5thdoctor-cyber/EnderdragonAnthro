@@ -19,6 +19,7 @@ else is yours.
     python3 tools/make_shade_rig.py
 """
 
+import base64
 import json
 import os
 import uuid
@@ -40,6 +41,27 @@ PARTS = [
     ("right_leg", None, (-2, 26, 0), (-3, 0, -1), (-1, 26, 1),  (16, 16)),
     ("left_leg",  None, (2, 26, 0), (1, 0, -1), (3, 26, 1),     (24, 16)),
 ]
+
+
+def bb_slots(u, v, w, h, d):
+    """The six face rectangles, named the way BLOCKBENCH names them.
+
+    Careful: this is not the naming in make_textures.box_slots. The four sides
+    agree, but the two square slots on the top row are labelled the other way
+    round -- box_slots calls the first one "down" and Blockbench calls it "up",
+    checked against real Blockbench output for two cubes of dragon_form.bbmodel.
+    Nothing already shipped depends on it, because the only faces those
+    generators name are "north", but anything writing a .bbmodel has to speak
+    Blockbench's dialect or the top and bottom of every cube swap.
+    """
+    return {
+        "up":    (u + d, v, w, d),
+        "down":  (u + d + w, v, w, d),
+        "east":  (u, v + d, d, h),
+        "north": (u + d, v + d, w, h),
+        "west":  (u + d + w, v + d, d, h),
+        "south": (u + d + w + d, v + d, w, h),
+    }
 
 
 def islands():
@@ -73,6 +95,41 @@ def uid():
     return str(uuid.uuid4())
 
 
+def texture_entry():
+    """Embed the guide sheet, so the rig opens already textured.
+
+    A .bbmodel with an empty texture list opens as bare geometry: there is
+    nothing for the UVs to line up WITH, which looks exactly like UVs that do
+    not line up. Blockbench reads an inline data URI, so the file is
+    self-contained.
+    """
+    guide = os.path.join(HERE, "art/shade_guide.png")
+    if not os.path.exists(guide):
+        return []                    # generated separately; fine to ship bare
+    with open(guide, "rb") as f:
+        data = base64.b64encode(f.read()).decode("ascii")
+    return [{
+        "name": "shade_guide.png",
+        "relative_path": "shade_guide.png",
+        "folder": "",
+        "namespace": "",
+        "id": "0",
+        "particle": False,
+        "use_as_default": False,
+        "width": TEX_W,
+        "height": TEX_H,
+        "uv_width": TEX_W,
+        "uv_height": TEX_H,
+        "render_mode": "default",
+        "render_sides": "auto",
+        "visible": True,
+        "mode": "bitmap",
+        "saved": False,
+        "uuid": uid(),
+        "source": "data:image/png;base64," + data,
+    }]
+
+
 def main():
     check_layout()
     elements, outliner, groups = [], [], []
@@ -91,8 +148,13 @@ def main():
             "color": 0,
             "origin": list(pivot),
             "uv_offset": list(uv),
-            "faces": {f: {"uv": [0, 0, 0, 0], "texture": 0} for f in
-                      ("north", "east", "south", "west", "up", "down")},
+            # Real rectangles, not zeroes. The first cut of this file wrote
+            # [0,0,0,0] for every face, so every face sampled a zero-area rect
+            # at the top-left corner and nothing lined up with anything.
+            "faces": {face: {"uv": [x, y, x + fw, y + fh], "texture": 0}
+                      for face, (x, y, fw, fh) in bb_slots(
+                          uv[0], uv[1],
+                          hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]).items()},
         })
         group_id = uid()
         groups.append({
@@ -121,7 +183,7 @@ def main():
 
     model = {
         "meta": {
-            "format_version": "4.5",
+            "format_version": "4.9",
             "model_format": "modded_entity",
             "box_uv": True,
         },
@@ -133,7 +195,7 @@ def main():
         "elements": elements,
         "outliner": outliner,
         "groups": groups,
-        "textures": [],
+        "textures": texture_entry(),
     }
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
