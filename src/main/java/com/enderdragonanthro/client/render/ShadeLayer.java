@@ -55,11 +55,13 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
         }
     }
 
-    /** Her closed eyes, at the resolution a 16-unit head samples. */
+    /** Her expressions, at the resolution a 16-unit head samples. */
     public static final ModelLayerLocation FACE_LAYER =
             new ModelLayerLocation(EnderdragonAnthro.id("shade_face"), "main");
     private static final ResourceLocation PET =
             EnderdragonAnthro.id("textures/entity/shade_pet.png");
+    private static final ResourceLocation ANGRY =
+            EnderdragonAnthro.id("textures/entity/shade_angry.png");
 
     private final ShadeModel model;
     private final ModelPart face;
@@ -69,6 +71,21 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
         super(parent);
         this.model = new ShadeModel(models.bakeLayer(ShadeModel.LAYER));
         this.face = models.bakeLayer(FACE_LAYER).getChild("face");
+    }
+
+    /**
+     * Which face she is wearing, or null for her resting one.
+     *
+     * Anger wins, because a shade in a fight is not blinking fondly at you no
+     * matter how recently you made a fuss of her. Neither needs a packet:
+     * isCreepy is synced entity data, which is how the vanilla renderer knows
+     * to shake her, and the pet face rides the payload the ^^ already sends.
+     */
+    private static ResourceLocation mood(EnderMan enderman) {
+        if (enderman.isCreepy()) {
+            return ANGRY;
+        }
+        return EndermanHappyClient.isHappy(enderman) ? PET : null;
     }
 
     /**
@@ -106,15 +123,17 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
         this.model.render(poseStack,
                 buffers.getBuffer(RenderType.entityCutoutNoCull(SKINS[slot])), light);
 
-        if (EndermanHappyClient.isHappy(enderman)) {
-            // She closes her eyes rather than wearing the enderman's ^^ -- one
-            // opaque pass, because hers are paint on a hide and do not glow, so
-            // the plate that covers the open eyes and the closed ones drawn in
-            // their place are the same texels. The shell is a whole head: her
-            // eyes overhang the front face, and half a blink is worse than none.
+        ResourceLocation mood = mood(enderman);
+        if (mood != null) {
+            // She narrows her eyes or closes them rather than wearing the
+            // enderman's ^^ and its unhinged jaw -- one opaque pass, because
+            // hers are paint on a hide and do not glow, so the plate that
+            // covers the resting eyes and the expression drawn in their place
+            // are the same texels. The shell is a whole head: her eyes overhang
+            // the front face, and half an expression is worse than none.
             this.face.copyFrom(this.model.head());
             this.face.render(poseStack,
-                    buffers.getBuffer(RenderType.entityCutoutNoCull(PET)),
+                    buffers.getBuffer(RenderType.entityCutoutNoCull(mood)),
                     light, OverlayTexture.NO_OVERLAY);
         }
         poseStack.popPose();

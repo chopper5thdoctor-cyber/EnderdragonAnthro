@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cut the court's pet expression out of a second painting of her head.
+"""Cut the court's expressions out of further paintings of her head.
 
     python3 tools/make_shade_face.py
 
@@ -7,23 +7,29 @@ A shade does not do the enderman's ^^. She closes her eyes, which is a thing
 only she can do, because only she has eyes painted into her hide rather than
 two glowing rectangles bolted on. Endermen keep the ^^; see enderman_happy.png.
 
-Two sheets in, one out:
+One resting sheet in, one repainting per mood, one shell out of each:
 
-    art/femshade.png       her hide, eyes open      -- what she wears
-    art/femshade_pet.png   the same sheet, eyes closed
-    -> shade_pet.png       the difference, as a shell that goes over her head
+    art/femshade.png         her hide, eyes open      -- what she wears
+    art/femshade_pet.png     the same sheet, eyes closed   -> shade_pet.png
+    art/femshade_angry.png   the same sheet, eyes narrowed -> shade_angry.png
 
-Both sheets must share a hide, because the shell borrows from it: any texel the
-overlay covers but does not repaint has to come back as the hide that is
-already there, or the shell reads as a patch. Re-run mottle_skin.py --restyle
-on one and you must re-run it on the other.
+Every sheet must share one hide, because the shells borrow from it: any texel an
+overlay covers but does not repaint has to come back as the hide that is already
+there, or the shell reads as a patch across her face. Re-run mottle_skin.py
+--restyle on one and you must re-run it on all of them.
 
-WHY A SHELL AND NOT A TEXTURE SWAP. Swapping her sheet for a second one is one
-draw instead of two and tempting for that -- but it doubles the art. Per-shade
-variants are coming, and four shades times two expressions is eight full-body
-sheets to keep in step, against four plus one 64x32 shell shared by all of
-them. The shell also cannot drift: it is cut from the difference between the
-two paintings, so anything not about her eyes is transparent by construction.
+That is also why a mood sheet is built by writing its paint onto the resting
+sheet rather than by taking a painting whole. The paintings arrive over whatever
+hide draw was current when they were made, and a hide draw is noise: carrying
+one across would stamp a patch of the wrong grain on exactly the part of her
+anyone actually looks at.
+
+WHY A SHELL AND NOT A TEXTURE SWAP. Swapping her sheet for another whole one is
+one draw instead of two and tempting for that -- but it multiplies the art.
+Per-shade variants are coming, and four shades times three expressions is twelve
+full-body sheets to keep in step, against four plus two 64x32 shells they all
+share. The shells also cannot drift: each is cut from the difference between two
+paintings, so anything not about her eyes is transparent by construction.
 
 WHY IT WRAPS THE WHOLE HEAD. Her eyes are painted 13..34 across a front face
 that runs 16..32, so they overhang three texels onto each side of her head. An
@@ -45,9 +51,12 @@ from PIL import Image
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(HERE, "src/main/resources/assets/enderdragonanthro/textures/entity")
 BASE = os.path.join(HERE, "art/femshade.png")
-PET = os.path.join(HERE, "art/femshade_pet.png")
-OUT = os.path.join(ASSETS, "shade_pet.png")
-GUIDE = os.path.join(HERE, "art/shade_pet_guide.png")
+GUIDE = os.path.join(HERE, "art/shade_face_guide.png")
+
+# Every mood she has, and the shell each one becomes. Adding one is a painting
+# and a line here -- and a line in ShadeLayer to say when she wears it.
+MOODS = {"pet": "art/femshade_pet.png",
+         "angry": "art/femshade_angry.png"}
 
 CUBE = 16                     # her head, in authored units
 SIZE = (4 * CUBE, 2 * CUBE)   # ...which is exactly one island
@@ -85,13 +94,13 @@ def is_paint(px, x, y):
             or max(r, g, b) - min(r, g, b) > KEEP_CHROMA)
 
 
-def overlay(base, pet):
-    """Every texel the two paintings disagree on, drawn as the pet one.
+def overlay(base, mood, out):
+    """Every texel the two paintings disagree on, drawn as the mood one.
 
-    Grown by DILATE first, so a lash the closed eye does not reach is still
-    covered rather than left poking out from under the new expression.
+    Grown by DILATE first, so a lash the new expression does not reach is still
+    covered rather than left poking out from under it.
     """
-    b, p = base.load(), pet.load()
+    b, p = base.load(), mood.load()
     surface = on_a_face()
     differ = {(x, y) for (x, y) in surface
               if b[x, y + HEAD_V] != p[x, y + HEAD_V]
@@ -105,7 +114,7 @@ def overlay(base, pet):
     for (x, y) in grown:
         if p[x, y + HEAD_V][3]:
             px[x, y] = p[x, y + HEAD_V]
-    img.save(OUT)
+    img.save(out)
     return len(differ), len(grown)
 
 
@@ -123,20 +132,22 @@ def guide():
 
 def main():
     base = Image.open(BASE).convert("RGBA")
-    pet = Image.open(PET).convert("RGBA")
-    if base.size != pet.size:
-        raise SystemExit("the two sheets must be the same size")
-    differ, grown = overlay(base, pet)
+    for mood, path in MOODS.items():
+        sheet = Image.open(os.path.join(HERE, path)).convert("RGBA")
+        if base.size != sheet.size:
+            raise SystemExit(f"{path} is not the size of the resting sheet")
+        out = os.path.join(ASSETS, f"shade_{mood}.png")
+        differ, grown = overlay(base, sheet, out)
+        b, s = base.load(), sheet.load()
+        faces = sorted({name for name, (ox, oy) in slots().items()
+                        for j in range(CUBE) for i in range(CUBE)
+                        if b[ox + i, oy + j + HEAD_V] != s[ox + i, oy + j + HEAD_V]})
+        print(f"{os.path.relpath(out, HERE)}: {SIZE[0]}x{SIZE[1]}, "
+              f"a {CUBE}-unit head at texOffs(0, 0)")
+        print(f"  {differ} texels differ or carry paint, {grown} after dilation")
+        print(f"  wraps: {', '.join(faces)}")
     guide()
-    faces = sorted({name for name, (ox, oy) in slots().items()
-                    for j in range(CUBE) for i in range(CUBE)
-                    if base.load()[ox + i, oy + j + HEAD_V]
-                    != pet.load()[ox + i, oy + j + HEAD_V]})
-    print(f"{os.path.relpath(OUT, HERE)}: {SIZE[0]}x{SIZE[1]}, "
-          f"a {CUBE}-unit head at texOffs(0, 0)")
-    print(f"  {differ} texels differ or carry paint, {grown} after dilation")
-    print(f"  wraps: {', '.join(faces)}")
-    print(f"  {os.path.relpath(GUIDE, HERE)}: face outlines, for painting against")
+    print(f"{os.path.relpath(GUIDE, HERE)}: face outlines, for painting against")
 
 
 if __name__ == "__main__":
