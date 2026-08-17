@@ -12,6 +12,7 @@ One resting sheet in, one repainting per mood, one shell out of each:
     art/femshade.png         her hide, eyes open      -- what she wears
     art/femshade_pet.png     the same sheet, eyes closed   -> shade_pet.png
     art/femshade_angry.png   the same sheet, eyes narrowed -> shade_angry.png
+    art/femshade_dizzy.png   the same sheet, eyes spiralled -> shade_dizzy.png
 
 Every sheet must share one hide, because the shells borrow from it: any texel an
 overlay covers but does not repaint has to come back as the hide that is already
@@ -26,9 +27,9 @@ anyone actually looks at.
 
 WHY A SHELL AND NOT A TEXTURE SWAP. Swapping her sheet for another whole one is
 one draw instead of two and tempting for that -- but it multiplies the art.
-Per-shade variants are coming, and four shades times three expressions is twelve
-full-body sheets to keep in step, against four plus two 64x32 shells they all
-share. The shells also cannot drift: each is cut from the difference between two
+Per-shade variants are coming, and four shades times four expressions is sixteen
+full-body sheets to keep in step, against four plus three 64x32 shells they
+all share. The shells also cannot drift: each is cut from the difference between two
 paintings, so anything not about her eyes is transparent by construction.
 
 WHY IT WRAPS THE WHOLE HEAD. Her eyes are painted 13..34 across a front face
@@ -56,7 +57,8 @@ GUIDE = os.path.join(HERE, "art/shade_face_guide.png")
 # Every mood she has, and the shell each one becomes. Adding one is a painting
 # and a line here -- and a line in ShadeLayer to say when she wears it.
 MOODS = {"pet": "art/femshade_pet.png",
-         "angry": "art/femshade_angry.png"}
+         "angry": "art/femshade_angry.png",
+         "dizzy": "art/femshade_dizzy.png"}
 
 CUBE = 16                     # her head, in authored units
 SIZE = (4 * CUBE, 2 * CUBE)   # ...which is exactly one island

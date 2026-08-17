@@ -62,6 +62,8 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
             EnderdragonAnthro.id("textures/entity/shade_pet.png");
     private static final ResourceLocation ANGRY =
             EnderdragonAnthro.id("textures/entity/shade_angry.png");
+    private static final ResourceLocation DIZZY =
+            EnderdragonAnthro.id("textures/entity/shade_dizzy.png");
 
     private final ShadeModel model;
     private final ModelPart face;
@@ -76,12 +78,23 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
     /**
      * Which face she is wearing, or null for her resting one.
      *
-     * Anger wins, because a shade in a fight is not blinking fondly at you no
-     * matter how recently you made a fuss of her. Neither needs a packet:
-     * isCreepy is synced entity data, which is how the vanilla renderer knows
-     * to shake her, and the pet face rides the payload the ^^ already sends.
+     * Water first, because it is the one she has no say in: an enderman in
+     * water or rain takes drown damage every tick, and being reeled by it
+     * outranks both fighting and being fussed over. Anger next, because a
+     * shade mid-fight is not blinking fondly at you however recently you made
+     * a fuss of her.
+     *
+     * The water test is the same condition that does the damage, not a report
+     * that damage happened -- which is why an ordinary hit cannot reach it, and
+     * why it costs no packet at all. isInWaterOrRain is derived from the
+     * world, so the client works it out for itself; isCreepy is synced entity
+     * data, the flag the vanilla renderer already shakes her by; only the pet
+     * face needs anything sent, and that payload predates all of this.
      */
     private static ResourceLocation mood(EnderMan enderman) {
+        if (enderman.isInWaterOrRain()) {
+            return DIZZY;
+        }
         if (enderman.isCreepy()) {
             return ANGRY;
         }
