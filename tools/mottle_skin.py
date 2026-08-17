@@ -28,6 +28,8 @@ re-running after a repaint does not reshuffle the parts you kept.
 """
 
 import argparse
+import json
+import math
 import os
 import random
 import sys
@@ -117,8 +119,15 @@ def two_tone(image, tone=VANILLA_TONE, share=VANILLA_LIGHT_SHARE,
     return image, len(black)
 
 
-def mottle(image, lift=DEFAULT_LIFT, threshold=DEFAULT_THRESHOLD, seed=0):
-    """Return a copy with its black areas given a hide."""
+def mottle(image, lift=DEFAULT_LIFT, threshold=DEFAULT_THRESHOLD, seed=0,
+           field=None):
+    """Return a copy with its black areas given a hide.
+
+    With a `field` from body_field(), brightness follows the figure: darkest
+    over the torso where the body is thickest, lightening out to the hands and
+    feet. Without one it falls back to a per-island vertical sheen, which is
+    only a guess at where a piece sits on the body -- and looks like one.
+    """
     image = image.convert("RGBA")
     w, h = image.size
     px = image.load()
@@ -138,10 +147,17 @@ def mottle(image, lift=DEFAULT_LIFT, threshold=DEFAULT_THRESHOLD, seed=0):
         span = max(1, bottom - top)
         for y in column:
             r, g, b, a = px[x, y]
-            sheen = 1.0 - (y - top) / span              # lighter up top
-            value = (0.55 * patches[y][x]
-                     + 0.30 * rng.random()
-                     + 0.15 * sheen)
+            if field is None:
+                shape = 1.0 - (y - top) / span          # lighter up top
+                weights = (0.55, 0.30, 0.15)
+            else:
+                # A floor of 0.15 so the core still has grain rather than
+                # going flat black, which is the thing this set out to fix.
+                shape = 0.15 + 0.85 * field.get((x, y), 0.5)
+                weights = (0.28, 0.17, 0.55)
+            value = (weights[0] * patches[y][x]
+                     + weights[1] * rng.random()
+                     + weights[2] * shape)
             v = int(round(value * lift))
             # A touch of the End's violet, so it is not a grey creature.
             px[x, y] = (min(r + v, 255), min(g + int(v * 0.82), 255),
@@ -154,7 +170,7 @@ def luminance(rgb):
     return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
 
 
-def solve_lift(image, peak, threshold, seed):
+def solve_lift(image, peak, threshold, seed, field=None):
     """The lift whose brightest texel lands on `peak` luminance.
 
     Measured rather than derived: the brightest texel depends on where the
@@ -162,7 +178,8 @@ def solve_lift(image, peak, threshold, seed):
     One probe run at a reference lift gives the ratio, since the whole thing
     scales linearly in lift, and a couple of integer steps settle the rounding.
     """
-    probe, _ = mottle(image.copy(), lift=100, threshold=threshold, seed=seed)
+    probe, _ = mottle(image.copy(), lift=100, threshold=threshold, seed=seed,
+                      field=field)
     src = image.convert("RGBA").load()
     px = probe.load()
     w, h = probe.size
@@ -174,7 +191,8 @@ def solve_lift(image, peak, threshold, seed):
     guess = max(1, int(round(peak * 100.0 / top)))
     best, err = guess, None
     for lift in range(max(1, guess - 3), guess + 4):
-        out, _ = mottle(image.copy(), lift=lift, threshold=threshold, seed=seed)
+        out, _ = mottle(image.copy(), lift=lift, threshold=threshold, seed=seed,
+                        field=field)
         q = out.load()
         got = max(luminance(q[x, y]) for x, y in black)
         d = abs(got - peak)
@@ -195,6 +213,10 @@ def main():
                     help="target luminance for the brightest mottled texel, and "
                          "solve for the lift. #161616 -- the enderman's own "
                          "light tone -- is 22.0")
+    ap.add_argument("--rig", default=None,
+                    help="a .bbmodel; shades by distance from the body's core "
+                         "instead of per-island, so the torso is darkest and "
+                         "the hands and feet lightest")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--style", choices=("soft", "vanilla"), default="soft",
                     help="soft: continuous noise. vanilla: the enderman's own "
@@ -204,12 +226,13 @@ def main():
     if not os.path.exists(args.source):
         sys.exit(f"no such file: {args.source}")
     image = Image.open(args.source)
+    field = body_field(args.rig) if args.rig else None
     if args.peak is not None and args.style == "soft":
-        args.lift = solve_lift(image, args.peak, args.threshold, args.seed)
+        args.lift = solve_lift(image, args.peak, args.threshold, args.seed, field)
     if args.style == "vanilla":
         out, touched = two_tone(image, threshold=args.threshold, seed=args.seed)
     else:
-        out, touched = mottle(image, args.lift, args.threshold, args.seed)
+        out, touched = mottle(image, args.lift, args.threshold, args.seed, field)
     dest = args.out or args.source
     out.save(dest)
     total = image.size[0] * image.size[1]
@@ -218,6 +241,89 @@ def main():
     print(f"{os.path.relpath(dest, HERE)}: {args.style} — {touched} black texels "
           f"of {total} ({touched * 100.0 / total:.1f}%), {detail}")
 
+
+
+# ---------------------------------------------------------------- body-aware
+
+# Cubes that make up the core. Everything's brightness is measured as distance
+# from the centre of these, so the figure is dark where it is thickest and
+# lightens out towards the extremities.
+CORE = ("body1", "body2", "cube", "bosom", "neck")
+
+
+def _rotate(point, origin, degrees):
+    """Blockbench rotation, applied about the cube's own origin."""
+    x, y, z = (point[i] - origin[i] for i in range(3))
+    rx, ry, rz = (math.radians(a) for a in degrees)
+    # x, then y, then z -- Blockbench's order
+    y, z = y * math.cos(rx) - z * math.sin(rx), y * math.sin(rx) + z * math.cos(rx)
+    x, z = x * math.cos(ry) + z * math.sin(ry), -x * math.sin(ry) + z * math.cos(ry)
+    x, y = x * math.cos(rz) - y * math.sin(rz), x * math.sin(rz) + y * math.cos(rz)
+    return (x + origin[0], y + origin[1], z + origin[2])
+
+
+def _uv_offset(e):
+    """The island origin, even when Blockbench left the field out.
+
+    It omits uv_offset whenever the offset is (0, 0) after its own rounding, so
+    reading only the explicit field silently drops those cubes -- which cost
+    left_leg its entire island the first time this ran.
+    """
+    if "uv_offset" in e:
+        return tuple(e["uv_offset"])
+    d = e["to"][2] - e["from"][2]
+    n = e["faces"]["north"]["uv"]
+    return (min(n[0], n[2]) - d, min(n[1], n[3]) - d)
+
+
+def _face_points(e):
+    """Every texel of a cube's island, with the 3D point it sits on.
+
+    Box UV is one texel per model unit, so the inverse mapping is exact: each
+    face rectangle is the cube's own extent along two axes, and the third axis
+    is pinned to whichever side of the box that face is.
+    """
+    x0, y0, z0 = e["from"]
+    x1, y1, z1 = e["to"]
+    w, h, d = x1 - x0, y1 - y0, z1 - z0
+    u, v = _uv_offset(e)
+    rot = e.get("rotation") or [0, 0, 0]
+    org = e.get("origin") or [0, 0, 0]
+    out = {}
+    # (rect origin, size, and a function from rect-local (i, j) to a 3D point)
+    faces = {
+        "up":    ((u + d, v), (w, d), lambda i, j: (x0 + i, y1, z0 + j)),
+        "down":  ((u + d + w, v), (w, d), lambda i, j: (x0 + i, y0, z0 + j)),
+        "east":  ((u, v + d), (d, h), lambda i, j: (x0, y1 - j, z0 + i)),
+        "north": ((u + d, v + d), (w, h), lambda i, j: (x0 + i, y1 - j, z0)),
+        "west":  ((u + d + w, v + d), (d, h), lambda i, j: (x1, y1 - j, z0 + i)),
+        "south": ((u + d + w + d, v + d), (w, h), lambda i, j: (x0 + i, y1 - j, z1)),
+    }
+    for (ox, oy), (fw, fh), to3d in faces.values():
+        for j in range(int(round(fh))):
+            for i in range(int(round(fw))):
+                out[(int(ox) + i, int(oy) + j)] = _rotate(to3d(i + 0.5, j + 0.5), org, rot)
+    return out
+
+
+def body_field(rig_path):
+    """A 0..1 value per texel: 0 at the body's core, 1 at the furthest point."""
+    with open(rig_path) as f:
+        model = json.load(f)
+    els = [e for e in model["elements"] if e.get("faces")]
+
+    core = [e for e in els if e["name"] in CORE] or els
+    cx = sum((e["from"][0] + e["to"][0]) / 2 for e in core) / len(core)
+    cy = sum((e["from"][1] + e["to"][1]) / 2 for e in core) / len(core)
+    cz = sum((e["from"][2] + e["to"][2]) / 2 for e in core) / len(core)
+
+    field, far = {}, 0.0
+    for e in els:
+        for texel, (px, py, pz) in _face_points(e).items():
+            dist = ((px - cx) ** 2 + (py - cy) ** 2 + (pz - cz) ** 2) ** 0.5
+            field[texel] = dist
+            far = max(far, dist)
+    return {k: v / far for k, v in field.items()} if far else field
 
 if __name__ == "__main__":
     main()
