@@ -55,13 +55,11 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
         }
     }
 
-    /** The ^^, at the resolution a 16-unit head samples. */
+    /** Her closed eyes, at the resolution a 16-unit head samples. */
     public static final ModelLayerLocation FACE_LAYER =
             new ModelLayerLocation(EnderdragonAnthro.id("shade_face"), "main");
-    private static final ResourceLocation HAPPY =
-            EnderdragonAnthro.id("textures/entity/shade_happy.png");
-    private static final ResourceLocation HAPPY_MASK =
-            EnderdragonAnthro.id("textures/entity/shade_happy_mask.png");
+    private static final ResourceLocation PET =
+            EnderdragonAnthro.id("textures/entity/shade_pet.png");
 
     private final ShadeModel model;
     private final ModelPart face;
@@ -109,15 +107,15 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
                 buffers.getBuffer(RenderType.entityCutoutNoCull(SKINS[slot])), light);
 
         if (EndermanHappyClient.isHappy(enderman)) {
-            // Mask first, in ordinary cutout, because RenderType.eyes is
-            // additive: the expression drawn on its own could only sit on top
-            // of the eyes she already has, which reads as blush, not a face.
+            // She closes her eyes rather than wearing the enderman's ^^ -- one
+            // opaque pass, because hers are paint on a hide and do not glow, so
+            // the plate that covers the open eyes and the closed ones drawn in
+            // their place are the same texels. The shell is a whole head: her
+            // eyes overhang the front face, and half a blink is worse than none.
             this.face.copyFrom(this.model.head());
             this.face.render(poseStack,
-                    buffers.getBuffer(RenderType.entityCutoutNoCull(HAPPY_MASK)),
+                    buffers.getBuffer(RenderType.entityCutoutNoCull(PET)),
                     light, OverlayTexture.NO_OVERLAY);
-            this.face.render(poseStack, buffers.getBuffer(RenderType.eyes(HAPPY)),
-                    15728640, OverlayTexture.NO_OVERLAY);
         }
         poseStack.popPose();
     }
