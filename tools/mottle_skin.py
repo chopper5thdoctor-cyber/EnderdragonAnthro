@@ -150,6 +150,39 @@ def mottle(image, lift=DEFAULT_LIFT, threshold=DEFAULT_THRESHOLD, seed=0):
     return image, touched
 
 
+def luminance(rgb):
+    return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
+
+
+def solve_lift(image, peak, threshold, seed):
+    """The lift whose brightest texel lands on `peak` luminance.
+
+    Measured rather than derived: the brightest texel depends on where the
+    noise field happens to top out, which depends on the sheet and the seed.
+    One probe run at a reference lift gives the ratio, since the whole thing
+    scales linearly in lift, and a couple of integer steps settle the rounding.
+    """
+    probe, _ = mottle(image.copy(), lift=100, threshold=threshold, seed=seed)
+    src = image.convert("RGBA").load()
+    px = probe.load()
+    w, h = probe.size
+    black = [(x, y) for y in range(h) for x in range(w)
+             if src[x, y][3] > 0 and max(src[x, y][:3]) <= threshold]
+    if not black:
+        return DEFAULT_LIFT
+    top = max(luminance(px[x, y]) for x, y in black)
+    guess = max(1, int(round(peak * 100.0 / top)))
+    best, err = guess, None
+    for lift in range(max(1, guess - 3), guess + 4):
+        out, _ = mottle(image.copy(), lift=lift, threshold=threshold, seed=seed)
+        q = out.load()
+        got = max(luminance(q[x, y]) for x, y in black)
+        d = abs(got - peak)
+        if err is None or d < err:
+            best, err = lift, d
+    return best
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("source")
@@ -158,6 +191,10 @@ def main():
                     help=f"brightest a mottled pixel becomes (default {DEFAULT_LIFT})")
     ap.add_argument("--threshold", type=int, default=DEFAULT_THRESHOLD,
                     help=f"treat a pixel as black at or below this (default {DEFAULT_THRESHOLD})")
+    ap.add_argument("--peak", type=float, default=None,
+                    help="target luminance for the brightest mottled texel, and "
+                         "solve for the lift. #161616 -- the enderman's own "
+                         "light tone -- is 22.0")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--style", choices=("soft", "vanilla"), default="soft",
                     help="soft: continuous noise. vanilla: the enderman's own "
@@ -167,6 +204,8 @@ def main():
     if not os.path.exists(args.source):
         sys.exit(f"no such file: {args.source}")
     image = Image.open(args.source)
+    if args.peak is not None and args.style == "soft":
+        args.lift = solve_lift(image, args.peak, args.threshold, args.seed)
     if args.style == "vanilla":
         out, touched = two_tone(image, threshold=args.threshold, seed=args.seed)
     else:
