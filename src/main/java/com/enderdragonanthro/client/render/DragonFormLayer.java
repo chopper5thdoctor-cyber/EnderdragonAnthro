@@ -2,6 +2,7 @@ package com.enderdragonanthro.client.render;
 
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.client.DragonHud;
+import com.enderdragonanthro.client.DragonWings;
 import com.enderdragonanthro.config.DragonConfig;
 import com.enderdragonanthro.client.model.DragonFormModel;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -43,6 +44,13 @@ public class DragonFormLayer extends RenderLayer<AbstractClientPlayer, PlayerMod
             return;
         }
         this.model.copyPose(getParentModel());
+        // One beat per Boost. copyPose has already put the body back to the
+        // player's pose, so this has to come after it or the wings are reset
+        // out from under themselves every frame.
+        float beat = DragonWings.phase(player, partialTick);
+        if (beat >= 0.0F) {
+            this.model.flap(beat);
+        }
 
         float scale = DragonConfig.trueProportions()
                 ? DragonFormModel.TRUE_SCALE       // as drawn; the head overshoots

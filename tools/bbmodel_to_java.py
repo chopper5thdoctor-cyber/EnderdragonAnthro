@@ -402,6 +402,7 @@ import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
+import net.minecraft.util.Mth;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 
@@ -476,6 +477,12 @@ public class DragonFormModel {{
     private final ModelPart leftArm;
     private final ModelPart rightLeg;
     private final ModelPart leftLeg;
+    private final ModelPart wingRight;
+    private final ModelPart wingLeft;
+    private final ModelPart wingTipRight;
+    private final ModelPart wingTipLeft;
+    /** The folded pose the beat is measured from: rx, rz, lx, lz, tipR, tipL. */
+    private final float[] restWing;
 
     public DragonFormModel(ModelPart root) {{
         this.root = root;
@@ -485,6 +492,43 @@ public class DragonFormModel {{
         this.leftArm = root.getChild("left_arm");
         this.rightLeg = root.getChild("right_leg");
         this.leftLeg = root.getChild("left_leg");
+        this.wingRight = this.body.getChild("wing_right");
+        this.wingLeft = this.body.getChild("wing_left");
+        this.wingTipRight = this.wingRight.getChild("wing_tip_right");
+        this.wingTipLeft = this.wingLeft.getChild("wing_tip_left");
+        // Read off the fresh bake rather than written down here. The wings are
+        // folded in the rig, at an angle the artist chose and will change
+        // again; a beat measured from a constant would drift away from the pose
+        // the moment they do.
+        this.restWing = new float[] {{
+            this.wingRight.xRot, this.wingRight.zRot,
+            this.wingLeft.xRot, this.wingLeft.zRot,
+            this.wingTipRight.zRot, this.wingTipLeft.zRot}};
+    }}
+
+    /**
+     * The canon dragon's wingbeat, on this rig's wings.
+     *
+     * Same curves EnderDragonRenderer drives its wing and wing tip with, and
+     * the same reason they look right: the tip trails the wing by a couple of
+     * radians, so the membrane snaps rather than swinging as one board. Phase
+     * runs 0..1 over a single beat.
+     *
+     * The rig's wings are folded at rest, so these are added to whatever the
+     * artist posed rather than replacing it — a wing that flaps to zero would
+     * jump the moment the beat ended.
+     */
+    public void flap(float phase) {{
+        float t = phase * ((float) Math.PI * 2.0F);
+        float sweep = Mth.cos(t) * 0.2F;
+        float lift = (Mth.sin(t) + 0.125F) * 0.8F;
+        float trail = -(Mth.sin(t + 2.0F) + 0.5F) * 0.75F;
+        this.wingRight.xRot = this.restWing[0] - sweep;
+        this.wingRight.zRot = this.restWing[1] + lift;
+        this.wingLeft.xRot = this.restWing[2] - sweep;
+        this.wingLeft.zRot = this.restWing[3] - lift;
+        this.wingTipRight.zRot = this.restWing[4] + trail;
+        this.wingTipLeft.zRot = this.restWing[5] - trail;
     }}
 
     public static LayerDefinition createLayer() {{

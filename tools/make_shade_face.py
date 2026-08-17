@@ -60,6 +60,12 @@ MOODS = {"pet": "art/femshade_pet.png",
          "angry": "art/femshade_angry.png",
          "dizzy": "art/femshade_dizzy.png"}
 
+# Moods that also get a _glow sheet: the paint alone, on transparent, drawn as a
+# second additive pass so it burns rather than sits there. Only for expressions
+# that are not meant to read as pigment -- spiralled eyes are a state she is in,
+# not a face she is pulling, and the End's own light is what sells that.
+GLOW = ("dizzy",)
+
 CUBE = 16                     # her head, in authored units
 SIZE = (4 * CUBE, 2 * CUBE)   # ...which is exactly one island
 HEAD_V = 63                   # where that island sits on her own sheet
@@ -120,6 +126,27 @@ def overlay(base, mood, out):
     return len(differ), len(grown)
 
 
+def glow(mood_img, shell_path, out):
+    """The painted texels of a shell, on transparent, for an emissive pass.
+
+    Cut from the shell rather than from the sheet, so it can never cover a texel
+    the shell does not: the glow is the same rectangle lit up, and anything the
+    opaque pass left as hide stays hide.
+    """
+    shell = Image.open(shell_path).convert("RGBA")
+    sp = shell.load()
+    img = Image.new("RGBA", SIZE, (0, 0, 0, 0))
+    px = img.load()
+    lit = 0
+    for y in range(SIZE[1]):
+        for x in range(SIZE[0]):
+            if sp[x, y][3] and is_paint(shell.load(), x, y):
+                px[x, y] = sp[x, y]
+                lit += 1
+    img.save(out)
+    return lit
+
+
 def guide():
     img = Image.new("RGBA", SIZE, (0, 0, 0, 0))
     px = img.load()
@@ -148,6 +175,10 @@ def main():
               f"a {CUBE}-unit head at texOffs(0, 0)")
         print(f"  {differ} texels differ or carry paint, {grown} after dilation")
         print(f"  wraps: {', '.join(faces)}")
+        if mood in GLOW:
+            gout = os.path.join(ASSETS, f"shade_{mood}_glow.png")
+            lit = glow(sheet, out, gout)
+            print(f"  {os.path.basename(gout)}: {lit} texels burn")
     guide()
     print(f"{os.path.relpath(GUIDE, HERE)}: face outlines, for painting against")
 

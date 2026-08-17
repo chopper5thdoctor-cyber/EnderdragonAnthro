@@ -69,6 +69,7 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                 .register((handler, client) -> {
                     HomingCrystalsClient.clear();
                     EndermanHappyClient.clear();
+                    DragonWings.clear();
                 });
 
         ParticleFactoryRegistry.getInstance().register(
@@ -76,6 +77,7 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             DragonHud.tick();
+            DragonWings.tick();
             EndermanHappyClient.tick();
             clientTick++;
             if (client.player == null) {
@@ -115,6 +117,9 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
 
                 if ((clicked || (rawDown && !wasDown)) && inGame) {
                     DragonHud.notePress(action);
+                    if (action == AbilityAction.BOOST && client.player != null) {
+                        DragonWings.beat(client.player);
+                    }
                     ClientPlayNetworking.send(new AbilityActionPayload(action));
                 }
             });

@@ -64,6 +64,9 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
             EnderdragonAnthro.id("textures/entity/shade_angry.png");
     private static final ResourceLocation DIZZY =
             EnderdragonAnthro.id("textures/entity/shade_dizzy.png");
+    /** The spirals alone, burned on top of the dizzy shell. */
+    private static final ResourceLocation DIZZY_GLOW =
+            EnderdragonAnthro.id("textures/entity/shade_dizzy_glow.png");
 
     private final ShadeModel model;
     private final ModelPart face;
@@ -148,6 +151,14 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
             this.face.render(poseStack,
                     buffers.getBuffer(RenderType.entityCutoutNoCull(mood)),
                     light, OverlayTexture.NO_OVERLAY);
+            if (mood == DIZZY) {
+                // Spirals are a state she is in rather than a face she is
+                // pulling, so they burn instead of sitting there. Additive over
+                // the opaque pass, which is why the glow sheet carries only the
+                // paint -- anything the shell left as hide stays hide.
+                this.face.render(poseStack, buffers.getBuffer(RenderType.eyes(DIZZY_GLOW)),
+                        15728640, OverlayTexture.NO_OVERLAY);
+            }
         }
         poseStack.popPose();
     }

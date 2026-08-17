@@ -17,6 +17,7 @@ import com.enderdragonanthro.network.HomingCrystalPayload;
 import com.enderdragonanthro.network.ShadeOrderPayload;
 import com.enderdragonanthro.network.ShadeStatePayload;
 import com.enderdragonanthro.particle.ModParticles;
+import com.enderdragonanthro.transform.DragonChat;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -98,6 +99,7 @@ public class EnderdragonAnthro implements ModInitializer {
             return InteractionResult.SUCCESS;
         });
 
+        DragonChat.register();
         ModItems.register();
         ModParticles.init();
         ShadeCommand.register();
