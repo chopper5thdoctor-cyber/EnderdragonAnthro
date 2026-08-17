@@ -101,6 +101,24 @@ public final class DragonMinions {
     /** How close a shade keeps to the dragon when it has nothing else to do. */
     private static final double HEEL = 6.0;
     /**
+     * How far the gap may open before a shade breaks into a run.
+     *
+     * Just past HEEL, so ordinary station-keeping is a walk and only falling
+     * behind is a run. A retinue that sprints everywhere looks panicked; one
+     * that never sprints is left over the horizon, because the dragon's own
+     * speed scales with its size and a walking enderman cannot match it.
+     */
+    private static final double STRIDE_OUT = 8.0;
+    /**
+     * What a run multiplies the caller's walk by.
+     *
+     * A multiplier rather than a second constant, so each call site keeps the
+     * pace it asked for -- 1.1 idling at your heel, 1.3 going to avenge you --
+     * and running is the same shade in a hurry rather than every shade at one
+     * flat speed.
+     */
+    private static final double RUN = 1.55;
+    /**
      * How close a shade will stand. Inside this it stops dead and watches you.
      *
      * A guard holds a post; it does not stand on the person it is guarding.
@@ -1299,8 +1317,13 @@ public final class DragonMinions {
             Vec3 out = new Vec3(minion.getX() - owner.getX(), 0.0, minion.getZ() - owner.getZ());
             out = out.lengthSqr() < 1.0e-4 ? new Vec3(GUARD_RING, 0.0, 0.0)
                                            : out.normalize().scale(GUARD_RING);
+            // A walk is for a shade that is already with you and a dragon who
+            // is not going anywhere. Either of those failing is a run: the gap
+            // has opened past STRIDE_OUT, or you have started sprinting and
+            // walking after you would only end in a teleport at FETCH_DISTANCE.
+            boolean hurry = gap > STRIDE_OUT * STRIDE_OUT || owner.isSprinting();
             minion.getNavigation().moveTo(owner.getX() + out.x, owner.getY(),
-                    owner.getZ() + out.z, speed);
+                    owner.getZ() + out.z, hurry ? speed * RUN : speed);
         }
     }
 

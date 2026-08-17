@@ -13,6 +13,12 @@ import net.minecraft.util.RandomSource;
  *
  * Where a line names the quarry it carries {@code %s}; everything else is
  * literal. The dragon is never addressed by name, only by title.
+ *
+ * The court is women; the dragon is a man, for now. So the shades keep their
+ * own feminine register and the honorifics addressed to Jean are his — liege,
+ * lord, sire, grace, and the two that are neither (majesty, your highness).
+ * If Jean ever changes, it is those honorifics that move and not the voice
+ * they are spoken in, and there is exactly one "him" to go with them.
  */
 public final class ShadeVoice {
     private ShadeVoice() {
@@ -27,20 +33,20 @@ public final class ShadeVoice {
         "\"Let them come, sire. I am not afraid of them.\"",
         "\"Where you stand, I stand, my liege.\"",
         "\"Rest if you will. I do not tire.\"",
-        "\"Your highness need never look behind her.\"",
-        "\"The watch is mine. Sleep, my queen.\"",
+        "\"Your highness need never look behind him.\"",
+        "\"The watch is mine. Sleep, my lord.\"",
     };
 
     private static final String[] ATTACK = {
-        "\"Name her and she is ended, my liege.\"",
+        "\"Name them and they are ended, my liege.\"",
         "\"Your enemies are my errand, majesty.\"",
         "\"It dies where it stands. I promise you.\"",
-        "\"As you will it, my queen.\"",
+        "\"As you will it, my lord.\"",
         "\"I go, your highness. It does not.\"",
         "\"Only point, my liege. I need nothing more.\"",
         "\"Gladly, majesty. It has been too long.\"",
         "\"Whatever you look upon, sire, I hunt.\"",
-        "\"Consider it finished, my queen.\"",
+        "\"Consider it finished, your grace.\"",
         "\"Let me show them what serves you.\"",
     };
 
@@ -48,12 +54,12 @@ public final class ShadeVoice {
         "\"%s, my liege. I will find it for you.\"",
         "\"I go for %s, your highness.\"",
         "\"%s shall be in your hands before long, majesty.\"",
-        "\"The world keeps %s from you. Not for long, my queen.\"",
+        "\"The world keeps %s from you. Not for long, my lord.\"",
         "\"I know where %s hides, my liege.\"",
         "\"As you ask — %s, and swiftly.\"",
         "\"%s. Nothing will delay me, your highness.\"",
         "\"I will strip the stone of %s for you, majesty.\"",
-        "\"Wait for me, my queen. I return with %s.\"",
+        "\"Wait for me, your grace. I return with %s.\"",
         "\"%s it is. The dark keeps no secrets from us, my liege.\"",
     };
 
@@ -61,11 +67,11 @@ public final class ShadeVoice {
         "\"I will raise a crystal for you, my liege.\"",
         "\"Your domain wants light, majesty. Let me set it.\"",
         "\"A crystal, your highness, and I will guard it myself.\"",
-        "\"The forge is mine to work, my queen.\"",
+        "\"The forge is mine to work, my lord.\"",
         "\"It will stand as long as I do, my liege.\"",
         "\"I make what you should never have to, majesty.\"",
         "\"Let there be one more of them, your highness.\"",
-        "\"Your strength should not come out of your own hoard, my queen.\"",
+        "\"Your strength should not come out of your own hoard, sire.\"",
         "\"I will build, my liege, and I will keep it whole.\"",
         "\"One crystal, raised in your name, majesty.\"",
     };
@@ -74,12 +80,12 @@ public final class ShadeVoice {
         "\"I will pull it down, my liege.\"",
         "\"Nothing stands that you would see fall, majesty.\"",
         "\"The bedrock yields to you, your highness.\"",
-        "\"It was never ours to keep, my queen.\"",
+        "\"It was never ours to keep, my lord.\"",
         "\"Unmade, my liege, as you wish it.\"",
         "\"I break what I built. Say the word and I build it again.\"",
         "\"Down it comes, majesty.\"",
         "\"Even our own works answer to you, your highness.\"",
-        "\"I take it apart, my queen. Gladly.\"",
+        "\"I take it apart, sire. Gladly.\"",
         "\"Let it be as though it never stood, my liege.\"",
     };
 
@@ -87,25 +93,25 @@ public final class ShadeVoice {
         "\"...your highness honours me.\"",
         "\"I am not used to being touched gently, my liege.\"",
         "\"Oh — majesty, I did not expect—\"",
-        "\"I would follow you into the void for less, my queen.\"",
-        "\"My queen remembers me.\"",
+        "\"I would follow you into the void for less, my lord.\"",
+        "\"My lord remembers me.\"",
         "\"You need not. But I am glad of it, my liege.\"",
         "\"Your highness is kinder than the stories say.\"",
         "\"I will carry this longer than any errand, majesty.\"",
         "\"...\" — she leans in, and does not step away.",
-        "\"For this, my queen, I would hold the sky up.\"",
+        "\"For this, your grace, I would hold the sky up.\"",
     };
 
     private static final String[] RECALL = {
         "\"At your side, my liege.\"",
         "\"I am coming, your highness.\"",
         "\"You called, majesty. I am here.\"",
-        "\"Wherever I was, my queen, this is better.\"",
+        "\"Wherever I was, my lord, this is better.\"",
         "\"Returned, my liege.\"",
         "\"Say the word and I will never leave again.\"",
         "\"Here, majesty. Always here.\"",
         "\"I heard you across the world, your highness.\"",
-        "\"Back to you, my queen, and glad of it.\"",
+        "\"Back to you, sire, and glad of it.\"",
         "\"Your voice carries further than you know, my liege.\"",
     };
 
@@ -113,11 +119,11 @@ public final class ShadeVoice {
         "\"Yours, my liege — %d %s.\"",
         "\"%d %s, majesty, and the stone is poorer for it.\"",
         "\"I bring you %d %s, your highness.\"",
-        "\"%d %s. Say the word and I go again, my queen.\"",
+        "\"%d %s. Say the word and I go again, my lord.\"",
         "\"Into your hands, my liege: %d %s.\"",
         "\"The world gave up %d %s to me, majesty.\"",
         "\"%d %s, your highness. It was well hidden.\"",
-        "\"For you, my queen — %d %s.\"",
+        "\"For you, your grace — %d %s.\"",
         "\"%d %s, my liege, and not a moment wasted.\"",
         "\"I carried %d %s home to you, majesty.\"",
     };
@@ -126,11 +132,11 @@ public final class ShadeVoice {
         "\"There is no %s within reach, my liege. Forgive me.\"",
         "\"I searched, majesty. This land holds no %s.\"",
         "\"Nothing, your highness. Not one seam of %s.\"",
-        "\"I have failed you, my queen — there is no %s here.\"",
+        "\"I have failed you, my lord — there is no %s here.\"",
         "\"The stone is empty of %s, my liege.\"",
         "\"Send me further, majesty, and I will find you %s.\"",
         "\"No %s, your highness. I would not come back to you with lies.\"",
-        "\"I return empty, my queen. There was no %s to take.\"",
+        "\"I return empty, sire. There was no %s to take.\"",
         "\"This ground keeps no %s, my liege.\"",
         "\"I could not serve you this time, majesty. No %s.\"",
     };
@@ -139,11 +145,11 @@ public final class ShadeVoice {
         "\"I had not even begun, my liege.\"",
         "\"Empty-handed, majesty — you called me early.\"",
         "\"Nothing yet, your highness. Send me again?\"",
-        "\"I came the moment you asked, my queen, so I bring nothing.\"",
+        "\"I came the moment you asked, my lord, so I bring nothing.\"",
         "\"Too soon, my liege, but I would rather be here.\"",
         "\"Your word outranks the errand, majesty. I have nothing.\"",
         "\"I would sooner stand with you empty than dig full, your highness.\"",
-        "\"Nothing in hand, my queen. Only me.\"",
+        "\"Nothing in hand, sire. Only me.\"",
         "\"Not a single block, my liege — but you called.\"",
         "\"The seam will keep for another day, majesty.\"",
     };

@@ -494,8 +494,26 @@ public final class DragonAbilities {
         return cur;
     }
 
+    /** Half the crater's bounding box: 3 out from the centre, so 7 across. */
+    private static final int CRATER_RADIUS = 3;
     /**
-     * The 5x5x5 crater, used by the left-click hook when the toggle is armed.
+     * How far a block's centre may be and still be punched out, squared.
+     *
+     * 3.5 rather than 3 is what makes it a ball instead of a spiky star: at 3
+     * the shape reaches its full width only along the axes and loses every
+     * diagonal, 123 blocks of the box. At 3.5 it keeps the axis reach, drops
+     * only the eight corners and the edges around them, and takes 179 — a
+     * little over half the 343 a cube would have flattened.
+     */
+    private static final double CRATER_REACH_SQ = 3.5 * 3.5;
+
+    /**
+     * The crater: a 7-block sphere, used by the left-click hook when the
+     * toggle is armed.
+     *
+     * A punch throws a shockwave, and a shockwave does not have corners. The
+     * cube this replaced left square-cut walls that read as a machine's work
+     * rather than a dragon's.
      *
      * Obsidian and end stone hold — those are the canon dragon's own limits and
      * they are what keeps the End fight standing. Bedrock does NOT: breaking
@@ -505,7 +523,12 @@ public final class DragonAbilities {
     public static void crater(ServerPlayer player, BlockPos centre) {
         ServerLevel level = player.serverLevel();
         int broken = 0;
-        for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-2, -2, -2), centre.offset(2, 2, 2))) {
+        for (BlockPos pos : BlockPos.betweenClosed(
+                centre.offset(-CRATER_RADIUS, -CRATER_RADIUS, -CRATER_RADIUS),
+                centre.offset(CRATER_RADIUS, CRATER_RADIUS, CRATER_RADIUS))) {
+            if (centre.distSqr(pos) > CRATER_REACH_SQ) {
+                continue;
+            }
             var state = level.getBlockState(pos);
             if (state.isAir() || holds(state)) {
                 continue;
@@ -527,7 +550,8 @@ public final class DragonAbilities {
             level.playSound(null, centre, SoundEvents.ENDER_DRAGON_FLAP,
                     SoundSource.PLAYERS, 1.2F, 0.5F);
             level.sendParticles(ParticleTypes.EXPLOSION, centre.getX() + 0.5,
-                    centre.getY() + 0.5, centre.getZ() + 0.5, 6, 1.5, 1.5, 1.5, 0.0);
+                    centre.getY() + 0.5, centre.getZ() + 0.5, 10,
+                    CRATER_RADIUS * 0.7, CRATER_RADIUS * 0.7, CRATER_RADIUS * 0.7, 0.0);
         }
     }
 
