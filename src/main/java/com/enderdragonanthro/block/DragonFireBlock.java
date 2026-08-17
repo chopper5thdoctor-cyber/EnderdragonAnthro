@@ -17,16 +17,17 @@ import net.minecraft.world.level.block.state.BlockState;
  * is the quiet one of the two — it stays where it lands and goes out when the
  * block under it does.
  *
- * It burns hotter than either. Fire does 1 a tick and soul fire 2; this does
- * soul fire's, on the grounds that the End should not be gentler than the
- * Nether, and because the ability that lights it already leans on the burn
- * rather than on the hit.
+ * It burns hotter than either: 3 a tick against fire's 1 and soul fire's 2.
+ * Neither of those was breathed by anything.
  */
 public class DragonFireBlock extends BaseFireBlock {
     public static final MapCodec<DragonFireBlock> CODEC = simpleCodec(DragonFireBlock::new);
 
-    /** Per tick, standing in it. Soul fire's figure. */
-    private static final float FIRE_DAMAGE = 2.0F;
+    /**
+     * Per tick, standing in it. Fire does 1 and soul fire 2; this does 3,
+     * because it is not a hazard the world grew, it is a dragon's.
+     */
+    private static final float FIRE_DAMAGE = 3.0F;
 
     public DragonFireBlock(Properties properties) {
         super(properties, FIRE_DAMAGE);

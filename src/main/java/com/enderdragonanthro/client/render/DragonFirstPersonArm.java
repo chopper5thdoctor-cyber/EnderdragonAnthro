@@ -78,7 +78,7 @@ public final class DragonFirstPersonArm {
      * y runs roughly opposite to screen y. That is the same rotation that once
      * made a missing +2 read as the arm sitting too low.
      */
-    private static final float SHOULDER_DROP = 0.5F;
+    private static final float SHOULDER_DROP = 1.0F;
 
     private static DragonFormModel model;
 

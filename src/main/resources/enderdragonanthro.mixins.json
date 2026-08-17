@@ -17,6 +17,7 @@
   ],
   "client": [
     "CrystalBeamSmoothMixin",
+    "DragonFireOverlayMixin",
     "DragonHeartsMixin",
     "EndCrystalTextureMixin",
     "GameRendererBobMixin",
