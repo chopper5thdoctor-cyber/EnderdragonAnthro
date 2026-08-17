@@ -69,6 +69,17 @@ public final class DragonFirstPersonArm {
      */
     private static final float SHOULDER_OUT = 2.4F;
 
+    /**
+     * How far below vanilla's shoulder line the arm hangs, in the same units.
+     * Positive is lower on screen.
+     *
+     * Note it SUBTRACTS from the y fit, which reads backwards until you recall
+     * why: the hand renderer turns 200 degrees about X before drawing, so model
+     * y runs roughly opposite to screen y. That is the same rotation that once
+     * made a missing +2 read as the arm sitting too low.
+     */
+    private static final float SHOULDER_DROP = 0.5F;
+
     private static DragonFormModel model;
 
     private DragonFirstPersonArm() {
@@ -119,7 +130,8 @@ public final class DragonFirstPersonArm {
         poseStack.translate(
                 side * (VANILLA_PIVOT_X + VANILLA_CENTRE_X - SHOULDER_OUT
                         + scale * centreX) / 16.0F,
-                (VANILLA_PIVOT_Y + VANILLA_SHOULDER_Y - scale * DragonFormModel.ARM_MIN_Y) / 16.0F,
+                (VANILLA_PIVOT_Y + VANILLA_SHOULDER_Y - SHOULDER_DROP
+                        - scale * DragonFormModel.ARM_MIN_Y) / 16.0F,
                 -scale * centreZ / 16.0F);
         poseStack.scale(scale, scale, scale);
         // The rig names its arms as the game does — copyPose has always bound
