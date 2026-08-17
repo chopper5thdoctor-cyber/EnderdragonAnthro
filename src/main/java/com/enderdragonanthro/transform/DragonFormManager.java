@@ -135,8 +135,31 @@ public final class DragonFormManager {
     public static void onJoin(ServerPlayer player) {
         if (isDragon(player)) {
             dress(player);
+            resync(player);
             DragonBossBars.add(player);
         }
+    }
+
+    /**
+     * Push the attributes to the client again, after dressing on login.
+     *
+     * The client is sent its attributes as part of being placed in the world,
+     * and JOIN fires after that packet has gone. So a modifier added here is
+     * real on the server and unknown to the client until something else
+     * happens to dirty it — which for MAX_HEALTH meant a dragon logging back in
+     * saw ten hearts and had a hundred. The scale modifier hid it: that one is
+     * read straight off the attribute by the HUD, so the hearts went purple on
+     * a bar that was still vanilla length.
+     *
+     * Health is set after the resync rather than before, because clamping
+     * against a max the client has not heard about is how the bar ends up
+     * disagreeing with the number behind it.
+     */
+    private static void resync(ServerPlayer player) {
+        player.connection.send(new net.minecraft.network.protocol.game
+                .ClientboundUpdateAttributesPacket(player.getId(),
+                        player.getAttributes().getSyncableAttributes()));
+        player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
     }
 
     public static void onRespawn(ServerPlayer player) {
