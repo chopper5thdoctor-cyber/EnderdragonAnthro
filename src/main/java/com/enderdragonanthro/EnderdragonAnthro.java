@@ -9,6 +9,7 @@ import com.enderdragonanthro.ability.EndermanAffection;
 import com.enderdragonanthro.ability.HomingCrystals;
 import com.enderdragonanthro.boss.DragonBossBars;
 import com.enderdragonanthro.config.DragonConfig;
+import com.enderdragonanthro.block.ModBlocks;
 import com.enderdragonanthro.item.ModItems;
 import com.enderdragonanthro.command.ShadeCommand;
 import com.enderdragonanthro.network.AbilityActionPayload;
@@ -100,6 +101,7 @@ public class EnderdragonAnthro implements ModInitializer {
         });
 
         DragonChat.register();
+        ModBlocks.register();
         ModItems.register();
         ModParticles.init();
         ShadeCommand.register();

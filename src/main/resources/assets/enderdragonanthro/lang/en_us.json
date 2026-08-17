@@ -14,5 +14,6 @@
   "key.enderdragonanthro.warp": "Warp to a Distant Player",
   "key.enderdragonanthro.home": "Return to Anchor",
   "item.enderdragonanthro.homing_crystal": "Homing Crystal",
-  "key.enderdragonanthro.dragonfire": "Dragonfire"
+  "key.enderdragonanthro.dragonfire": "Dragonfire",
+  "block.enderdragonanthro.dragon_fire": "Dragonfire"
 }

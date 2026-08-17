@@ -1,5 +1,6 @@
 package com.enderdragonanthro.ability;
 
+import com.enderdragonanthro.block.ModBlocks;
 import com.enderdragonanthro.particle.ModParticles;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.minecraft.server.level.ServerLevel;
@@ -7,7 +8,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
@@ -81,6 +86,19 @@ public final class DragonFire {
             }
             entity.igniteForTicks(BURN_TICKS);
             entity.hurt(level.damageSources().onFire(), DAMAGE);
+        }
+
+        // What it leaves behind. The ray is traced separately from the cone so
+        // fire lands where you are actually pointing rather than at the first
+        // thing wide enough to be caught by it.
+        BlockHitResult hit = level.clip(new ClipContext(mouth, far,
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        if (hit.getType() == HitResult.Type.BLOCK) {
+            BlockPos at = hit.getBlockPos().relative(hit.getDirection());
+            if (level.getBlockState(at).canBeReplaced()
+                    && !level.getBlockState(at.below()).isAir()) {
+                level.setBlockAndUpdate(at, ModBlocks.DRAGON_FIRE.defaultBlockState());
+            }
         }
 
         if (!player.isCreative()) {
