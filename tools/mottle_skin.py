@@ -170,6 +170,44 @@ def luminance(rgb):
     return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
 
 
+# What counts as paint rather than hide, for --restyle. The mottle tops out
+# around luminance 22 and stays grey by construction, so either test on its own
+# would do; both together mean a white highlight survives as readily as a
+# magenta one.
+KEEP_LUM = 30
+KEEP_CHROMA = 12
+
+
+def flatten(image, keep_lum=KEEP_LUM, keep_chroma=KEEP_CHROMA):
+    """Strip the hide back to black, leaving anything painted alone.
+
+    For a sheet that has been mottled once and then repainted. Filling only the
+    new black would look like a patch, and not for want of trying: mottle()
+    draws its per-texel grain in the order it walks the black texels, so
+    changing which texels are black reshuffles the whole sequence. There is no
+    top-up that lines up with what is already there -- the way to a hide that
+    matches is to lay the whole hide down again in one pass.
+
+    The grain that comes back is a different draw of the same noise. That is
+    invisible, because it is noise; a seam between two draws would not be.
+    """
+    image = image.convert("RGBA")
+    px = image.load()
+    w, h = image.size
+    reset = 0
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if not a:
+                continue
+            if luminance((r, g, b)) > keep_lum or max(r, g, b) - min(r, g, b) > keep_chroma:
+                continue
+            if r or g or b:
+                reset += 1
+            px[x, y] = (0, 0, 0, a)
+    return image, reset
+
+
 def solve_lift(image, peak, threshold, seed, field=None):
     """The lift whose brightest texel lands on `peak` luminance.
 
@@ -218,6 +256,11 @@ def main():
                          "instead of per-island, so the torso is darkest and "
                          "the hands and feet lightest")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--restyle", action="store_true",
+                    help="strip the existing hide back to black first, keeping "
+                         "anything painted, and lay the whole thing down again. "
+                         "For a sheet that was mottled once and then repainted "
+                         "-- filling only the new black leaves a visible patch")
     ap.add_argument("--style", choices=("soft", "vanilla"), default="soft",
                     help="soft: continuous noise. vanilla: the enderman's own "
                          "two tones, #000000 and #161616 at a 62/38 split")
@@ -226,6 +269,9 @@ def main():
     if not os.path.exists(args.source):
         sys.exit(f"no such file: {args.source}")
     image = Image.open(args.source)
+    if args.restyle:
+        image, reset = flatten(image)
+        print(f"restyle: {reset} hide texels stripped back to black")
     field = body_field(args.rig) if args.rig else None
     if args.peak is not None and args.style == "soft":
         args.lift = solve_lift(image, args.peak, args.threshold, args.seed, field)
