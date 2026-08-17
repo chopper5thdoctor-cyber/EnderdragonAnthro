@@ -127,6 +127,8 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                 EndermanHappyLayer::createLayer);
         EntityModelLayerRegistry.registerModelLayer(ShadeModel.LAYER,
                 ShadeModel::createBodyLayer);
+        EntityModelLayerRegistry.registerModelLayer(ShadeLayer.FACE_LAYER,
+                ShadeLayer::createFaceLayer);
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register(
                 (type, renderer, helper, context) -> {
                     if (renderer instanceof PlayerRenderer playerRenderer) {

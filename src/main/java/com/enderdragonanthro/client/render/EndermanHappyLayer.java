@@ -1,6 +1,7 @@
 package com.enderdragonanthro.client.render;
 
 import com.enderdragonanthro.EnderdragonAnthro;
+import com.enderdragonanthro.ability.ShadeIdentity;
 import com.enderdragonanthro.client.EndermanHappyClient;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.model.EndermanModel;
@@ -59,6 +60,12 @@ public class EndermanHappyLayer extends RenderLayer<EnderMan, EndermanModel<Ende
                        EnderMan enderman, float limbSwing, float limbSwingAmount,
                        float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
         if (!EndermanHappyClient.isHappy(enderman)) {
+            return;
+        }
+        if (ShadeIdentity.slotOf(enderman) >= 0) {
+            // A shade wears her own, on her own head: this one is cut for an
+            // eight-unit vanilla skull and would sit a notch low and half the
+            // resolution. ShadeLayer draws it.
             return;
         }
         this.face.copyFrom(getParentModel().head);

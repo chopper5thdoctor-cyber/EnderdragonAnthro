@@ -114,6 +114,17 @@ public class ShadeModel {
         rot(this.leftLeg, from.leftLeg);
     }
 
+    /**
+     * The head bone, already posed, for anything that rides on her face.
+     *
+     * Its pivot is the artist's and moves whenever the rig does -- the head
+     * dropped a notch once already -- so a shell copying this part follows it,
+     * where one built on typed-in numbers quietly drifts off her face.
+     */
+    public ModelPart head() {
+        return this.head;
+    }
+
     private static void rot(ModelPart target, ModelPart source) {
         target.xRot = source.xRot;
         target.yRot = source.yRot;
