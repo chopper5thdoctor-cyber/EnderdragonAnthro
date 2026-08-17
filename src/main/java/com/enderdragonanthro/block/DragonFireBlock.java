@@ -3,6 +3,9 @@ package com.enderdragonanthro.block;
 import com.mojang.serialization.MapCodec;
 import com.enderdragonanthro.ability.DragonFire;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.util.RandomSource;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -36,6 +39,10 @@ public class DragonFireBlock extends BaseFireBlock {
 
     /** How long standing in it keeps the burn marked as ours. */
     private static final int MARK_TICKS = 300;
+    /** Chance per random tick that a flammable neighbour catches. */
+    private static final float CATCH_CHANCE = 0.6F;
+    /** ...and that the block it caught from is consumed outright. */
+    private static final float CONSUME_CHANCE = 0.35F;
 
     public DragonFireBlock(Properties properties) {
         super(properties, FIRE_DAMAGE);
@@ -66,6 +73,34 @@ public class DragonFireBlock extends BaseFireBlock {
     @Override
     protected boolean canBurn(BlockState state) {
         return true;
+    }
+
+    /**
+     * Spread to anything that will burn, and eat it.
+     *
+     * Random tick rather than a scheduled one, which is the cheap way to get
+     * fire that creeps rather than fire that explodes across a forest in a
+     * second. Only blocks the game already marks flammable are touched, so
+     * stone and dirt are safe and a tree is not.
+     */
+    @Override
+    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        for (Direction face : Direction.values()) {
+            BlockPos next = pos.relative(face);
+            BlockState neighbour = level.getBlockState(next);
+            if (!neighbour.ignitedByLava() && !neighbour.is(BlockTags.LOGS)
+                    && !neighbour.is(BlockTags.LEAVES)) {
+                continue;
+            }
+            if (random.nextFloat() < CONSUME_CHANCE) {
+                level.setBlockAndUpdate(next, state);
+            } else if (random.nextFloat() < CATCH_CHANCE) {
+                BlockPos open = next.relative(face);
+                if (level.getBlockState(open).canBeReplaced()) {
+                    level.setBlockAndUpdate(open, state);
+                }
+            }
+        }
     }
 
     /**

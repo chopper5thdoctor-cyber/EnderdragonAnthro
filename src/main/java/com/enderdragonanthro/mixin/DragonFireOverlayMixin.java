@@ -7,7 +7,9 @@ import net.minecraft.client.renderer.ScreenEffectRenderer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.Material;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.phys.AABB;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -42,11 +44,24 @@ public abstract class DragonFireOverlayMixin {
         return material.sprite();
     }
 
+    /**
+     * Whether any part of the player is inside dragonfire.
+     *
+     * The whole bounding box, not two named blocks. Feet-and-eyes missed the
+     * common case outright: a dragon is eight blocks tall, so its feet block
+     * and its eye block are nowhere near each other and the fire it is standing
+     * in is neither of them. Walking the box is a handful of lookups and cannot
+     * be wrong about which blocks the player occupies.
+     */
     private static boolean enderdragonanthro$standingInIt(Player player) {
-        // Feet and eyes both, because a two-block-tall fire is drawn from the
-        // one you are looking out of rather than the one you are stood on.
-        return player.level().getBlockState(player.blockPosition()).is(ModBlocks.DRAGON_FIRE)
-                || player.level().getBlockState(player.blockPosition().above())
-                        .is(ModBlocks.DRAGON_FIRE);
+        AABB box = player.getBoundingBox().inflate(0.001);
+        for (BlockPos pos : BlockPos.betweenClosed(
+                BlockPos.containing(box.minX, box.minY, box.minZ),
+                BlockPos.containing(box.maxX, box.maxY, box.maxZ))) {
+            if (player.level().getBlockState(pos).is(ModBlocks.DRAGON_FIRE)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

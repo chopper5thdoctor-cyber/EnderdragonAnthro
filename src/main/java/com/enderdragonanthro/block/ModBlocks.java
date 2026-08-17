@@ -22,6 +22,7 @@ public final class ModBlocks {
                     .replaceable()
                     .noCollission()
                     .instabreak()
+                    .randomTicks()
                     .lightLevel(state -> 15)
                     .sound(SoundType.WOOL)
                     .pushReaction(PushReaction.DESTROY)

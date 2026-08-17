@@ -126,12 +126,29 @@ public final class DragonFire {
      */
     private static void light(ServerLevel level, BlockPos at) {
         for (BlockPos pos : new BlockPos[] {at, at.below()}) {
-            if (level.getBlockState(pos).canBeReplaced()
-                    && level.getBlockState(pos.below()).isSolidRender(level, pos.below())) {
+            if (level.getBlockState(pos).canBeReplaced() && anchored(level, pos)) {
                 level.setBlockAndUpdate(pos, ModBlocks.DRAGON_FIRE.defaultBlockState());
                 return;
             }
         }
+    }
+
+    /**
+     * Whether there is anything here for fire to hold on to.
+     *
+     * Any solid face, not just the floor. Requiring a floor is why a tree
+     * refused to light: the air beside a trunk has air under it, so every
+     * candidate in the patch failed even with the trunk right there. Fire
+     * clings to walls.
+     */
+    private static boolean anchored(ServerLevel level, BlockPos pos) {
+        for (net.minecraft.core.Direction face : net.minecraft.core.Direction.values()) {
+            BlockPos side = pos.relative(face);
+            if (level.getBlockState(side).isSolidRender(level, side)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
