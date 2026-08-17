@@ -55,19 +55,34 @@ public class DragonFireBlock extends BaseFireBlock {
 
     @Override
     public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
-        return canSurviveOnBlock(level.getBlockState(pos.below()));
+        return anchored(level, pos);
     }
 
     /**
-     * Anything solid enough to stand on holds it.
+     * Any solid face will hold it, not just a floor.
      *
-     * Soul fire is pickier — it wants soul sand or soul soil, which is what
-     * makes it a Nether feature rather than a fire. Dragonfire is something
-     * breathed onto whatever happened to be there, so the only question is
-     * whether there is a floor.
+     * This is why the tree would not light. The ability was already willing to
+     * put fire against a trunk — but canSurvive still demanded a block
+     * underneath, so the moment the placement fired a neighbour update the fire
+     * failed its own survival check and popped, in the same tick, invisibly.
+     *
+     * Flint and steel worked because vanilla fire has that same floor rule and
+     * was being placed on the GROUND beside the tree, where there is a floor;
+     * it then spread upward on its own. Ours was being asked to start halfway
+     * up a trunk, which vanilla fire never is.
+     *
+     * Soul fire is pickier still — soul sand or soul soil only, which is what
+     * makes it a Nether feature rather than a fire. Dragonfire is breathed onto
+     * whatever happened to be there.
      */
-    private static boolean canSurviveOnBlock(BlockState below) {
-        return !below.isAir();
+    private static boolean anchored(LevelReader level, BlockPos pos) {
+        for (Direction face : Direction.values()) {
+            BlockPos side = pos.relative(face);
+            if (level.getBlockState(side).isFaceSturdy(level, side, face.getOpposite())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
