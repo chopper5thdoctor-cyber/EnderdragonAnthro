@@ -26,8 +26,8 @@ import java.util.List;
  * hold it, and costs you to keep holding it.
  */
 public final class DragonFire {
-    /** How far the stream reaches. */
-    private static final double REACH = 9.0;
+    /** How far the stream reaches — as far as you can pick a target, not arm's length. */
+    private static final double REACH = 24.0;
     /**
      * How tight the cone is, as the cosine of its half-angle. 0.94 is about
      * twenty degrees — wide enough to be a stream rather than a laser, tight
@@ -49,6 +49,8 @@ public final class DragonFire {
      * a flamethrower is something you spend rather than something you lean on.
      */
     private static final float EXHAUSTION = 0.6F;
+    /** Half-width of the patch left where the stream lands: 2 gives a 5x5. */
+    private static final int SPREAD = 2;
 
     private DragonFire() {
     }
@@ -71,7 +73,7 @@ public final class DragonFire {
             // The stream widens as it goes, the way a jet of anything does.
             double spread = 0.06 * d;
             level.sendParticles(ModParticles.DRAGON_FLAME, at.x, at.y, at.z,
-                    2, spread, spread, spread, 0.01);
+                    8, spread, spread, spread, 0.01);
         }
 
         Vec3 far = mouth.add(look.scale(REACH));
@@ -96,10 +98,15 @@ public final class DragonFire {
         BlockHitResult hit = level.clip(new ClipContext(mouth, far,
                 ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
         if (hit.getType() == HitResult.Type.BLOCK) {
-            BlockPos at = hit.getBlockPos().relative(hit.getDirection());
-            if (level.getBlockState(at).canBeReplaced()
-                    && !level.getBlockState(at.below()).isAir()) {
-                level.setBlockAndUpdate(at, ModBlocks.DRAGON_FIRE.defaultBlockState());
+            // A five-by-five patch, not one block. A single block was why
+            // breathing on a tree did nothing visible: the spot beside a trunk
+            // has air under it, so the one candidate failed and that was that.
+            // Twenty-five candidates find a floor even when the middle does not.
+            BlockPos centre = hit.getBlockPos().relative(hit.getDirection());
+            for (int dx = -SPREAD; dx <= SPREAD; dx++) {
+                for (int dz = -SPREAD; dz <= SPREAD; dz++) {
+                    light(level, centre.offset(dx, 0, dz));
+                }
             }
         }
 
@@ -108,6 +115,23 @@ public final class DragonFire {
         }
         level.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE,
                 SoundSource.PLAYERS, 0.7F, 0.6F);
+    }
+
+    /**
+     * One block of it, if there is anywhere to put it.
+     *
+     * Fire wants air to sit in and something under it to sit on. Both are
+     * checked at the spot itself and one below, so a patch laid across uneven
+     * ground follows the ground rather than stopping at the first step.
+     */
+    private static void light(ServerLevel level, BlockPos at) {
+        for (BlockPos pos : new BlockPos[] {at, at.below()}) {
+            if (level.getBlockState(pos).canBeReplaced()
+                    && level.getBlockState(pos.below()).isSolidRender(level, pos.below())) {
+                level.setBlockAndUpdate(pos, ModBlocks.DRAGON_FIRE.defaultBlockState());
+                return;
+            }
+        }
     }
 
     /**

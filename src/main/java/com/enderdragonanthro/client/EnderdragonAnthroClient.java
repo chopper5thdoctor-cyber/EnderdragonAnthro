@@ -77,6 +77,13 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                     DragonBurnClient.clear();
                 });
 
+        // Without this the block draws on the SOLID layer, where alpha is not
+        // read at all and every transparent texel comes out opaque black -- a
+        // black slab with flames along the bottom of it.
+        net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap.INSTANCE.putBlock(
+                com.enderdragonanthro.block.ModBlocks.DRAGON_FIRE,
+                net.minecraft.client.renderer.RenderType.cutout());
+
         ParticleFactoryRegistry.getInstance().register(
                 ModParticles.PURPLE_HEART, PurpleHeartParticle.Provider::new);
         // Vanilla's flame behaviour, this mod's sprite: it drifts and fades

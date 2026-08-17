@@ -34,6 +34,9 @@ public class DragonFireBlock extends BaseFireBlock {
      */
     private static final float FIRE_DAMAGE = 3.0F;
 
+    /** How long standing in it keeps the burn marked as ours. */
+    private static final int MARK_TICKS = 300;
+
     public DragonFireBlock(Properties properties) {
         super(properties, FIRE_DAMAGE);
     }
@@ -77,7 +80,10 @@ public class DragonFireBlock extends BaseFireBlock {
         super.entityInside(state, level, pos, entity);
         if (level instanceof ServerLevel server && entity instanceof LivingEntity victim
                 && !entity.fireImmune()) {
-            DragonFire.mark(server, victim, victim.getRemainingFireTicks());
+            // A fixed span, not getRemainingFireTicks(). BaseFireBlock adds a
+            // tick at a time, so reading it back here marked the burn as ours
+            // for one tick and the screen went orange again immediately.
+            DragonFire.mark(server, victim, MARK_TICKS);
         }
     }
 }
