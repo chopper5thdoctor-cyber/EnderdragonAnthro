@@ -22,7 +22,10 @@ public final class ModBlocks {
                     .replaceable()
                     .noCollission()
                     .instabreak()
-                    .randomTicks()
+                    // No randomTicks: spreading and burning out are both on a
+                    // scheduled tick now, and BlockBehaviour's randomTick just
+                    // forwards to tick(), so leaving it on ran the whole pass
+                    // twice on two different clocks.
                     .lightLevel(state -> 15)
                     .sound(SoundType.WOOL)
                     .pushReaction(PushReaction.DESTROY)

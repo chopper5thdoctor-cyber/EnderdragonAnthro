@@ -9,27 +9,33 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.BaseFireBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 
 /**
  * A third fire, after the orange one and the blue one.
  *
- * Modelled on soul fire rather than on fire: fire is the one that spreads,
- * carrying a dozen state properties for which neighbours are alight and a whole
- * scheduled-tick machine to consume the world. Soul fire just burns where it
- * is put. Dragonfire is a thing a dragon leaves behind, not a wildfire, so it
- * is the quiet one of the two — it stays where it lands and goes out when the
- * block under it does.
- *
  * It burns hotter than either: 3 a tick against fire's 1 and soul fire's 2.
  * Neither of those was breathed by anything.
+ *
+ * It spreads, and it goes out. Both are on a scheduled tick rather than a
+ * random one, which is how vanilla fire is paced and why vanilla fire feels
+ * alive: a random tick reaches a given block about once a minute, so a fire
+ * driven by one creeps in slow motion and ages out over a quarter of an hour.
  */
 public class DragonFireBlock extends BaseFireBlock {
     public static final MapCodec<DragonFireBlock> CODEC = simpleCodec(DragonFireBlock::new);
+
+    /** How far through burning out this flame is. Purely a clock. */
+    public static final IntegerProperty AGE = BlockStateProperties.AGE_15;
 
     /**
      * Per tick, standing in it. Fire does 1 and soul fire 2; this does 3,
@@ -39,13 +45,18 @@ public class DragonFireBlock extends BaseFireBlock {
 
     /** How long standing in it keeps the burn marked as ours. */
     private static final int MARK_TICKS = 300;
-    /** Chance per random tick that a flammable neighbour catches. */
-    private static final float CATCH_CHANCE = 0.6F;
-    /** ...and that the block it caught from is consumed outright. */
-    private static final float CONSUME_CHANCE = 0.35F;
+    /** Chance per tick that a flammable neighbour is burnt away outright. */
+    private static final float CONSUME_CHANCE = 0.2F;
+    /** ...and that the flame reaches past it into open air instead. */
+    private static final float CATCH_CHANCE = 0.3F;
+    /** Ticks between one pass and the next, plus a little scatter. */
+    private static final int TICK_INTERVAL = 30;
+    /** Passes a flame lasts once nothing near it will burn. */
+    private static final int MAX_AGE = 15;
 
     public DragonFireBlock(Properties properties) {
         super(properties, FIRE_DAMAGE);
+        registerDefaultState(getStateDefinition().any().setValue(AGE, 0));
     }
 
     @Override
@@ -54,8 +65,46 @@ public class DragonFireBlock extends BaseFireBlock {
     }
 
     @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<net.minecraft.world.level.block.Block, BlockState> builder) {
+        builder.add(AGE);
+    }
+
+    /**
+     * Our fire, from our item.
+     *
+     * BaseFireBlock's version hands back Blocks.FIRE or Blocks.SOUL_FIRE
+     * depending on what is underneath — it is written for the two vanilla
+     * fires and picks between them. Inherited unchanged, the dragonfire item
+     * placed ordinary orange fire, which is a strange thing for it to do.
+     */
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return defaultBlockState();
+    }
+
+    @Override
     public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return anchored(level, pos);
+    }
+
+    /**
+     * Ask again whenever a neighbour changes.
+     *
+     * This is why a burnt tree left a tree-shaped column of flame hanging in
+     * the air. canSurvive was right and was simply never consulted a second
+     * time: BaseFireBlock has no updateShape at all, so a flame checked its
+     * footing once, when it was placed, and then kept burning no matter what
+     * happened around it. Every log the fire ate became another flame with
+     * nothing under it, and the trunk stayed lit after the tree was gone.
+     *
+     * Vanilla's two fires both override this. Soul fire is the one to copy
+     * here; FireBlock's version carries its neighbour-tracking properties
+     * along, which this fire does not have.
+     */
+    @Override
+    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighbour,
+                                     LevelAccessor level, BlockPos pos, BlockPos neighbourPos) {
+        return canSurvive(state, level, pos) ? state : Blocks.AIR.defaultBlockState();
     }
 
     /**
@@ -90,31 +139,77 @@ public class DragonFireBlock extends BaseFireBlock {
         return true;
     }
 
+    @Override
+    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState,
+                           boolean movedByPiston) {
+        super.onPlace(state, level, pos, oldState, movedByPiston);
+        level.scheduleTick(pos, this, TICK_INTERVAL + level.getRandom().nextInt(10));
+    }
+
     /**
-     * Spread to anything that will burn, and eat it.
+     * Eat what is next to it, then age.
      *
-     * Random tick rather than a scheduled one, which is the cheap way to get
-     * fire that creeps rather than fire that explodes across a forest in a
-     * second. Only blocks the game already marks flammable are touched, so
-     * stone and dirt are safe and a tree is not.
+     * Only blocks the game already marks flammable are touched, so stone and
+     * dirt are safe and a tree is not. Fuel next door slows the ageing rather
+     * than stopping it: a flame with a forest to work through lasts a good
+     * while, and one left on bare ground gives up in half a minute. Nothing is
+     * permanent, which matters more here than it does for vanilla fire —
+     * dragonfire is placed twenty-five blocks at a time.
      */
     @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        level.scheduleTick(pos, this, TICK_INTERVAL + random.nextInt(10));
+        if (!canSurvive(state, level, pos)) {
+            level.removeBlock(pos, false);
+            return;
+        }
+
+        boolean fed = false;
         for (Direction face : Direction.values()) {
             BlockPos next = pos.relative(face);
-            BlockState neighbour = level.getBlockState(next);
-            if (!neighbour.ignitedByLava() && !neighbour.is(BlockTags.LOGS)
-                    && !neighbour.is(BlockTags.LEAVES)) {
+            if (!flammable(level.getBlockState(next))) {
                 continue;
             }
+            fed = true;
             if (random.nextFloat() < CONSUME_CHANCE) {
-                level.setBlockAndUpdate(next, state);
+                consume(level, next);
             } else if (random.nextFloat() < CATCH_CHANCE) {
-                BlockPos open = next.relative(face);
-                if (level.getBlockState(open).canBeReplaced()) {
-                    level.setBlockAndUpdate(open, state);
-                }
+                spread(level, next.relative(face));
             }
+        }
+
+        if (fed && random.nextInt(3) != 0) {
+            return;
+        }
+        int age = state.getValue(AGE);
+        if (age >= MAX_AGE) {
+            level.removeBlock(pos, false);
+        } else {
+            level.setBlock(pos, state.setValue(AGE, age + 1), 4);
+        }
+    }
+
+    private static boolean flammable(BlockState state) {
+        return state.ignitedByLava() || state.is(BlockTags.LOGS) || state.is(BlockTags.LEAVES);
+    }
+
+    /**
+     * Burn a block away, leaving flame behind only where flame can stand.
+     *
+     * The check matters for exactly the case that went wrong: a trunk is held
+     * up by the trunk, so consuming it upward left each flame propped on the
+     * log above until that went too. updateShape cleans that up after the
+     * fact; not creating it in the first place is tidier.
+     */
+    private void consume(ServerLevel level, BlockPos at) {
+        BlockState flame = defaultBlockState();
+        level.setBlockAndUpdate(at, flame.canSurvive(level, at) ? flame : Blocks.AIR.defaultBlockState());
+    }
+
+    private void spread(ServerLevel level, BlockPos at) {
+        BlockState flame = defaultBlockState();
+        if (level.getBlockState(at).canBeReplaced() && flame.canSurvive(level, at)) {
+            level.setBlockAndUpdate(at, flame);
         }
     }
 
