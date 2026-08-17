@@ -41,6 +41,23 @@ public final class DragonFirstPersonArm {
     private static final float VANILLA_PIVOT_X = -5.0F;
     private static final float VANILLA_PIVOT_Y = 2.0F;
 
+    /**
+     * How much bigger than the human arm the dragon's hand reads, on top of the
+     * fit below.
+     *
+     * The fit answers "the same size vanilla's arm was", which is correct and
+     * not what a dragon's arm should feel like — a hand this heavy filling the
+     * same corner a human wrist did reads as a small hand far away. This is the
+     * one number that dials it, and it is deliberately not derived from
+     * anything: the rig cannot tell you how present a hand should feel.
+     *
+     * It grows about the shoulder rather than about the hand, because the y fit
+     * pins ARM_MIN_Y to the shoulder line whatever the scale is — so the arm
+     * stays rooted where it leaves the bottom of the screen and reaches further
+     * in, instead of drifting off its own joint.
+     */
+    private static final float BULK = 1.0F;
+
     private static DragonFormModel model;
 
     private DragonFirstPersonArm() {
@@ -66,7 +83,7 @@ public final class DragonFirstPersonArm {
         // reshaping the arm in Blockbench moves the hand with it.
         // Follows the body's setting: at authored proportions the hand is the
         // same 18% larger the rest of the dragon is.
-        float scale = DragonFormModel.ARM_SCALE
+        float scale = DragonFormModel.ARM_SCALE * BULK
                 * (DragonConfig.trueProportions()
                    ? DragonFormModel.TRUE_SCALE / DragonFormModel.RENDER_SCALE : 1.0F);
         float centreX = (DragonFormModel.ARM_MIN_X + DragonFormModel.ARM_MAX_X) / 2.0F;
