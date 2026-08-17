@@ -56,7 +56,18 @@ public final class DragonFirstPersonArm {
      * stays rooted where it leaves the bottom of the screen and reaches further
      * in, instead of drifting off its own joint.
      */
-    private static final float BULK = 1.0F;
+    private static final float BULK = 1.5F;
+
+    /**
+     * How far outboard of vanilla's shoulder the arm hangs, in vanilla arm
+     * units. Broader shoulders: a dragon's arm does not leave the body where a
+     * human's does.
+     *
+     * Positive is away from the centre line, and it is applied inside the
+     * {@code side} multiplier, so both hands move out by the same amount rather
+     * than both sliding the same way across the screen.
+     */
+    private static final float SHOULDER_OUT = 1.6F;
 
     private static DragonFormModel model;
 
@@ -94,8 +105,11 @@ public final class DragonFirstPersonArm {
         // Model units over sixteen: ModelPart does that division itself, one
         // level further down, so the offset has to be in blocks by the time it
         // reaches the stack.
-        // Pivot included, so the arm ends up in exactly the volume vanilla's
-        // occupies: x -8..-4, y 0..12, mirrored for the left.
+        // Pivot included, so the fit lands the arm on the volume vanilla's
+        // occupies -- x -8..-4, y 0..12, mirrored for the left -- and BULK and
+        // SHOULDER_OUT then deliberately overshoot it. At 1.5 and 1.6 the right
+        // hand runs x -10.76..-4.44 against that -8..-4, which is the point:
+        // vanilla's box is where a human wrist goes.
         //
         // Note the PLUS on centreX. ARM_MIN_X/MAX_X are measured off the rig's
         // left arm, whose cubes run +x; the right arm's are its mirror and run
@@ -103,7 +117,8 @@ public final class DragonFirstPersonArm {
         // negations cancel. Getting this wrong is invisible until the hand
         // carries art with a direction to it.
         poseStack.translate(
-                side * (VANILLA_PIVOT_X + VANILLA_CENTRE_X + scale * centreX) / 16.0F,
+                side * (VANILLA_PIVOT_X + VANILLA_CENTRE_X - SHOULDER_OUT
+                        + scale * centreX) / 16.0F,
                 (VANILLA_PIVOT_Y + VANILLA_SHOULDER_Y - scale * DragonFormModel.ARM_MIN_Y) / 16.0F,
                 -scale * centreZ / 16.0F);
         poseStack.scale(scale, scale, scale);
