@@ -20,7 +20,9 @@
     "EndCrystalTextureMixin",
     "GameRendererBobMixin",
     "PlayerBodyHideMixin",
-    "PlayerHandMixin"
+    "PlayerHandMixin",
+    "ShadeBodyHideMixin",
+    "ShadeEyesHideMixin"
   ],
   "injectors": {
     "defaultRequire": 1

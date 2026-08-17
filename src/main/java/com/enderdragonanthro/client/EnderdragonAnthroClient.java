@@ -2,7 +2,9 @@ package com.enderdragonanthro.client;
 
 import com.enderdragonanthro.ability.AbilityAction;
 import com.enderdragonanthro.client.model.DragonFormModel;
+import com.enderdragonanthro.client.model.ShadeModel;
 import com.enderdragonanthro.client.render.DragonFormLayer;
+import com.enderdragonanthro.client.render.ShadeLayer;
 import com.enderdragonanthro.network.AbilityActionPayload;
 import com.enderdragonanthro.client.particle.PurpleHeartParticle;
 import com.enderdragonanthro.client.render.EndermanHappyLayer;
@@ -123,12 +125,17 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         EntityModelLayerRegistry.registerModelLayer(DragonFormModel.LAYER, DragonFormModel::createLayer);
         EntityModelLayerRegistry.registerModelLayer(EndermanHappyLayer.LAYER,
                 EndermanHappyLayer::createLayer);
+        EntityModelLayerRegistry.registerModelLayer(ShadeModel.LAYER,
+                ShadeModel::createBodyLayer);
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register(
                 (type, renderer, helper, context) -> {
                     if (renderer instanceof PlayerRenderer playerRenderer) {
                         helper.register(new DragonFormLayer(playerRenderer, context.getModelSet()));
                     }
                     if (renderer instanceof EndermanRenderer endermanRenderer) {
+                        // The shade goes on first: it is the body, and the ^^ of
+                        // a pleased enderman belongs over a face, not under one.
+                        helper.register(new ShadeLayer(endermanRenderer, context.getModelSet()));
                         helper.register(new EndermanHappyLayer(endermanRenderer, context.getModelSet()));
                     }
                 });

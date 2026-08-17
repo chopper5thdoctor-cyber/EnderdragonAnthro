@@ -34,8 +34,8 @@ def rzyx(x, y, z):
             @ np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]]))
 
 
-def from_java():
-    src = open(JAVA).read()
+def from_java(java=None):
+    src = open(java or JAVA).read()
     seg = src.split("PartDefinition root = mesh.getRoot();", 1)[1] \
              .split("return LayerDefinition", 1)[0]
     stmts = re.findall(r'(?:PartDefinition\s+(\w+)\s*=\s*)?(\w+)\.addOrReplaceChild'
@@ -102,7 +102,11 @@ def from_bbmodel(path):
 
 
 def main(path):
-    java, blockbench = from_java(), from_bbmodel(path)
+    compare(from_java(), from_bbmodel(path))
+    check_symbols()
+
+
+def compare(java, blockbench):
     print(f"cubes: java {len(java)}  bbmodel {len(blockbench)}")
     if len(java) != len(blockbench):
         sys.exit("FAIL: cube counts differ")
@@ -130,7 +134,6 @@ def main(path):
             print(f"  MISMATCH {name}: nearest cube off by {dist}u")
         sys.exit("FAIL: the generated model does not match the bbmodel")
     print("PASS: the generated model reproduces the bbmodel")
-    check_symbols()
 
 
 def check_symbols():
@@ -177,7 +180,10 @@ def check_form_guards():
     """
     targets = ("Player.class", "LivingEntity.class", "Entity.class",
                "GameRenderer.class", "PlayerRenderer.class", "LivingEntityRenderer.class")
-    guards = ("isDragon(", "isDragonForm(")
+    # slotOf counts too: it answers "is this one of the court", which is the
+    # same promise in the other direction -- a mixin holding it cannot touch
+    # an entity the mod did not summon.
+    guards = ("isDragon(", "isDragonForm(", "slotOf(")
     mixins = os.path.join(HERE, "src/main/java/com/enderdragonanthro/mixin")
     unguarded = []
     for name in sorted(os.listdir(mixins)):
@@ -284,6 +290,49 @@ def check_mirror_rotations(bb):
         print("\n".join(bad))
         sys.exit(1)
     print("PASS: every left/right pair is posed as its twin's mirror")
+    check_shade()
+
+
+def check_shade():
+    """The court's rig gets the same corner check the dragon's does.
+
+    Same conversion code underneath, so the same two bugs are available: a
+    dropped cube rotation would stand the arms straight down, and a sign error
+    on the group rotation would splay them the wrong way. Neither is obvious in
+    game, because a shade is black and four blocks away.
+    """
+    java = os.path.join(HERE, "src/main/java/com/enderdragonanthro/client/model/ShadeModel.java")
+    rig = os.path.join(HERE, "art/shade_base.bbmodel")
+    if not (os.path.exists(java) and os.path.exists(rig)):
+        return
+    print("\nshade rig:")
+    compare(from_java(java), from_bbmodel(rig))
+    check_shade_stance(rig)
+
+
+def check_shade_stance(rig):
+    """And that it stands on the floor rather than in it.
+
+    ShadeLayer lifts the rig by groundOffset and then divides it by
+    AUTHOR_SCALE. Model y 24 is the ground, so the feet have to land there --
+    a foot plane read off the wrong end of the rig would bury it to the knees,
+    which is exactly the kind of thing that only shows up once the game is up.
+    """
+    src = open(os.path.join(
+        HERE, "src/main/java/com/enderdragonanthro/client/model/ShadeModel.java")).read()
+    foot = float(re.search(r"FOOT_PLANE\s*=\s*([\d.]+)F", src).group(1))
+    author = float(re.search(r"AUTHOR_SCALE\s*=\s*([\d.]+)F", src).group(1))
+    scale = 1.0 / author
+
+    bb = json.load(open(rig))
+    lowest = max(GROUND - e["from"][1] for e in bb["elements"])
+    if abs(lowest - foot) > TOLERANCE:
+        sys.exit(f"FAIL: FOOT_PLANE is {foot} but the rig's lowest cube is at {lowest:.2f}")
+
+    feet = foot * scale + (24.0 - foot * scale)
+    head = min(GROUND - e["to"][1] for e in bb["elements"]) * scale + (24.0 - foot * scale)
+    print(f"PASS: feet land at model y {feet:.2f} (ground is 24), "
+          f"standing {(feet - head) / 16.0:.2f} blocks before the entity's own scale")
 
 
 if __name__ == "__main__":

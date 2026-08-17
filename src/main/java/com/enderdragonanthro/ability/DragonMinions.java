@@ -81,18 +81,10 @@ public final class DragonMinions {
         }
     }
 
-    /**
-     * The four of them, in order of summoning.
-     *
-     * Jean is a French name, so the court is French too -- each one the old name
-     * carried into French spelling rather than four strangers: the diaeresis,
-     * the -aire, the -elle, the doubled consonant. The End is in the vowels.
-     */
-    private static final String[] NAMES = {"Vaëlle", "Keshaire", "Nyrelle", "Orrinne"};
-    /** One colour each, and everything they say is spoken in it. */
-    private static final ChatFormatting[] TINTS = {
-            ChatFormatting.RED, ChatFormatting.BLUE,
-            ChatFormatting.GREEN, ChatFormatting.GOLD};
+    // Names and colours live in ShadeIdentity, because the renderer needs them
+    // too and this class is not somewhere the client should be dragged into.
+    private static final String[] NAMES = ShadeIdentity.NAMES;
+    private static final ChatFormatting[] TINTS = ShadeIdentity.TINTS;
 
     public static final int MAX_PER_PLAYER = 4;
     private static final double SCALE = 4.0 / 2.9;      // enderman is 2.9 blocks tall

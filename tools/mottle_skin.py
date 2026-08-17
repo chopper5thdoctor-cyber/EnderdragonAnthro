@@ -248,7 +248,9 @@ def main():
 # Cubes that make up the core. Everything's brightness is measured as distance
 # from the centre of these, so the figure is dark where it is thickest and
 # lightens out towards the extremities.
-CORE = ("body1", "body2", "cube", "neck")
+# "cube" became "bosom" when the old bosom was dropped; the collar it
+# names sits proud of the chest, so it belongs in RELIEF, not here.
+CORE = ("body1", "body2", "neck")
 
 # Pieces that sit PROUD of the body. Distance-from-core makes these the darkest
 # thing on the model, because they are nearest the core -- which is backwards:
