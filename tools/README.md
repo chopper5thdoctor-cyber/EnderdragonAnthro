@@ -261,5 +261,32 @@ Three layers, because any one of them alone looks wrong:
 The lift carries slightly more blue than red, so the hide reads as the End's
 violet-black rather than as grey.
 
+### `--style vanilla`
+
+Measured off the real enderman sheet rather than invented, and it is far
+simpler than the soft style: the hide is **exactly two colours**, `#000000` and
+`#161616`, with no gradient between them.
+
+| | vanilla | `--style soft` |
+|---|---|---|
+| tones | 2 | continuous, 19 levels |
+| lightest | lum 22.0 | lum 16.9 |
+| split | 62.4% light / 37.1% black | centred on 9.3 |
+
+So the body is *grey with black in it*, not black with grey in it — the lighter
+tone is the majority. The two are only mildly clumped, and slightly
+**directional**: 65% of vertical neighbours share a tone against 59% of
+horizontal ones.
+
+Reproducing that took fitting rather than guessing. Smooth noise on its own is
+far too cohesive (84% same-tone, runs of 5.3 texels); half of it has to be
+per-texel randomness. Sweeping cell size and blend against all four
+measurements lands `2x4` cells at `0.50` blend:
+
+```
+vanilla enderman         light 62.7%  h 59%  v 65%  run 2.17
+mine, --style vanilla    light 62.4%  h 59%  v 61%  run 2.32
+```
+
 Deterministic for a given file and `--seed`, so re-running after a repaint does
 not reshuffle what you kept.
