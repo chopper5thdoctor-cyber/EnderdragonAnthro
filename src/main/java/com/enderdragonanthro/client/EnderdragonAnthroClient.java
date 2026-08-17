@@ -115,7 +115,14 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                 boolean wasDown = rawWasDown.getOrDefault(action, false);
                 rawWasDown.put(action, rawDown);
 
-                if ((clicked || (rawDown && !wasDown)) && inGame) {
+                // A holdable ability re-fires while the key is down, once its
+                // cooldown is up; everything else fires on the press alone.
+                // consumeClick can report a held key more than once, so an edge
+                // is not enough on its own to keep Boost from flooding.
+                boolean fire = action.holdable
+                        ? (rawDown && DragonHud.ready(action)) || (clicked && !wasDown)
+                        : clicked || (rawDown && !wasDown);
+                if (fire && inGame) {
                     DragonHud.notePress(action);
                     if (action == AbilityAction.BOOST && client.player != null) {
                         DragonWings.beat(client.player);

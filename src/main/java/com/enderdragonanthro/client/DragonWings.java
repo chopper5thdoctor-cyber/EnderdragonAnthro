@@ -34,8 +34,19 @@ public final class DragonWings {
         }
     }
 
-    /** Start a beat, or restart one already running — Boost can be spammed. */
+    /**
+     * Start a beat, unless one is already in flight.
+     *
+     * Restarting was the bug: held, Boost re-fires far faster than a beat
+     * lasts, and every re-fire snapped the wings back to phase zero, so they
+     * juddered instead of beating. A wingbeat is not interruptible — the wing
+     * finishes its stroke and the next one starts after.
+     */
     public static void beat(Player player) {
+        Long at = STARTED.get(player.getUUID());
+        if (at != null && ticks - at < BEAT_TICKS) {
+            return;
+        }
         STARTED.put(player.getUUID(), ticks);
     }
 

@@ -16,7 +16,7 @@ public enum AbilityAction {
     WARP(200, "Warp"),
     RETURN(100, "Home"),
     GLIDE(0, "Glide"),
-    BOOST(20, "Boost (Hold)"),
+    BOOST(20, "Boost (Hold)", true),
     SUMMON(200, "Summon"),
     // opens a screen rather than firing anything, so no cooldown
     COMMAND(0, "Court");
@@ -24,9 +24,21 @@ public enum AbilityAction {
     public final int cooldownTicks;
     /** Shown above the key chip on the HUD. */
     public final String label;
+    /**
+     * Whether holding the key keeps firing it, once per cooldown.
+     *
+     * Only Boost, and its label has said so all along. Everything else is
+     * edge-triggered: holding Fireball down should not empty the sky.
+     */
+    public final boolean holdable;
 
     AbilityAction(int cooldownTicks, String label) {
+        this(cooldownTicks, label, false);
+    }
+
+    AbilityAction(int cooldownTicks, String label, boolean holdable) {
         this.cooldownTicks = cooldownTicks;
         this.label = label;
+        this.holdable = holdable;
     }
 }

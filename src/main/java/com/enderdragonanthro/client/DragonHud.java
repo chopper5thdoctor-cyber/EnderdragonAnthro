@@ -61,6 +61,19 @@ public final class DragonHud {
         }
     }
 
+    /**
+     * Whether an ability has come back, by the client's own reckoning.
+     *
+     * The same clock the cooldown sweep on the chip is drawn from, so a held
+     * key re-fires exactly when the chip finishes filling rather than on a
+     * timer of its own that could drift away from what the player is looking
+     * at.
+     */
+    public static boolean ready(AbilityAction action) {
+        Long at = READY_AT.get(action);
+        return at == null || clientTicks >= at;
+    }
+
     /** The scale modifier is synced to the client, so it doubles as the form flag. */
     public static boolean isDragonForm(net.minecraft.world.entity.player.Player player) {
         AttributeInstance scale = player.getAttribute(Attributes.SCALE);
