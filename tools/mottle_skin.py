@@ -248,7 +248,14 @@ def main():
 # Cubes that make up the core. Everything's brightness is measured as distance
 # from the centre of these, so the figure is dark where it is thickest and
 # lightens out towards the extremities.
-CORE = ("body1", "body2", "cube", "bosom", "neck")
+CORE = ("body1", "body2", "cube", "neck")
+
+# Pieces that sit PROUD of the body. Distance-from-core makes these the darkest
+# thing on the model, because they are nearest the core -- which is backwards:
+# a raised feature is what catches the light, not what hides from it. They are
+# lifted to RELIEF_FLOOR instead.
+RELIEF = ("bosom",)
+RELIEF_FLOOR = 0.62
 
 
 def _rotate(point, origin, degrees):
@@ -306,10 +313,38 @@ def _face_points(e):
     return out
 
 
+def check_islands(model):
+    """Two cubes may share an island only if they are a mirrored pair.
+
+    Anything else means one piece is painting over another: the bosom sat inside
+    left_leg's island for a while, so shading the bosom dark also stamped a dark
+    patch onto the leg. Silent, and only visible on the model.
+    """
+    boxes = []
+    for e in model["elements"]:
+        if not e.get("faces"):
+            continue
+        w, h, d = (e["to"][i] - e["from"][i] for i in range(3))
+        u, v = _uv_offset(e)
+        boxes.append((e["name"], u, v, u + 2 * (d + w), v + d + h))
+    clashes = []
+    for i, a in enumerate(boxes):
+        for b in boxes[i + 1:]:
+            if (a[1] < b[3] and b[1] < a[3] and a[2] < b[4] and b[2] < a[4]
+                    and (a[1], a[2]) != (b[1], b[2])):
+                clashes.append(f"{a[0]} and {b[0]}")
+    return clashes
+
+
 def body_field(rig_path):
     """A 0..1 value per texel: 0 at the body's core, 1 at the furthest point."""
     with open(rig_path) as f:
         model = json.load(f)
+    clashes = check_islands(model)
+    if clashes:
+        sys.stderr.write("WARNING: UV islands overlap and are not mirror pairs: "
+                         + "; ".join(clashes) + "\n"
+                         + "         shading one will paint over the other.\n")
     els = [e for e in model["elements"] if e.get("faces")]
 
     core = [e for e in els if e["name"] in CORE] or els
@@ -317,13 +352,20 @@ def body_field(rig_path):
     cy = sum((e["from"][1] + e["to"][1]) / 2 for e in core) / len(core)
     cz = sum((e["from"][2] + e["to"][2]) / 2 for e in core) / len(core)
 
-    field, far = {}, 0.0
+    field, far, relief = {}, 0.0, set()
     for e in els:
         for texel, (px, py, pz) in _face_points(e).items():
             dist = ((px - cx) ** 2 + (py - cy) ** 2 + (pz - cz) ** 2) ** 0.5
             field[texel] = dist
             far = max(far, dist)
-    return {k: v / far for k, v in field.items()} if far else field
+            if e["name"] in RELIEF:
+                relief.add(texel)
+    if not far:
+        return field
+    out = {k: v / far for k, v in field.items()}
+    for texel in relief:
+        out[texel] = max(out[texel], RELIEF_FLOOR)
+    return out
 
 if __name__ == "__main__":
     main()
