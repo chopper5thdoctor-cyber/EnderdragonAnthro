@@ -59,7 +59,7 @@ public class DragonFormModel {
     public static final float ARM_MAX_X = 17.000F;
     public static final float ARM_MIN_Y = -1.000F;
     public static final float ARM_MAX_Y = 46.000F;
-    public static final float ARM_MIN_Z = -8.000F;
+    public static final float ARM_MIN_Z = -10.500F;
     public static final float ARM_MAX_Z = 8.000F;
 
     /**
@@ -252,7 +252,7 @@ public class DragonFormModel {
         PartDefinition right_arm = root.addOrReplaceChild("right_arm", CubeListBuilder.create()
                         .texOffs(76, 164).addBox(-17.000F, -1.000F, -8.000F, 16.000F, 17.000F, 16.000F)
                         .texOffs(208, 164).addBox(-16.000F, 16.000F, -7.500F, 14.000F, 18.000F, 15.000F)
-                        .texOffs(268, 164).addBox(-15.500F, 32.000F, -7.000F, 15.000F, 14.000F, 14.000F),
+                        .texOffs(276, 161).addBox(-15.500F, 32.000F, -10.500F, 15.000F, 14.000F, 18.000F),
                 PartPose.offset(-20.000F, -5.000F, 2.000F));
         right_arm.addOrReplaceChild("right_arm_spin", CubeListBuilder.create()
                         .texOffs(96, 384).addBox(-9.500F, -6.000F, -9.000F, 19.000F, 12.000F, 18.000F),
@@ -262,7 +262,7 @@ public class DragonFormModel {
         PartDefinition left_arm = root.addOrReplaceChild("left_arm", CubeListBuilder.create()
                         .mirror(true).texOffs(76, 164).addBox(1.000F, -1.000F, -8.000F, 16.000F, 17.000F, 16.000F)
                         .texOffs(208, 164).addBox(2.000F, 16.000F, -7.500F, 14.000F, 18.000F, 15.000F)
-                        .texOffs(268, 164).addBox(0.500F, 32.000F, -7.000F, 15.000F, 14.000F, 14.000F)
+                        .texOffs(276, 161).addBox(0.500F, 32.000F, -10.500F, 15.000F, 14.000F, 18.000F)
                         .mirror(false),
                 PartPose.offset(20.000F, -5.000F, 2.000F));
         left_arm.addOrReplaceChild("left_arm_spin", CubeListBuilder.create()
