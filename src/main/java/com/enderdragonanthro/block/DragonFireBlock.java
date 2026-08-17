@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
@@ -18,7 +19,10 @@ import net.minecraft.world.level.block.BaseFireBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+
+import java.util.Map;
 
 /**
  * A third fire, after the orange one and the blue one.
@@ -36,6 +40,30 @@ public class DragonFireBlock extends BaseFireBlock {
 
     /** How far through burning out this flame is. Purely a clock. */
     public static final IntegerProperty AGE = BlockStateProperties.AGE_15;
+
+    /**
+     * Which neighbours this flame is clinging to, when it is clinging rather
+     * than standing.
+     *
+     * This is the whole of why vanilla fire lies flat against leaves and ours
+     * did not. Fire is not one model. The blockstate is a multipart switched on
+     * these five booleans: with all of them false it draws the bonfire — a pair
+     * of crossed sheets standing in the middle of the block — and with any of
+     * them true it drops the bonfire and draws a flat panel pressed against
+     * each face that is burning.
+     *
+     * They are only set when there is nothing underneath to stand on. Fire on a
+     * floor is a bonfire even if a tree is beside it; fire in a canopy has no
+     * floor, so it becomes panels stuck to the leaves. Ours applied the floor
+     * model unconditionally, which is why burning a treetop left whole cubes of
+     * flame hanging between the leaves.
+     */
+    private static final Map<Direction, BooleanProperty> ATTACHED = Map.of(
+            Direction.NORTH, BlockStateProperties.NORTH,
+            Direction.EAST, BlockStateProperties.EAST,
+            Direction.SOUTH, BlockStateProperties.SOUTH,
+            Direction.WEST, BlockStateProperties.WEST,
+            Direction.UP, BlockStateProperties.UP);
 
     /**
      * Per tick, standing in it. Fire does 1 and soul fire 2; this does 3,
@@ -56,7 +84,11 @@ public class DragonFireBlock extends BaseFireBlock {
 
     public DragonFireBlock(Properties properties) {
         super(properties, FIRE_DAMAGE);
-        registerDefaultState(getStateDefinition().any().setValue(AGE, 0));
+        BlockState state = getStateDefinition().any().setValue(AGE, 0);
+        for (BooleanProperty attached : ATTACHED.values()) {
+            state = state.setValue(attached, false);
+        }
+        registerDefaultState(state);
     }
 
     @Override
@@ -67,6 +99,7 @@ public class DragonFireBlock extends BaseFireBlock {
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<net.minecraft.world.level.block.Block, BlockState> builder) {
         builder.add(AGE);
+        ATTACHED.values().forEach(builder::add);
     }
 
     /**
@@ -79,7 +112,29 @@ public class DragonFireBlock extends BaseFireBlock {
      */
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return defaultBlockState();
+        return shaped(context.getLevel(), context.getClickedPos());
+    }
+
+    /**
+     * The flame this spot should hold: a bonfire if it has a floor, panels on
+     * the burning faces if it does not.
+     *
+     * Vanilla's rule, and it is the block below that decides — not whether
+     * anything nearby burns. Fire beside a tree but on solid ground is still a
+     * bonfire; only fire with nothing under it goes flat.
+     */
+    public BlockState shaped(BlockGetter level, BlockPos pos) {
+        BlockPos below = pos.below();
+        BlockState under = level.getBlockState(below);
+        if (flammable(under) || under.isFaceSturdy(level, below, Direction.UP)) {
+            return defaultBlockState();
+        }
+        BlockState state = defaultBlockState();
+        for (Map.Entry<Direction, BooleanProperty> face : ATTACHED.entrySet()) {
+            state = state.setValue(face.getValue(),
+                    flammable(level.getBlockState(pos.relative(face.getKey()))));
+        }
+        return state;
     }
 
     /**
@@ -129,7 +184,13 @@ public class DragonFireBlock extends BaseFireBlock {
     @Override
     protected BlockState updateShape(BlockState state, Direction direction, BlockState neighbour,
                                      LevelAccessor level, BlockPos pos, BlockPos neighbourPos) {
-        return canSurvive(state, level, pos) ? state : Blocks.AIR.defaultBlockState();
+        if (!canSurvive(state, level, pos)) {
+            return Blocks.AIR.defaultBlockState();
+        }
+        // The shape is recomputed here too: a flame that was standing on a log
+        // is clinging to leaves the moment the log burns away, and the clock it
+        // has already run down carries over.
+        return shaped(level, pos).setValue(AGE, state.getValue(AGE));
     }
 
     /**
@@ -221,14 +282,13 @@ public class DragonFireBlock extends BaseFireBlock {
      * fact; not creating it in the first place is tidier.
      */
     private void consume(ServerLevel level, BlockPos at) {
-        BlockState flame = defaultBlockState();
-        level.setBlockAndUpdate(at, flame.canSurvive(level, at) ? flame : Blocks.AIR.defaultBlockState());
+        boolean holds = defaultBlockState().canSurvive(level, at);
+        level.setBlockAndUpdate(at, holds ? shaped(level, at) : Blocks.AIR.defaultBlockState());
     }
 
     private void spread(ServerLevel level, BlockPos at) {
-        BlockState flame = defaultBlockState();
-        if (level.getBlockState(at).canBeReplaced() && flame.canSurvive(level, at)) {
-            level.setBlockAndUpdate(at, flame);
+        if (level.getBlockState(at).canBeReplaced() && defaultBlockState().canSurvive(level, at)) {
+            level.setBlockAndUpdate(at, shaped(level, at));
         }
     }
 

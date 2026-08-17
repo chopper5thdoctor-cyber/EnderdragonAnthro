@@ -133,7 +133,10 @@ public final class DragonFire {
                 ModBlocks.DRAGON_FIRE.defaultBlockState();
         for (BlockPos pos : new BlockPos[] {at, at.below()}) {
             if (level.getBlockState(pos).canBeReplaced() && flame.canSurvive(level, pos)) {
-                level.setBlockAndUpdate(pos, flame);
+                // shaped(), not the default: a flame with no floor lies flat
+                // against whatever is burning beside it rather than standing up
+                // in the middle of the air.
+                level.setBlockAndUpdate(pos, ModBlocks.DRAGON_FIRE.shaped(level, pos));
                 return;
             }
         }

@@ -15,7 +15,7 @@ import net.minecraft.world.level.material.PushReaction;
 import static com.enderdragonanthro.EnderdragonAnthro.id;
 
 public final class ModBlocks {
-    public static final Block DRAGON_FIRE = Registry.register(
+    public static final DragonFireBlock DRAGON_FIRE = Registry.register(
             BuiltInRegistries.BLOCK, id("dragon_fire"),
             new DragonFireBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_PURPLE)

@@ -75,6 +75,7 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                     EndermanHappyClient.clear();
                     DragonWings.clear();
                     DragonBurnClient.clear();
+                    CrystalBeamAim.clear();
                 });
 
         // Without this the block draws on the SOLID layer, where alpha is not
