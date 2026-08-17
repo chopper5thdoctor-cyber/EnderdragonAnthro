@@ -17,6 +17,8 @@ public enum AbilityAction {
     RETURN(100, "Home"),
     GLIDE(0, "Glide"),
     BOOST(20, "Boost (Hold)", true),
+    // five ticks between shots, so a held key reads as a stream
+    DRAGONFIRE(5, "Fire (Hold)", true),
     SUMMON(200, "Summon"),
     // opens a screen rather than firing anything, so no cooldown
     COMMAND(0, "Court");

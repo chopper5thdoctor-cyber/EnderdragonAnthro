@@ -89,6 +89,7 @@ public final class DragonAbilities {
             case RETURN -> HomingCrystals.returnHome(player);
             case GLIDE -> DragonFlight.start(player);
             case BOOST -> DragonFlight.boost(player);
+            case DRAGONFIRE -> DragonFire.breathe(player);
             case SUMMON -> DragonMinions.summon(player);
             case COMMAND -> DragonMinions.openCommandUi(player);
             case TRANSFORM -> {

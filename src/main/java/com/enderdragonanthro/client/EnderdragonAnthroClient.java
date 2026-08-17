@@ -56,6 +56,7 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         register("boost", GLFW.GLFW_KEY_H, AbilityAction.BOOST);
         register("summon", GLFW.GLFW_KEY_Z, AbilityAction.SUMMON);
         register("command", GLFW.GLFW_KEY_M, AbilityAction.COMMAND);
+        register("dragonfire", GLFW.GLFW_KEY_N, AbilityAction.DRAGONFIRE);
 
         // The court screen is server-driven: the command key asks for the
         // roster, and every later change is pushed to keep an open screen live.
@@ -74,6 +75,10 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
 
         ParticleFactoryRegistry.getInstance().register(
                 ModParticles.PURPLE_HEART, PurpleHeartParticle.Provider::new);
+        // Vanilla's flame behaviour, this mod's sprite: it drifts and fades
+        // exactly as a flame should, and none of that was worth rewriting.
+        ParticleFactoryRegistry.getInstance().register(
+                ModParticles.DRAGON_FLAME, net.minecraft.client.particle.FlameParticle.Provider::new);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             DragonHud.tick();

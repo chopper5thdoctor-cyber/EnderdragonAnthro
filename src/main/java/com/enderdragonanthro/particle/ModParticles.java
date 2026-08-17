@@ -17,6 +17,11 @@ public final class ModParticles {
             Registry.register(BuiltInRegistries.PARTICLE_TYPE, id("purple_heart"),
                     FabricParticleTypes.simple());
 
+    /** The stream out of the mouth. Violet core, magenta body, cold edge. */
+    public static final SimpleParticleType DRAGON_FLAME =
+            Registry.register(BuiltInRegistries.PARTICLE_TYPE, id("dragon_flame"),
+                    FabricParticleTypes.simple());
+
     private ModParticles() {
     }
 
