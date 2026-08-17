@@ -61,11 +61,23 @@ MIRROR_OVERRIDE = {
     "delt_left": True,
     "upper_arm_left": True,
     "forearm_left": True,
-    "fist_left": True,
     "delt_right": False,
     "upper_arm_right": False,
     "forearm_right": False,
-    "fist_right": False,
+
+    # The fists go the other way, and the rule above does not predict it -- the
+    # rule was reasoned from where a cube's u starts and never tested against
+    # anything, because the arm pieces are plain hide and a reversed u on plain
+    # hide is invisible. The fists are the first pieces of that limb carrying
+    # art with a direction to it, and in game each hand was wearing the other
+    # one's claw. Mirrored exactly once either way, so check_mirror_pairs was
+    # always going to pass; it is the wrong twin that carried the flag.
+    #
+    # This does mean a fist now runs its u opposite to the forearm above it.
+    # That is invisible on hide with no direction and glaring on a claw, which
+    # is the whole reason to let the eye settle it rather than the rule.
+    "fist_left": False,
+    "fist_right": True,
 
     # And the legs, which verify_model found the moment it was taught to look:
     # thigh and calf were unmirrored on both sides, foot was mirrored on both.

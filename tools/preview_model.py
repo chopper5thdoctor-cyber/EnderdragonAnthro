@@ -31,7 +31,8 @@ import sys
 
 from PIL import Image, ImageDraw
 sys.path.insert(0, "/home/user/EnderdragonAnthro/tools")
-from mottle_skin import _face_points
+from mottle_skin import _uv_offset, _rotate
+from bbmodel_to_java import wants_mirror
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -56,6 +57,46 @@ groups = {g["uuid"]: g for g in bb.get("groups", [])}
 els = {e["uuid"]: e for e in bb["elements"]}
 
 
+def face_points(e):
+    """Every texel of a cube's island, with the 3D point it sits on -- mirrored.
+
+    mottle_skin._face_points does the unmirrored mapping, which is all a
+    distance field needs. A preview needs more: a mirrored cube reads the
+    opposite side's rectangle and runs every face backwards along u, and a
+    preview blind to that shows both hands identical however wrong the flag is.
+    Which is exactly the bug it was asked to find.
+
+    wants_mirror rather than the raw mirror_uv, because MIRROR_OVERRIDE is what
+    the generator actually emits and the generator is what the game runs.
+    """
+    x0, y0, z0 = e["from"]
+    x1, y1, z1 = e["to"]
+    w, h, d = x1 - x0, y1 - y0, z1 - z0
+    u, v = _uv_offset(e)
+    org = e.get("origin") or [0, 0, 0]
+    deg = e.get("rotation") or [0, 0, 0]
+    faces = {
+        "up":    ((u + d, v), (w, d), lambda i, j: (x0 + i, y1, z0 + j)),
+        "down":  ((u + d + w, v), (w, d), lambda i, j: (x0 + i, y0, z0 + j)),
+        "east":  ((u, v + d), (d, h), lambda i, j: (x0, y1 - j, z0 + i)),
+        "north": ((u + d, v + d), (w, h), lambda i, j: (x0 + i, y1 - j, z0)),
+        "west":  ((u + d + w, v + d), (d, h), lambda i, j: (x1, y1 - j, z0 + i)),
+        "south": ((u + d + w + d, v + d), (w, h), lambda i, j: (x0 + i, y1 - j, z1)),
+    }
+    if wants_mirror(e):
+        # East and west trade rectangles, and every face runs backwards along u.
+        faces["east"], faces["west"] = ((faces["west"][0], faces["east"][1], faces["east"][2]),
+                                        (faces["east"][0], faces["west"][1], faces["west"][2]))
+        faces = {n: (o, s, (lambda f, sw: lambda i, j: f(sw - 1 - i, j))(fn, s[0]))
+                 for n, (o, s, fn) in faces.items()}
+    out = {}
+    for (ox, oy), (fw, fh), to3d in faces.values():
+        for j in range(int(round(fh))):
+            for i in range(int(round(fw))):
+                out[(int(ox) + i, int(oy) + j)] = _rotate(to3d(i + 0.5, j + 0.5), org, deg)
+    return out
+
+
 def rot(p, o, deg):
     x, y, z = (p[i] - o[i] for i in range(3))
     rx, ry, rz = (math.radians(a) for a in deg)
@@ -72,7 +113,7 @@ def walk(nodes, chain):
             e = els.get(n)
             if not e or not e.get("faces"):
                 continue
-            for (tx, ty), p in _face_points(e).items():
+            for (tx, ty), p in face_points(e).items():
                 if not (0 <= tx < tex.width and 0 <= ty < tex.height):
                     continue
                 c = tex.getpixel((tx, ty))
