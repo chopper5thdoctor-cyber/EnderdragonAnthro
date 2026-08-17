@@ -120,35 +120,23 @@ public final class DragonFire {
     /**
      * One block of it, if there is anywhere to put it.
      *
-     * Fire wants air to sit in and something under it to sit on. Both are
-     * checked at the spot itself and one below, so a patch laid across uneven
-     * ground follows the ground rather than stopping at the first step.
+     * Where fire will hold is the block's business, not the ability's. Asking
+     * it directly is not tidiness: this had its own idea of a valid spot,
+     * stricter than the block's, so the ability would decline to place flames
+     * the block would happily have kept — in a canopy, every time.
+     *
+     * The spot itself and one below, so a patch laid across uneven ground
+     * follows the ground rather than stopping at the first step.
      */
     private static void light(ServerLevel level, BlockPos at) {
+        net.minecraft.world.level.block.state.BlockState flame =
+                ModBlocks.DRAGON_FIRE.defaultBlockState();
         for (BlockPos pos : new BlockPos[] {at, at.below()}) {
-            if (level.getBlockState(pos).canBeReplaced() && anchored(level, pos)) {
-                level.setBlockAndUpdate(pos, ModBlocks.DRAGON_FIRE.defaultBlockState());
+            if (level.getBlockState(pos).canBeReplaced() && flame.canSurvive(level, pos)) {
+                level.setBlockAndUpdate(pos, flame);
                 return;
             }
         }
-    }
-
-    /**
-     * Whether there is anything here for fire to hold on to.
-     *
-     * Any solid face, not just the floor. Requiring a floor is why a tree
-     * refused to light: the air beside a trunk has air under it, so every
-     * candidate in the patch failed even with the trunk right there. Fire
-     * clings to walls.
-     */
-    private static boolean anchored(ServerLevel level, BlockPos pos) {
-        for (net.minecraft.core.Direction face : net.minecraft.core.Direction.values()) {
-            BlockPos side = pos.relative(face);
-            if (level.getBlockState(side).isSolidRender(level, side)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

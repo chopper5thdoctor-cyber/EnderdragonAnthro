@@ -230,18 +230,36 @@ public final class DragonFormManager {
                 SoundSource.PLAYERS, 1.4F, 0.5F);
     }
 
+    /**
+     * Permanent modifiers, not transient ones, and that word means "saved".
+     *
+     * AttributeInstance.save() writes only permanentModifiers; a transient one
+     * exists until the player file is written and then does not. That is the
+     * whole of the relog bug. Attributes are read back before Health is —
+     * LivingEntity.readAdditionalSaveData does them in that order — so a dragon
+     * who logged out at a hundred came back with a maximum of twenty, had its
+     * saved Health clamped down to twenty by setHealth, and only then got its
+     * modifiers put back on by JOIN. Ten hearts full, ninety empty, and a slow
+     * climb back. The resync packet was never the missing piece; the health had
+     * already been thrown away by the time anything on the client mattered.
+     *
+     * Health is carried across the swap because removing a max-health modifier
+     * and adding it back is a moment where the maximum is briefly twenty.
+     */
     private static void dress(ServerPlayer player) {
+        float health = player.getHealth();
         for (Mod mod : modifiers()) {
             AttributeInstance instance = player.getAttribute(mod.attribute());
             if (instance == null) {
                 continue;
             }
             instance.removeModifier(mod.id());
-            instance.addTransientModifier(new AttributeModifier(
+            instance.addPermanentModifier(new AttributeModifier(
                     mod.id(), mod.amount(), mod.operation()));
         }
         // Flight is elytra-style gliding (DragonFlight), not creative flight.
         player.onUpdateAbilities();
+        player.setHealth(Math.min(health, player.getMaxHealth()));
     }
 
     private static void undress(ServerPlayer player) {

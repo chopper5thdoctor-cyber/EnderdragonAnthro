@@ -82,9 +82,34 @@ public class DragonFireBlock extends BaseFireBlock {
         return defaultBlockState();
     }
 
+    /**
+     * Something to stand on, or something to eat.
+     *
+     * This is why flint and steel could light leaves and a dragon could not.
+     * Requiring a sturdy face sounds like the loose version of vanilla's rule
+     * and is in fact the strict one, because LeavesBlock overrides
+     * getBlockSupportShape to return nothing — leaves hold up no torch, no
+     * fire, nothing. Every flame breathed into a canopy failed its own
+     * survival check and popped in the same tick.
+     *
+     * Vanilla fire does not ask for support on the sides at all. It asks for a
+     * sturdy floor OR a neighbour that burns, and it is the second clause that
+     * puts fire in a tree: fire lives in leaves because leaves are fuel, not
+     * because they are solid.
+     */
     @Override
     public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
-        return anchored(level, pos);
+        return anchored(level, pos) || fuelled(level, pos);
+    }
+
+    /** Whether anything next to this spot will burn. */
+    private static boolean fuelled(LevelReader level, BlockPos pos) {
+        for (Direction face : Direction.values()) {
+            if (flammable(level.getBlockState(pos.relative(face)))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -110,19 +135,13 @@ public class DragonFireBlock extends BaseFireBlock {
     /**
      * Any solid face will hold it, not just a floor.
      *
-     * This is why the tree would not light. The ability was already willing to
-     * put fire against a trunk — but canSurvive still demanded a block
-     * underneath, so the moment the placement fired a neighbour update the fire
-     * failed its own survival check and popped, in the same tick, invisibly.
-     *
-     * Flint and steel worked because vanilla fire has that same floor rule and
-     * was being placed on the GROUND beside the tree, where there is a floor;
-     * it then spread upward on its own. Ours was being asked to start halfway
-     * up a trunk, which vanilla fire never is.
+     * Vanilla fire only accepts a floor, which is fine for something that is
+     * always struck onto the ground and climbs on its own. Dragonfire is
+     * breathed at whatever the dragon is looking at, so it has to be able to
+     * start halfway up a wall.
      *
      * Soul fire is pickier still — soul sand or soul soil only, which is what
-     * makes it a Nether feature rather than a fire. Dragonfire is breathed onto
-     * whatever happened to be there.
+     * makes it a Nether feature rather than a fire.
      */
     private static boolean anchored(LevelReader level, BlockPos pos) {
         for (Direction face : Direction.values()) {
