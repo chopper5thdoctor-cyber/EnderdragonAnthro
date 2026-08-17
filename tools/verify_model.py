@@ -290,7 +290,39 @@ def check_mirror_rotations(bb):
         print("\n".join(bad))
         sys.exit(1)
     print("PASS: every left/right pair is posed as its twin's mirror")
+    check_sheets()
     check_shade()
+
+
+def check_sheets():
+    """A rig has to open painted, and a layered texture will not.
+
+    Blockbench draws a texture from its layers when layers_enabled is set, and
+    treats source as a flattened preview it is free to ignore. dragon_form's
+    sheet carried that flag with a single layer holding no image data at all,
+    so the file opened with the model bare -- for however long, since it
+    predates every commit on this branch -- and re-embedding a repainted sheet
+    into source did nothing to fix it, which is how it was finally noticed.
+
+    Nothing here needs layers. If the flag is set, the fix is to clear it and
+    let source be the sheet, which is what the artist's own exports do.
+    """
+    import glob
+    bad = []
+    for path in sorted(glob.glob(os.path.join(HERE, "art/*.bbmodel"))):
+        for tex in json.load(open(path)).get("textures", []):
+            name = f"{os.path.basename(path)}:{tex.get('name')}"
+            if tex.get("layers_enabled") or tex.get("layers"):
+                bad.append(f"  {name} is layered — Blockbench will draw the "
+                           f"layers, not source")
+            elif not (tex.get("source") or "").startswith("data:"):
+                bad.append(f"  {name} has no embedded sheet, so it opens bare "
+                           f"anywhere but the machine it was painted on")
+    if bad:
+        print("FAIL: a rig will not open painted")
+        print("\n".join(bad))
+        sys.exit(1)
+    print("PASS: every rig carries its own sheet, unlayered")
 
 
 def check_shade():
