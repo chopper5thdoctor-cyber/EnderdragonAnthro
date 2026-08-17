@@ -2,6 +2,7 @@ package com.enderdragonanthro.mixin;
 
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.client.DragonBurnClient;
+import com.enderdragonanthro.client.DragonBurnMarker;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.Material;
