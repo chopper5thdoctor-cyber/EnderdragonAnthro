@@ -1,6 +1,7 @@
 package com.enderdragonanthro.ability;
 
 import com.enderdragonanthro.block.ModBlocks;
+import com.enderdragonanthro.network.DragonBurnPayload;
 import com.enderdragonanthro.particle.ModParticles;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.minecraft.server.level.ServerLevel;
@@ -85,6 +86,7 @@ public final class DragonFire {
                 continue;
             }
             entity.igniteForTicks(BURN_TICKS);
+            mark(level, entity, BURN_TICKS);
             entity.hurt(level.damageSources().onFire(), DAMAGE);
         }
 
@@ -106,5 +108,21 @@ public final class DragonFire {
         }
         level.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE,
                 SoundSource.PLAYERS, 0.7F, 0.6F);
+    }
+
+    /**
+     * Tell everyone watching that this burn is ours.
+     *
+     * To viewers rather than to the victim: the flames on a burning entity are
+     * drawn by whoever is looking at it, and the victim may well be a mob that
+     * is not looking at anything.
+     */
+    public static void mark(ServerLevel level, LivingEntity victim, int ticks) {
+        DragonBurnPayload payload = new DragonBurnPayload(victim.getId(), ticks);
+        for (ServerPlayer viewer : level.players()) {
+            if (viewer.distanceToSqr(victim) < 128.0 * 128.0) {
+                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(viewer, payload);
+            }
+        }
     }
 }

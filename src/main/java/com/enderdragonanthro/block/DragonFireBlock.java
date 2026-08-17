@@ -1,7 +1,12 @@
 package com.enderdragonanthro.block;
 
 import com.mojang.serialization.MapCodec;
+import com.enderdragonanthro.ability.DragonFire;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BaseFireBlock;
@@ -58,5 +63,21 @@ public class DragonFireBlock extends BaseFireBlock {
     @Override
     protected boolean canBurn(BlockState state) {
         return true;
+    }
+
+    /**
+     * Standing in it counts as being lit by it.
+     *
+     * BaseFireBlock already does the damage; this only says whose fire it was,
+     * so the flames and the screen go purple for as long as the burn lasts
+     * rather than only while your feet are in the block.
+     */
+    @Override
+    protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
+        super.entityInside(state, level, pos, entity);
+        if (level instanceof ServerLevel server && entity instanceof LivingEntity victim
+                && !entity.fireImmune()) {
+            DragonFire.mark(server, victim, victim.getRemainingFireTicks());
+        }
     }
 }

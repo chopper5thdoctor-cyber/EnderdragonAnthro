@@ -13,6 +13,7 @@ import com.enderdragonanthro.block.ModBlocks;
 import com.enderdragonanthro.item.ModItems;
 import com.enderdragonanthro.command.ShadeCommand;
 import com.enderdragonanthro.network.AbilityActionPayload;
+import com.enderdragonanthro.network.DragonBurnPayload;
 import com.enderdragonanthro.network.EndermanHappyPayload;
 import com.enderdragonanthro.network.HomingCrystalPayload;
 import com.enderdragonanthro.network.ShadeOrderPayload;
@@ -49,6 +50,7 @@ public class EnderdragonAnthro implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(ShadeStatePayload.TYPE, ShadeStatePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(HomingCrystalPayload.TYPE, HomingCrystalPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(EndermanHappyPayload.TYPE, EndermanHappyPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(DragonBurnPayload.TYPE, DragonBurnPayload.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(AbilityActionPayload.TYPE, (payload, context) -> {
             if (payload.action() == AbilityAction.TRANSFORM) {

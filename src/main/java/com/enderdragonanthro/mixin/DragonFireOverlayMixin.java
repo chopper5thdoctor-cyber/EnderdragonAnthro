@@ -19,12 +19,10 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * you are on fire, not what lit you — so standing in dragonfire filled the
  * screen with orange flames while purple ones burned at your feet.
  *
- * The test is the block you are standing in rather than a flag on the burn.
- * Nothing records which fire ignited an entity, and inventing a synced field to
- * carry it would be a lot of machinery for an overlay; standing in it covers
- * the case anyone will actually see, and walking out of dragonfire still
- * burning falls back to vanilla's, which is honest enough — you are on fire,
- * just no longer in ours.
+ * Which fire lit you is now said out loud, over DragonBurnPayload, so the
+ * screen stays purple for the whole burn rather than only while your feet are
+ * in the block. Standing in it is still checked as well, because a fire you
+ * walked into this tick is purple before the packet lands.
  */
 @Mixin(ScreenEffectRenderer.class)
 public abstract class DragonFireOverlayMixin {
@@ -37,7 +35,8 @@ public abstract class DragonFireOverlayMixin {
                                 + "Lnet/minecraft/client/renderer/texture/TextureAtlasSprite;"))
     private static TextureAtlasSprite enderdragonanthro$purpleOverlay(Material material) {
         Player player = Minecraft.getInstance().player;
-        if (player != null && enderdragonanthro$standingInIt(player)) {
+        if (player != null && (com.enderdragonanthro.client.DragonBurnClient.isBurning(player)
+                || enderdragonanthro$standingInIt(player))) {
             return DRAGON_FIRE.sprite();
         }
         return material.sprite();

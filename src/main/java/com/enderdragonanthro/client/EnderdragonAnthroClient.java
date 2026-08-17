@@ -66,11 +66,15 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                 (payload, context) -> HomingCrystalsClient.accept(payload));
         ClientPlayNetworking.registerGlobalReceiver(EndermanHappyPayload.TYPE,
                 (payload, context) -> EndermanHappyClient.accept(payload));
+        ClientPlayNetworking.registerGlobalReceiver(
+                com.enderdragonanthro.network.DragonBurnPayload.TYPE,
+                (payload, context) -> DragonBurnClient.accept(payload));
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT
                 .register((handler, client) -> {
                     HomingCrystalsClient.clear();
                     EndermanHappyClient.clear();
                     DragonWings.clear();
+                    DragonBurnClient.clear();
                 });
 
         ParticleFactoryRegistry.getInstance().register(
@@ -83,6 +87,7 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             DragonHud.tick();
             DragonWings.tick();
+            DragonBurnClient.tick();
             EndermanHappyClient.tick();
             clientTick++;
             if (client.player == null) {
