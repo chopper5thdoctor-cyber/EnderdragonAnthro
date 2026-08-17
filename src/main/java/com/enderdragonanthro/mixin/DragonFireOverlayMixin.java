@@ -28,8 +28,23 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  */
 @Mixin(ScreenEffectRenderer.class)
 public abstract class DragonFireOverlayMixin {
+    /**
+     * Its own sheet, not the block's.
+     *
+     * The two want different things from the same drawing. The block sits on
+     * the ground, so its flames have to start at the very bottom row of the
+     * frame or the fire visibly floats. The overlay is pressed against your
+     * face, where the bottom of the sprite is off the bottom of the screen
+     * anyway and what matters is how far up the view the flames climb.
+     *
+     * Sharing one sheet meant every pixel spent on one cost the other, which
+     * is how the block ended up hovering. This one is drawn two rows higher
+     * and referenced by nothing else; the block keeps the grounded pair. It is
+     * on the atlas because vanilla's blocks.json stitches the whole block
+     * texture directory of every namespace, so no model has to point at it.
+     */
     private static final Material DRAGON_FIRE = new Material(
-            InventoryMenu.BLOCK_ATLAS, EnderdragonAnthro.id("block/dragon_fire_1"));
+            InventoryMenu.BLOCK_ATLAS, EnderdragonAnthro.id("block/dragon_fire_overlay"));
 
     @Redirect(method = "renderFire",
               at = @At(value = "INVOKE",
