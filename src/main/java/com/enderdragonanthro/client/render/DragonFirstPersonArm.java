@@ -67,7 +67,7 @@ public final class DragonFirstPersonArm {
      * {@code side} multiplier, so both hands move out by the same amount rather
      * than both sliding the same way across the screen.
      */
-    private static final float SHOULDER_OUT = 1.6F;
+    private static final float SHOULDER_OUT = 2.4F;
 
     private static DragonFormModel model;
 
@@ -107,8 +107,8 @@ public final class DragonFirstPersonArm {
         // reaches the stack.
         // Pivot included, so the fit lands the arm on the volume vanilla's
         // occupies -- x -8..-4, y 0..12, mirrored for the left -- and BULK and
-        // SHOULDER_OUT then deliberately overshoot it. At 1.5 and 1.6 the right
-        // hand runs x -10.76..-4.44 against that -8..-4, which is the point:
+        // SHOULDER_OUT then deliberately overshoot it. At 1.5 and 2.4 the right
+        // hand runs x -11.56..-5.24 against that -8..-4, which is the point:
         // vanilla's box is where a human wrist goes.
         //
         // Note the PLUS on centreX. ARM_MIN_X/MAX_X are measured off the rig's
