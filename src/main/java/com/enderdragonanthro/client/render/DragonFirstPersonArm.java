@@ -79,18 +79,29 @@ public final class DragonFirstPersonArm {
         // reaches the stack.
         // Pivot included, so the arm ends up in exactly the volume vanilla's
         // occupies: x -8..-4, y 0..12, mirrored for the left.
+        //
+        // Note the PLUS on centreX. ARM_MIN_X/MAX_X are measured off the rig's
+        // left arm, whose cubes run +x; the right arm's are its mirror and run
+        // -x, so the arm actually being drawn has centre -centreX and the two
+        // negations cancel. Getting this wrong is invisible until the hand
+        // carries art with a direction to it.
         poseStack.translate(
-                side * (VANILLA_PIVOT_X + VANILLA_CENTRE_X - scale * centreX) / 16.0F,
+                side * (VANILLA_PIVOT_X + VANILLA_CENTRE_X + scale * centreX) / 16.0F,
                 (VANILLA_PIVOT_Y + VANILLA_SHOULDER_Y - scale * DragonFormModel.ARM_MIN_Y) / 16.0F,
                 -scale * centreZ / 16.0F);
         poseStack.scale(scale, scale, scale);
-        // The rig names its arms from the model's own facing, which is the
-        // mirror of the game's — so the part to clone for the player's right
-        // hand is the rig's LEFT arm, and vice versa.
-        boolean rigArm = !right;
-        model.renderArm(rigArm, poseStack,
+        // The rig names its arms as the game does — copyPose has always bound
+        // rig left_arm to vanilla leftArm, and the geometry agrees, since that
+        // group sits at x +20 where vanilla's leftArm pivot is +5. So the hand
+        // clones the arm of the SAME side, and the comment that used to sit
+        // here saying otherwise had first person wearing the other hand.
+        //
+        // It went unnoticed because the fists' mirror flag was on the wrong
+        // twin, which flipped the art back and made a left hand read as a
+        // right one. Fixing that flag is what finally showed this.
+        model.renderArm(right, poseStack,
                 buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)), light);
-        model.renderArm(rigArm, poseStack, buffers.getBuffer(RenderType.eyes(EYES)), light);
+        model.renderArm(right, poseStack, buffers.getBuffer(RenderType.eyes(EYES)), light);
         poseStack.popPose();
         return true;
     }

@@ -49,11 +49,17 @@ public class DragonFormModel {
      * The box of the arm the first-person hand clones, in that part's local
      * space, measured off the rig at conversion time.
      *
-     * That arm is the rig's left_arm. The rig names its arms from the model's
-     * own facing, which is the mirror of the game's, so the part called
-     * left_arm is the one that reads as the player's RIGHT hand -- and the
-     * right hand is what first person shows. Fitted from these numbers, so
-     * reshaping the arm in Blockbench moves the hand with it.
+     * Measured off left_arm, which is the player's LEFT arm and not, as this
+     * comment claimed for a long time, the right one. copyPose has always
+     * bound rig left_arm to vanilla leftArm, and the geometry agrees: the
+     * group sits at x +20 where vanilla's leftArm pivot is +5, the same side.
+     *
+     * Either arm would do, because they are exact mirrors -- the extent is a
+     * ruler, not a choice of hand. What matters is that whoever reads it
+     * negates x when fitting the other arm.
+     *
+     * Fitted from these numbers, so reshaping the arm in Blockbench moves the
+     * first-person hand with it.
      */
     public static final float ARM_MIN_X = 0.500F;
     public static final float ARM_MAX_X = 17.000F;
