@@ -150,11 +150,6 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
             });
         });
 
-        // After the entities, so it sits under everything the world already
-        // drew rather than over it.
-        net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.AFTER_ENTITIES
-                .register(DragonShadow::render);
-
         HudRenderCallback.EVENT.register((graphics, tickDelta) -> DragonHud.render(graphics));
 
         EntityModelLayerRegistry.registerModelLayer(DragonFormModel.LAYER, DragonFormModel::createLayer);
