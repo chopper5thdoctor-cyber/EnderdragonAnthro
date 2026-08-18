@@ -21,6 +21,7 @@
     "DragonFireOverlayMixin",
     "DragonHeartsMixin",
     "DragonShadowMixin",
+    "EntityRenderDispatcherInvoker",
     "EndCrystalTextureMixin",
     "GameRendererBobMixin",
     "PlayerBodyHideMixin",
