@@ -81,6 +81,25 @@ public final class DragonFlight {
      */
     private static final double TUNNEL_MARGIN = 1.0;
 
+    /**
+     * How fast counts as flying into something rather than being near it.
+     *
+     * Vanilla's own number, not a chosen one. LivingEntity.travel bills a
+     * gliding player for hitting a wall as {@code (speedLost * 10 - 3)}, so a
+     * collision costs nothing at all until the speed it took off you passes
+     * 0.3 a tick — and a wall you hit takes all of it. Below that, vanilla says
+     * you brushed the wall; above it, vanilla says you flew into it.
+     *
+     * Borrowing the threshold rather than picking one means the rule is exactly
+     * "if it would have hurt, the wall loses instead", which cannot drift out
+     * of step with the damage it stands in for.
+     *
+     * Horizontal, as vanilla measures it. A dive straight down at speed is fall
+     * damage rather than wall damage and is not covered here; in practice a
+     * dive steep enough to matter still carries the horizontal speed to pass.
+     */
+    private static final double TUNNEL_SPEED = 3.0 / 10.0;
+
     /** Landing or leaving dragon form ends the glide; walls get their answer. */
     public static void tick(MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
@@ -118,6 +137,9 @@ public final class DragonFlight {
      */
     private static void tunnel(MinecraftServer server, ServerPlayer player) {
         if (!DragonAbilities.craterArmed(player)) {
+            return;
+        }
+        if (player.getDeltaMovement().horizontalDistance() < TUNNEL_SPEED) {
             return;
         }
         ServerLevel level = player.serverLevel();
