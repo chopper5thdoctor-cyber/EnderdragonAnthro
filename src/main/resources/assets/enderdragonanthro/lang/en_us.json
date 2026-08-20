@@ -5,8 +5,7 @@
   "key.enderdragonanthro.fireball": "Dragon Fireball",
   "key.enderdragonanthro.buffet": "Wing Buffet",
   "key.enderdragonanthro.charge": "Dragon Charge",
-  "key.enderdragonanthro.crater": "Crater Punch (toggle)",
-  "key.enderdragonanthro.boost": "Wing Boost (Hold)",
+  "key.enderdragonanthro.crater": "Explosive Intent (toggle)",
   "key.enderdragonanthro.summon": "Summon a Shade",
   "key.enderdragonanthro.command": "The Court (orders screen)",
   "message.enderdragonanthro.cooldown": "Recharging (%s s)",
@@ -15,5 +14,6 @@
   "key.enderdragonanthro.home": "Return to Anchor",
   "item.enderdragonanthro.homing_crystal": "Homing Crystal",
   "key.enderdragonanthro.dragonfire": "Dragonfire",
-  "block.enderdragonanthro.dragon_fire": "Dragonfire"
+  "block.enderdragonanthro.dragon_fire": "Dragonfire",
+  "key.enderdragonanthro.sight": "Dragon Sight (toggle)"
 }

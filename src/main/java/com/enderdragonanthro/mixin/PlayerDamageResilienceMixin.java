@@ -19,6 +19,25 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(Player.class)
 public abstract class PlayerDamageResilienceMixin {
+    /**
+     * A dragon does not bruise on scenery.
+     *
+     * Vanilla's elytra branch charges you for hitting a wall: LivingEntity
+     * .travel reads horizontalCollision and bills flyIntoWall by the speed you
+     * lost. That is a rule for a human strapped to a pair of wings, and it made
+     * flying fast into anything a self-inflicted wound. What happens instead is
+     * DragonFlight's business — with Explosive Intent armed, the wall loses.
+     */
+    @Inject(method = "actuallyHurt", at = @At("HEAD"), cancellable = true)
+    private void enderdragonanthro$shrugOffWalls(DamageSource source, float amount,
+                                                 CallbackInfo ci) {
+        Player self = (Player) (Object) this;
+        if (source.is(net.minecraft.world.damagesource.DamageTypes.FLY_INTO_WALL)
+                && DragonFormManager.isDragon(self)) {
+            ci.cancel();
+        }
+    }
+
     @ModifyVariable(method = "actuallyHurt", at = @At("HEAD"), argsOnly = true)
     private float enderdragonanthro$bodyResilience(float amount, DamageSource source) {
         Player self = (Player) (Object) this;

@@ -2,6 +2,7 @@ package com.enderdragonanthro.block;
 
 import com.mojang.serialization.MapCodec;
 import com.enderdragonanthro.ability.DragonFire;
+import com.enderdragonanthro.particle.ModParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
@@ -217,6 +218,29 @@ public class DragonFireBlock extends BaseFireBlock {
     @Override
     protected boolean canBurn(BlockState state) {
         return true;
+    }
+
+    /**
+     * Its own smoke, not vanilla's.
+     *
+     * BaseFireBlock.animateTick throws ParticleTypes.SMOKE, which is grey, and
+     * grey smoke off a purple flame reads as somebody else's fire burning
+     * behind ours. The crackle is kept — that sound is fire, not orange fire.
+     */
+    @Override
+    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
+        if (random.nextInt(24) == 0) {
+            level.playLocalSound(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                    net.minecraft.sounds.SoundEvents.FIRE_AMBIENT,
+                    net.minecraft.sounds.SoundSource.BLOCKS,
+                    1.0F + random.nextFloat(), random.nextFloat() * 0.7F + 0.3F, false);
+        }
+        for (int i = 0; i < 3; i++) {
+            double x = pos.getX() + random.nextDouble();
+            double y = pos.getY() + random.nextDouble() * 0.5 + 0.5;
+            double z = pos.getZ() + random.nextDouble();
+            level.addParticle(ModParticles.DRAGON_SMOKE, x, y, z, 0.0, 0.0, 0.0);
+        }
     }
 
     @Override

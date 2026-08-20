@@ -65,7 +65,17 @@ public final class DragonFlight {
                 SoundEvents.ENDER_DRAGON_FLAP, SoundSource.PLAYERS, 1.5F, 1.0F);
     }
 
-    /** Landing or leaving dragon form ends the glide. */
+    /**
+     * How fast you have to be going before the wall is the one that gives.
+     *
+     * Blocks per tick. Below this you are manoeuvring, and clipping a corner
+     * while lining up a landing should not open a hole in it.
+     */
+    private static final double TUNNEL_SPEED = 0.45;
+    /** Ticks between bores, so a held collision does not crater every tick. */
+    private static final int TUNNEL_PERIOD = 2;
+
+    /** Landing or leaving dragon form ends the glide; walls get their answer. */
     public static void tick(MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (!GLIDING.contains(player.getUUID())) {
@@ -74,7 +84,39 @@ public final class DragonFlight {
             if (player.onGround() || player.isPassenger() || !DragonFormManager.isDragon(player)) {
                 GLIDING.remove(player.getUUID());
                 player.stopFallFlying();
+                continue;
             }
+            tunnel(server, player);
         }
+    }
+
+    /**
+     * Fly into a mountain and come out the other side.
+     *
+     * The damage for hitting a wall is already gone — a dragon does not bruise
+     * on scenery — so without this you simply stop, which is its own kind of
+     * wrong. With Explosive Intent armed the wall goes instead, using the same
+     * crater the punch throws: a sphere, obsidian and end stone excepted, and
+     * everything dropped rather than vaporised.
+     *
+     * Bored a little ahead of the eyes rather than at them, or the first bore
+     * would open inside your own head and the next tick would find the hole
+     * already there and stop.
+     */
+    private static void tunnel(MinecraftServer server, ServerPlayer player) {
+        if (!player.horizontalCollision || !DragonAbilities.craterArmed(player)) {
+            return;
+        }
+        if (server.getTickCount() % TUNNEL_PERIOD != 0) {
+            return;
+        }
+        Vec3 delta = player.getDeltaMovement();
+        // Horizontal speed only: dropping onto a roof at terminal velocity is
+        // not flying into it.
+        if (Math.sqrt(delta.x * delta.x + delta.z * delta.z) < TUNNEL_SPEED) {
+            return;
+        }
+        Vec3 ahead = player.getEyePosition().add(player.getLookAngle().normalize().scale(2.5));
+        DragonAbilities.crater(player, net.minecraft.core.BlockPos.containing(ahead));
     }
 }

@@ -22,6 +22,14 @@ public final class ModParticles {
             Registry.register(BuiltInRegistries.PARTICLE_TYPE, id("dragon_flame"),
                     FabricParticleTypes.simple());
 
+    /**
+     * What dragonfire leaves behind. Vanilla's smoke is grey, which reads as
+     * somebody else's fire the moment it drifts off a purple flame.
+     */
+    public static final SimpleParticleType DRAGON_SMOKE =
+            Registry.register(BuiltInRegistries.PARTICLE_TYPE, id("dragon_smoke"),
+                    FabricParticleTypes.simple());
+
     private ModParticles() {
     }
 

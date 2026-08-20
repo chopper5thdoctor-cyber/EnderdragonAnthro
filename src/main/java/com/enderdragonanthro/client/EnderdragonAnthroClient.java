@@ -53,7 +53,7 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         register("evade", GLFW.GLFW_KEY_X, AbilityAction.EVADE);
         register("warp", GLFW.GLFW_KEY_K, AbilityAction.WARP);
         register("home", GLFW.GLFW_KEY_J, AbilityAction.RETURN);
-        register("boost", GLFW.GLFW_KEY_H, AbilityAction.BOOST);
+        register("sight", GLFW.GLFW_KEY_H, AbilityAction.SIGHT);
         register("summon", GLFW.GLFW_KEY_Z, AbilityAction.SUMMON);
         register("command", GLFW.GLFW_KEY_M, AbilityAction.COMMAND);
         register("dragonfire", GLFW.GLFW_KEY_N, AbilityAction.DRAGONFIRE);
@@ -69,6 +69,9 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(
                 com.enderdragonanthro.network.DragonBurnPayload.TYPE,
                 (payload, context) -> DragonBurnClient.accept(payload));
+        ClientPlayNetworking.registerGlobalReceiver(
+                com.enderdragonanthro.network.DragonSightPayload.TYPE,
+                (payload, context) -> DragonSightClient.accept(payload));
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT
                 .register((handler, client) -> {
                     HomingCrystalsClient.clear();
@@ -76,6 +79,7 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                     DragonWings.clear();
                     DragonBurnClient.clear();
                     CrystalBeamAim.clear();
+                    DragonSightClient.clear();
                 });
 
         // Without this the block draws on the SOLID layer, where alpha is not
@@ -91,6 +95,10 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         // exactly as a flame should, and none of that was worth rewriting.
         ParticleFactoryRegistry.getInstance().register(
                 ModParticles.DRAGON_FLAME, net.minecraft.client.particle.FlameParticle.Provider::new);
+        // Vanilla's smoke behaviour on our eight frames: it rises, spreads and
+        // tears exactly as smoke should, and none of that was worth rewriting.
+        ParticleFactoryRegistry.getInstance().register(
+                ModParticles.DRAGON_SMOKE, net.minecraft.client.particle.SmokeParticle.Provider::new);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             DragonHud.tick();
@@ -150,15 +158,14 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                         : clicked || (rawDown && !wasDown);
                 if (fire && inGame) {
                     DragonHud.notePress(action);
-                    if (action == AbilityAction.BOOST && client.player != null) {
-                        DragonWings.beat(client.player);
-                    }
                     ClientPlayNetworking.send(new AbilityActionPayload(action));
                 }
             });
         });
 
         HudRenderCallback.EVENT.register((graphics, tickDelta) -> DragonHud.render(graphics));
+        net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.AFTER_ENTITIES
+                .register(com.enderdragonanthro.client.render.DragonSightRender::world);
 
         EntityModelLayerRegistry.registerModelLayer(DragonFormModel.LAYER, DragonFormModel::createLayer);
         EntityModelLayerRegistry.registerModelLayer(EndermanHappyLayer.LAYER,

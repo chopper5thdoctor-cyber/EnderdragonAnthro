@@ -88,7 +88,7 @@ public final class DragonAbilities {
             case WARP -> warpToPlayer(player);
             case RETURN -> HomingCrystals.returnHome(player);
             case GLIDE -> DragonFlight.start(player);
-            case BOOST -> DragonFlight.boost(player);
+            case SIGHT -> DragonSight.toggle(player);
             case DRAGONFIRE -> DragonFire.breathe(player);
             case SUMMON -> DragonMinions.summon(player);
             case COMMAND -> DragonMinions.openCommandUi(player);

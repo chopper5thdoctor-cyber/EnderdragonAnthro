@@ -51,6 +51,9 @@ public class EnderdragonAnthro implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(HomingCrystalPayload.TYPE, HomingCrystalPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(EndermanHappyPayload.TYPE, EndermanHappyPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DragonBurnPayload.TYPE, DragonBurnPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                com.enderdragonanthro.network.DragonSightPayload.TYPE,
+                com.enderdragonanthro.network.DragonSightPayload.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(AbilityActionPayload.TYPE, (payload, context) -> {
             if (payload.action() == AbilityAction.TRANSFORM) {
@@ -82,6 +85,7 @@ public class EnderdragonAnthro implements ModInitializer {
             DragonFormManager.tick(server);
             DragonAbilities.tick(server);
             DragonFlight.tick(server);
+            com.enderdragonanthro.ability.DragonSight.tick(server);
             DragonMinions.tick(server);
             CrystalHealing.tick(server);
             HomingCrystals.tick(server);

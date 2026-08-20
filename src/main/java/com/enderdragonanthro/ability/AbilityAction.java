@@ -10,13 +10,16 @@ public enum AbilityAction {
     FIREBALL(60, "Fireball"),
     BUFFET(100, "Buffet"),
     CHARGE(80, "Charge"),
-    CRATER(0, "Crater"),
+    CRATER(0, "Explosive Intent"),
     // evasive jump is the escape button, so it is the expensive one
     EVADE(1200, "Evade"),
     WARP(200, "Warp"),
     RETURN(100, "Home"),
     GLIDE(0, "Glide"),
-    BOOST(20, "Boost (Hold)", true),
+    // Boost lost its key: tapping space already sends GLIDE, and GLIDE
+    // carries a boost, so the key was doing what space did. DragonFlight.boost
+    // is still called -- from there -- it just is not an action any more.
+    SIGHT(0, "Sight"),
     // five ticks between shots, so a held key reads as a stream
     DRAGONFIRE(5, "Fire (Hold)", true),
     SUMMON(200, "Summon"),
@@ -29,7 +32,7 @@ public enum AbilityAction {
     /**
      * Whether holding the key keeps firing it, once per cooldown.
      *
-     * Only Boost, and its label has said so all along. Everything else is
+     * Only Dragonfire, and its label says so. Everything else is
      * edge-triggered: holding Fireball down should not empty the sky.
      */
     public final boolean holdable;

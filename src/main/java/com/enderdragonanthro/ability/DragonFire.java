@@ -74,6 +74,13 @@ public final class DragonFire {
             double spread = 0.06 * d;
             level.sendParticles(ModParticles.DRAGON_FLAME, at.x, at.y, at.z,
                     8, spread, spread, spread, 0.01);
+            // Smoke trails the flame rather than riding with it: thinner, and
+            // only past the first few blocks, so the mouth stays bright and the
+            // far end of the stream is what fouls the air.
+            if (d > 4.0) {
+                level.sendParticles(ModParticles.DRAGON_SMOKE, at.x, at.y, at.z,
+                        2, spread, spread, spread, 0.01);
+            }
         }
 
         Vec3 far = mouth.add(look.scale(REACH));
