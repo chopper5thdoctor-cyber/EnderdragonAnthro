@@ -80,6 +80,18 @@ public final class HomingCrystals {
         level.addFreshEntity(crystal);
         ANCHORS.put(owner.getUUID(), new Anchor(crystal.getUUID(), pos.immutable(), null));
 
+        // Say which crystals are anchors NOW, not on the next sweep. The sweep
+        // runs once a second, so an anchor spent up to a second being drawn as
+        // an ordinary end crystal before the client learned better -- the
+        // quarter-second flash of magenta on placing one.
+        //
+        // Sending it here beats the spawn packet outright: entity tracking
+        // sends that at the end of the tick, and this payload is queued during
+        // it. The client stores ids, not entities, so learning about a crystal
+        // it has not been told about yet is fine -- the id is already marked by
+        // the time there is anything to draw.
+        broadcast(level.getServer());
+
         level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_SET_SPAWN,
                 SoundSource.PLAYERS, 1.0F, 1.4F);
         owner.displayClientMessage(Component.literal("Anchor set.")
