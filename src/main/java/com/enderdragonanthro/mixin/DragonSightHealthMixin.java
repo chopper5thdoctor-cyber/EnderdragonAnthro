@@ -8,7 +8,9 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityAttachment;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -36,10 +38,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class DragonSightHealthMixin {
     /** How far off a mob is still worth reading. */
     private static final double RANGE = 48.0;
-    /** Bigger than a name tag's 0.025, because it is read across a field. */
-    private static final float SCALE = 0.055F;
-    /** Clear of the name tag, which sits at height + 0.5. */
-    private static final float HEADROOM = 1.1F;
+    /** Nearly three times a name tag's 0.025, because it is read at a glance. */
+    private static final float SCALE = 0.07F;
+    /** Clear of the name tag, which sits at the attachment point + 0.5. */
+    private static final float HEADROOM = 0.6F;
 
     @Inject(method = "render", at = @At("TAIL"))
     private void enderdragonanthro$health(Entity entity, float entityYaw, float partialTick,
@@ -64,14 +66,33 @@ public abstract class DragonSightHealthMixin {
                 | (Math.round((1.0F - share) * 255) << 16)
                 | (Math.round(share * 255) << 8);
 
+        // Vanilla's own name-tag recipe, followed exactly rather than from
+        // memory. Two things in it were wrong here before: the scale is
+        // (s, -s, s), positive on X -- writing -s there mirrors every glyph --
+        // and the height comes from the NAME_TAG attachment rather than from
+        // the bounding box, which is what puts it over the head of things
+        // whose model does not fill their hitbox.
+        Vec3 attach = entity.getAttachments().getNullable(
+                EntityAttachment.NAME_TAG, 0, entity.getViewYRot(partialTick));
+        if (attach == null) {
+            return;
+        }
         Font font = client.font;
         poseStack.pushPose();
-        poseStack.translate(0.0F, living.getBbHeight() + HEADROOM, 0.0F);
+        poseStack.translate(attach.x, attach.y + 0.5 + HEADROOM, attach.z);
         poseStack.mulPose(client.getEntityRenderDispatcher().cameraOrientation());
-        poseStack.scale(-SCALE, -SCALE, SCALE);
+        poseStack.scale(SCALE, -SCALE, SCALE);
         Matrix4f pose = poseStack.last().pose();
-        font.drawInBatch(text, -font.width(text) / 2.0F, 0.0F, colour, false, pose,
-                buffers, Font.DisplayMode.SEE_THROUGH, 0, LightTexture.FULL_BRIGHT);
+        float x = -font.width(text) / 2.0F;
+        int backdrop = (int) (client.options.getBackgroundOpacity(0.25F) * 255.0F) << 24;
+        // Through walls at full strength, since seeing through them is the
+        // whole ability -- vanilla dims this pass to 0x20FFFFFF because a name
+        // tag is meant to be shy about it. Then again in front, so it stays
+        // crisp on whatever is actually in view.
+        font.drawInBatch(text, x, 0.0F, colour, false, pose, buffers,
+                Font.DisplayMode.SEE_THROUGH, backdrop, LightTexture.FULL_BRIGHT);
+        font.drawInBatch(text, x, 0.0F, colour, false, pose, buffers,
+                Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
         poseStack.popPose();
     }
 }
