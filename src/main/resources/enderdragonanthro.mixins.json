@@ -23,6 +23,7 @@
     "DragonHeartsMixin",
     "DragonShadowMixin",
     "DragonSightHealthMixin",
+    "DragonSightNameMixin",
     "DragonSightTintMixin",
     "EndCrystalTextureMixin",
     "GameRendererBobMixin",
