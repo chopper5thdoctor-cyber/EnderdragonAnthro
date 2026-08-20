@@ -231,19 +231,45 @@ public final class DragonFlight {
         AABB swept = player.getBoundingBox()
                 .inflate(TUNNEL_MARGIN + speed * WIDEN)
                 .expandTowards(delta.scale(LOOKAHEAD));
-        Vec3 centre = swept.getCenter();
-        double rx = swept.getXsize() / 2.0 + ROUNDING;
-        double ry = swept.getYsize() / 2.0 + ROUNDING;
-        double rz = swept.getZsize() / 2.0 + ROUNDING;
-        AABB box = swept.inflate(ROUNDING);
+        // A capsule along the path, NOT one ellipsoid over the swept box.
+        //
+        // That was the mistake, and it made collisions worse rather than
+        // better. Sweeping moves the box's far face forward, so its centre
+        // ends up half the sweep ahead of you -- and an ellipsoid centred
+        // there tapers to a point at its back end, which is exactly where your
+        // body is. At speed the bore was pinched to nothing around the player
+        // and only opened up several blocks ahead.
+        //
+        // A radius carried along the segment you are about to travel has no
+        // back end to be caught in. Full width at your own position, full
+        // width the whole way forward, and round instead of square.
+        Vec3 from = player.getBoundingBox().getCenter();
+        Vec3 to = from.add(delta.scale(LOOKAHEAD));
+        AABB body = player.getBoundingBox();
+        double rx = body.getXsize() / 2.0 + TUNNEL_MARGIN + speed * WIDEN + ROUNDING;
+        double ry = body.getYsize() / 2.0 + TUNNEL_MARGIN + speed * WIDEN + ROUNDING;
+        double rz = body.getZsize() / 2.0 + TUNNEL_MARGIN + speed * WIDEN + ROUNDING;
+        AABB box = new AABB(from, to).inflate(Math.max(rx, Math.max(ry, rz)));
         for (BlockPos pos : BlockPos.betweenClosed(
                 BlockPos.containing(box.minX, box.minY, box.minZ),
                 BlockPos.containing(box.maxX, box.maxY, box.maxZ))) {
-            double ex = (pos.getX() + 0.5 - centre.x) / rx;
-            double ey = (pos.getY() + 0.5 - centre.y) / ry;
-            double ez = (pos.getZ() + 0.5 - centre.z) / rz;
-            if (ex * ex + ey * ey + ez * ez > 1.0) {
-                continue;                                  // outside the sphere
+            // Distance to the path, measured in units of the radius on each
+            // axis, so the round cross-section is as tall as the dragon and as
+            // wide as its wings rather than a compromise between them.
+            double px = (pos.getX() + 0.5 - from.x) / rx;
+            double py = (pos.getY() + 0.5 - from.y) / ry;
+            double pz = (pos.getZ() + 0.5 - from.z) / rz;
+            double ax = (to.x - from.x) / rx;
+            double ay = (to.y - from.y) / ry;
+            double az = (to.z - from.z) / rz;
+            double len = ax * ax + ay * ay + az * az;
+            double t = len <= 1.0e-6 ? 0.0
+                    : Math.max(0.0, Math.min(1.0, (px * ax + py * ay + pz * az) / len));
+            double dx = px - ax * t;
+            double dy = py - ay * t;
+            double dz = pz - az * t;
+            if (dx * dx + dy * dy + dz * dz > 1.0) {
+                continue;                                  // outside the capsule
             }
             BlockState state = level.getBlockState(pos);
             if (state.isAir() || state.is(BlockTags.DRAGON_TRANSPARENT)

@@ -33,8 +33,15 @@ public abstract class PlayerDamageResilienceMixin {
     private void enderdragonanthro$shrugOffWalls(DamageSource source, float amount,
                                                  CallbackInfoReturnable<Boolean> cir) {
         Player self = (Player) (Object) this;
-        if (source.is(net.minecraft.world.damagesource.DamageTypes.FLY_INTO_WALL)
-                && DragonFormManager.isDragon(self)) {
+        boolean scenery = source.is(net.minecraft.world.damagesource.DamageTypes.FLY_INTO_WALL)
+                // Being inside a block is the intended state of something
+                // tunnelling, and the bore cannot always finish before the
+                // move: turn hard enough at ninety blocks a second and you
+                // arrive somewhere the sweep did not predict. Suffocating for
+                // it turns a near miss into a death.
+                || (source.is(net.minecraft.world.damagesource.DamageTypes.IN_WALL)
+                        && self.isFallFlying());
+        if (scenery && DragonFormManager.isDragon(self)) {
             // hurt(), not actuallyHurt(). Cancelling the latter stops the
             // damage and nothing else: the red flash, the grunt and the camera
             // kick are all set up in hurt() before it ever gets that far, which
