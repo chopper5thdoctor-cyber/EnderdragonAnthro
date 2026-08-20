@@ -153,16 +153,16 @@ public final class DragonFlight {
     /** Extra width per block/tick of speed, so the hole outgrows the hitbox. */
     private static final double WIDEN = 0.5;
     /**
-     * How far the rounded bore reaches past the box it replaces.
+     * How far the rounded bore reaches past the body it carries.
      *
-     * A box bores square corners, which is not what anything flying leaves
-     * behind. The corridor is an ellipsoid now, sized off the same swept box
-     * and then given another block on every axis — so it reaches one further
-     * than the box did where it matters, along the direction of travel and
-     * straight out to the sides, and stops short of the corners nothing was
-     * ever going to touch.
+     * Three, not one. At one the round bore was smaller than the box it
+     * replaced exactly where that hurt: 80% of its volume at full speed, with
+     * the missing quarter all in the corners of the swept region — which is
+     * the space you move into when you turn. Slow flight never noticed,
+     * because with a short sweep the rounding dominates and the round shape is
+     * the bigger of the two; fast flight noticed immediately.
      */
-    private static final double ROUNDING = 1.0;
+    private static final double ROUNDING = 3.0;
 
     /** Landing or leaving dragon form ends the glide; walls get their answer. */
     public static void tick(MinecraftServer server) {

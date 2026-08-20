@@ -33,6 +33,22 @@ public abstract class LivingEntityGlideMixin {
                 && !player.hasEffect(MobEffects.LEVITATION);
         if (airborne) {
             player.startFallFlying();
+            // A glide is not a fall, and vanilla only half agrees: travel()
+            // resets fallDistance while you are climbing, and lets it run while
+            // you are descending. An elytra player gets away with that because
+            // they level out before landing. A dragon diving at ninety blocks a
+            // second does not -- it arrives with a hundred and forty blocks of
+            // fall banked, which is a fatal landing after the thirteen blocks
+            // of safe fall are taken off it. Ten hearts and change, exactly as
+            // reported, and nothing to do with walls or suffocation.
+            //
+            // Cleared here rather than caught at causeFallDamage, because this
+            // runs inside the entity's own tick, before travel and before the
+            // move that lands it. Nothing can arrive with a fall already
+            // banked, so no grace window is needed and the ordering cannot
+            // catch it out. Step off a cliff WITHOUT gliding and the fall is
+            // still a fall.
+            player.fallDistance = 0.0F;
         } else {
             player.stopFallFlying();
             DragonFlight.clear(player);
