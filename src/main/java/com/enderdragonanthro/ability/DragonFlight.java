@@ -148,6 +148,11 @@ public final class DragonFlight {
      */
     private static final double DIVE_SPEED = 2.45;
 
+    /** Ticks of travel cleared in front of you, so the move lands in air. */
+    private static final double LOOKAHEAD = 2.0;
+    /** Extra width per block/tick of speed, so the hole outgrows the hitbox. */
+    private static final double WIDEN = 0.5;
+
     /** Landing or leaving dragon form ends the glide; walls get their answer. */
     public static void tick(MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
@@ -197,7 +202,24 @@ public final class DragonFlight {
         if (!level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
             return;
         }
-        AABB box = player.getBoundingBox().inflate(TUNNEL_MARGIN);
+        // Cleared AHEAD of the move, and wider than the body.
+        //
+        // The real dragon never has this problem, and destruction is not why:
+        // EnderDragon sets noPhysics, so it does not collide with blocks at
+        // all. checkWalls is cleanup behind a thing that was already passing
+        // through. It also runs that check on its head and neck hitboxes,
+        // which lead the body by most of a neck, so what little it does clear
+        // is cleared before the body reaches it.
+        //
+        // A player collides for real, so the only way to get the same result
+        // is to be finished before the move happens. At 4.5 a tick a box that
+        // hugs the body is four blocks behind the problem -- which is exactly
+        // why spamming space stopped working, and why the margin is scaled by
+        // speed rather than fixed.
+        double speed = delta.length();
+        AABB box = player.getBoundingBox()
+                .inflate(TUNNEL_MARGIN + speed * WIDEN)
+                .expandTowards(delta.scale(LOOKAHEAD));
         for (BlockPos pos : BlockPos.betweenClosed(
                 BlockPos.containing(box.minX, box.minY, box.minZ),
                 BlockPos.containing(box.maxX, box.maxY, box.maxZ))) {

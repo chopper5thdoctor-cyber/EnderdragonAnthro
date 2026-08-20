@@ -30,8 +30,13 @@ public class DragonSightHealthLayer<T extends LivingEntity, M extends EntityMode
         extends RenderLayer<T, M> {
     /** How far off a mob is still worth reading. */
     private static final double RANGE = 48.0;
-    /** Text is drawn this many times model size, as nameplates are. */
-    private static final float SCALE = 0.025F;
+    /**
+     * Text size. Nameplates use 0.025; this is bigger deliberately, because it
+     * is read at a glance across a field rather than leant in to.
+     */
+    private static final float SCALE = 0.045F;
+    /** How far above the head it floats, clear of any name tag. */
+    private static final float HEADROOM = 0.9F;
 
     public DragonSightHealthLayer(RenderLayerParent<T, M> parent) {
         super(parent);
@@ -61,8 +66,20 @@ public class DragonSightHealthLayer<T extends LivingEntity, M extends EntityMode
 
         Font font = client.font;
         poseStack.pushPose();
-        // Above the head, and above the name tag if it has one.
-        poseStack.translate(0.0F, entity.getBbHeight() + 0.75F, 0.0F);
+        // A layer runs in MODEL space, which is not world space and is why this
+        // came out under the mob's feet. LivingEntityRenderer.render does
+        // scale(-1, -1, 1) and then translate(0, -1.501, 0) before any layer is
+        // called, so Y points DOWN and the origin already sits 1.501 above the
+        // feet. Translating up by the height walked down past the legs by very
+        // nearly twice it.
+        //
+        // Undone rather than compensated for: step to the label's height in the
+        // flipped frame, then flip back, and what is left is ordinary world
+        // space where the nameplate recipe means what it says.
+        poseStack.translate(0.0F, -(entity.getBbHeight() + HEADROOM - 1.501F), 0.0F);
+        poseStack.scale(-1.0F, -1.0F, 1.0F);
+        // The camera's own orientation, so it turns to face wherever you are
+        // looking from -- first person, third, or orbiting.
         poseStack.mulPose(client.getEntityRenderDispatcher().cameraOrientation());
         poseStack.scale(-SCALE, -SCALE, SCALE);
         Matrix4f pose = poseStack.last().pose();

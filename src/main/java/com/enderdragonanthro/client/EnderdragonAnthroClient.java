@@ -116,9 +116,20 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
             // double-tap jump -> start the glide (only while airborne)
             boolean jumpDown = client.options.keyJump.isDown();
             if (inGame && jumpDown && !jumpWasDown) {
-                if (clientTick - lastJumpTick <= DOUBLE_TAP_WINDOW
+                boolean dragon = DragonHud.isDragonForm(client.player);
+                if (dragon && client.player.isFallFlying()) {
+                    // Already flying: every tap is a beat, not every second
+                    // tap. Waiting for a pair meant a boost roughly every
+                    // thirteen ticks however fast you hit the key, which is
+                    // why spamming space did not hold speed. The double tap
+                    // is how a glide STARTS; it has no business also being
+                    // how a glide is sustained.
+                    DragonWings.beat(client.player);
+                    ClientPlayNetworking.send(new AbilityActionPayload(AbilityAction.GLIDE));
+                    lastJumpTick = -100;
+                } else if (clientTick - lastJumpTick <= DOUBLE_TAP_WINDOW
                         && !client.player.onGround()
-                        && DragonHud.isDragonForm(client.player)) {
+                        && dragon) {
                     // GLIDE carries a free boost, so tapping space is a boost
                     // in its own right and had every business flapping. The
                     // beat is the same one the Boost key starts, which is what

@@ -136,7 +136,8 @@ public final class DragonSight {
                 }
                 scan(chunk, gateways, end);
                 if (gateways.size() + end.size() >= MAX_MARKS) {
-                    send(player, gateways, end);
+                    stronghold(player, end);
+        send(player, gateways, end);
                     return;
                 }
             }
@@ -205,6 +206,47 @@ public final class DragonSight {
         return state.is(Blocks.NETHER_PORTAL) || state.is(Blocks.END_PORTAL)
                 || state.is(Blocks.END_PORTAL_FRAME) || state.is(Blocks.END_GATEWAY);
     }
+
+    /**
+     * The stronghold, from world generation rather than from loaded blocks.
+     *
+     * The block scan can only see chunks that exist, and a stronghold is
+     * typically a thousand blocks off and unloaded, so the sense had nothing to
+     * point at and drew nothing. This is the query an eye of ender runs:
+     * StructureTags.EYE_OF_ENDER_LOCATED against the chunk generator, which
+     * answers from the seed whether or not anything has been generated yet.
+     *
+     * Overworld only, and skipped when the sight is closed, because it is not
+     * cheap -- the generator may search a long way. Once found it is cached for
+     * the session, since a stronghold does not move.
+     */
+    private static void stronghold(ServerPlayer player, List<BlockPos> end) {
+        ServerLevel level = player.serverLevel();
+        if (level.dimension() != net.minecraft.world.level.Level.OVERWORLD) {
+            return;
+        }
+        BlockPos known = STRONGHOLDS.get(level.dimension().location());
+        if (known != null) {
+            end.add(known);
+            return;
+        }
+        com.mojang.datafixers.util.Pair<BlockPos,
+                net.minecraft.core.Holder<net.minecraft.world.level.levelgen.structure.Structure>>
+                hit = level.getChunkSource().getGenerator().findNearestMapStructure(
+                level, level.registryAccess()
+                        .registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+                        .getTag(net.minecraft.tags.StructureTags.EYE_OF_ENDER_LOCATED)
+                        .orElseThrow(),
+                player.blockPosition(), 100, false);
+        BlockPos found = hit == null ? null : hit.getFirst();
+        if (found != null) {
+            STRONGHOLDS.put(level.dimension().location(), found);
+            end.add(found);
+        }
+    }
+
+    private static final java.util.Map<net.minecraft.resources.ResourceLocation, BlockPos>
+            STRONGHOLDS = new java.util.HashMap<>();
 
     private static void send(ServerPlayer player, List<BlockPos> gateways, List<BlockPos> end) {
         ServerPlayNetworking.send(player, new DragonSightPayload(
