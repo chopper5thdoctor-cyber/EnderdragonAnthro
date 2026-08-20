@@ -94,11 +94,30 @@ public final class DragonFlight {
      * "if it would have hurt, the wall loses instead", which cannot drift out
      * of step with the damage it stands in for.
      *
-     * Horizontal, as vanilla measures it. A dive straight down at speed is fall
-     * damage rather than wall damage and is not covered here; in practice a
-     * dive steep enough to matter still carries the horizontal speed to pass.
+     * Horizontal, as vanilla measures it. Coming straight down is a different
+     * question with a different answer, which DIVE_SPEED below handles.
      */
     private static final double TUNNEL_SPEED = 3.0 / 10.0;
+
+    /**
+     * How fast down counts as a dive rather than a glide.
+     *
+     * You cannot outfly falling. Point straight down and the elytra's lift term
+     * is {@code g * (-1 + cos²(pitch) * 0.75)}, whose cosine is zero at ninety
+     * degrees — so a vertical dive is exactly free fall, 3.92 a tick, and no
+     * more. There is no speed at which flying down beats dropping.
+     *
+     * What there is instead is the angle. Sink rate at terminal, by pitch:
+     * level 0.98, thirty degrees 1.71, forty-five 2.45, sixty 3.18, straight
+     * down 3.92. A level glide is already falling at nearly one a tick, which
+     * is why "descending fast" cannot be the test — it would bore the ground
+     * out from under an ordinary approach.
+     *
+     * So the cut is the forty-five degree terminal. Steeper than that and you
+     * are diving; shallower and you are landing. It is a real number off the
+     * same curve rather than a chosen one, and it sits clear of both ends.
+     */
+    private static final double DIVE_SPEED = 2.45;
 
     /** Landing or leaving dragon form ends the glide; walls get their answer. */
     public static void tick(MinecraftServer server) {
@@ -139,7 +158,10 @@ public final class DragonFlight {
         if (!DragonAbilities.craterArmed(player)) {
             return;
         }
-        if (player.getDeltaMovement().horizontalDistance() < TUNNEL_SPEED) {
+        Vec3 delta = player.getDeltaMovement();
+        // Flying into it, or dropping onto it. Either counts; drifting past it
+        // on the way to a landing does not.
+        if (delta.horizontalDistance() < TUNNEL_SPEED && -delta.y < DIVE_SPEED) {
             return;
         }
         ServerLevel level = player.serverLevel();
