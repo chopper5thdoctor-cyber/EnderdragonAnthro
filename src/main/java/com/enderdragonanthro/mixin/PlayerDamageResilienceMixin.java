@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * The canon dragon takes (damage / 4) + 1 on every non-head hit. A player
@@ -28,13 +29,17 @@ public abstract class PlayerDamageResilienceMixin {
      * flying fast into anything a self-inflicted wound. What happens instead is
      * DragonFlight's business — with Explosive Intent armed, the wall loses.
      */
-    @Inject(method = "actuallyHurt", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
     private void enderdragonanthro$shrugOffWalls(DamageSource source, float amount,
-                                                 CallbackInfo ci) {
+                                                 CallbackInfoReturnable<Boolean> cir) {
         Player self = (Player) (Object) this;
         if (source.is(net.minecraft.world.damagesource.DamageTypes.FLY_INTO_WALL)
                 && DragonFormManager.isDragon(self)) {
-            ci.cancel();
+            // hurt(), not actuallyHurt(). Cancelling the latter stops the
+            // damage and nothing else: the red flash, the grunt and the camera
+            // kick are all set up in hurt() before it ever gets that far, which
+            // is why flying into a cliff still felt like flying into a cliff.
+            cir.setReturnValue(false);
         }
     }
 

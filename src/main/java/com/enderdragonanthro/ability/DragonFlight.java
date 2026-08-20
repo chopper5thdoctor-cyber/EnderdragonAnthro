@@ -1,10 +1,16 @@
 package com.enderdragonanthro.ability;
 
 import com.enderdragonanthro.transform.DragonFormManager;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.HashSet;
@@ -66,14 +72,14 @@ public final class DragonFlight {
     }
 
     /**
-     * How fast you have to be going before the wall is the one that gives.
+     * How far past your own body the tunnel is cut.
      *
-     * Blocks per tick. Below this you are manoeuvring, and clipping a corner
-     * while lining up a landing should not open a hole in it.
+     * The real dragon has no margin — it clears exactly its own bounding box.
+     * A little more here, because the box is the player's and the wings are
+     * drawn well outside it, so a bore that matched it exactly would fit the
+     * body through a hole the wings were still buried in.
      */
-    private static final double TUNNEL_SPEED = 0.45;
-    /** Ticks between bores, so a held collision does not crater every tick. */
-    private static final int TUNNEL_PERIOD = 2;
+    private static final double TUNNEL_MARGIN = 1.0;
 
     /** Landing or leaving dragon form ends the glide; walls get their answer. */
     public static void tick(MinecraftServer server) {
@@ -93,30 +99,41 @@ public final class DragonFlight {
     /**
      * Fly into a mountain and come out the other side.
      *
-     * The damage for hitting a wall is already gone — a dragon does not bruise
-     * on scenery — so without this you simply stop, which is its own kind of
-     * wrong. With Explosive Intent armed the wall goes instead, using the same
-     * crater the punch throws: a sphere, obsidian and end stone excepted, and
-     * everything dropped rather than vaporised.
+     * This is EnderDragon.checkWalls, which is the whole of how the real one
+     * tunnels: every tick it walks the blocks inside its own bounding box and
+     * clears them. No collision test, no speed threshold, no aiming — it does
+     * not ram anything, it simply occupies space that had blocks in it and the
+     * blocks lose. That is why the dragon's flight looks unbothered by terrain
+     * rather than like something smashing through it.
      *
-     * Bored a little ahead of the eyes rather than at them, or the first bore
-     * would open inside your own head and the next tick would find the hole
-     * already there and stop.
+     * Its two rules are kept exactly. BlockTags.DRAGON_TRANSPARENT is skipped
+     * without being broken — vanilla's list of things not worth noticing.
+     * BlockTags.DRAGON_IMMUNE survives outright, which is what keeps obsidian,
+     * bedrock, barriers and the End's own furniture standing. And it obeys
+     * mobGriefing, because a rule that turns off every other block-eating mob
+     * has no business making an exception for this one.
+     *
+     * Nothing drops. The dragon does not mine, and a tunnel through a mountain
+     * that carpeted itself in falling stone would be its own kind of problem.
      */
     private static void tunnel(MinecraftServer server, ServerPlayer player) {
-        if (!player.horizontalCollision || !DragonAbilities.craterArmed(player)) {
+        if (!DragonAbilities.craterArmed(player)) {
             return;
         }
-        if (server.getTickCount() % TUNNEL_PERIOD != 0) {
+        ServerLevel level = player.serverLevel();
+        if (!level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
             return;
         }
-        Vec3 delta = player.getDeltaMovement();
-        // Horizontal speed only: dropping onto a roof at terminal velocity is
-        // not flying into it.
-        if (Math.sqrt(delta.x * delta.x + delta.z * delta.z) < TUNNEL_SPEED) {
-            return;
+        AABB box = player.getBoundingBox().inflate(TUNNEL_MARGIN);
+        for (BlockPos pos : BlockPos.betweenClosed(
+                BlockPos.containing(box.minX, box.minY, box.minZ),
+                BlockPos.containing(box.maxX, box.maxY, box.maxZ))) {
+            BlockState state = level.getBlockState(pos);
+            if (state.isAir() || state.is(BlockTags.DRAGON_TRANSPARENT)
+                    || state.is(BlockTags.DRAGON_IMMUNE)) {
+                continue;
+            }
+            level.removeBlock(pos, false);
         }
-        Vec3 ahead = player.getEyePosition().add(player.getLookAngle().normalize().scale(2.5));
-        DragonAbilities.crater(player, net.minecraft.core.BlockPos.containing(ahead));
     }
 }

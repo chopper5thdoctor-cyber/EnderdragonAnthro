@@ -164,9 +164,11 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
             });
         });
 
-        HudRenderCallback.EVENT.register((graphics, tickDelta) -> DragonHud.render(graphics));
-        net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.AFTER_ENTITIES
-                .register(com.enderdragonanthro.client.render.DragonSightRender::world);
+        HudRenderCallback.EVENT.register((graphics, tickDelta) -> {
+            DragonHud.render(graphics);
+            com.enderdragonanthro.client.render.DragonSightCompass.render(graphics);
+        });
+
 
         EntityModelLayerRegistry.registerModelLayer(DragonFormModel.LAYER, DragonFormModel::createLayer);
         EntityModelLayerRegistry.registerModelLayer(EndermanHappyLayer.LAYER,
@@ -180,6 +182,13 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                     if (renderer instanceof PlayerRenderer playerRenderer) {
                         helper.register(new DragonFormLayer(playerRenderer, context.getModelSet()));
                     }
+                    // Every living thing, not just ours: the sight reads the
+                    // health of whatever it is looking at, and the layer keeps
+                    // itself quiet unless the sight is open.
+                    @SuppressWarnings({"unchecked", "rawtypes"})
+                    net.minecraft.client.renderer.entity.layers.RenderLayer health =
+                            new com.enderdragonanthro.client.render.DragonSightHealthLayer(renderer);
+                    helper.register(health);
                     if (renderer instanceof EndermanRenderer endermanRenderer) {
                         // The shade goes on first: it is the body, and the ^^ of
                         // a pleased enderman belongs over a face, not under one.

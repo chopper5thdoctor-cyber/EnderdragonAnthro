@@ -294,7 +294,7 @@ public final class DragonAbilities {
             CRATER_ARMED.add(player.getUUID());
         }
         player.displayClientMessage(Component.literal(
-                on ? "Crater punch ARMED" : "Crater punch off")
+                on ? "Explosive Intent ARMED" : "Explosive Intent off")
                 .withStyle(on ? ChatFormatting.LIGHT_PURPLE : ChatFormatting.GRAY), true);
     }
 

@@ -19,7 +19,7 @@ public enum AbilityAction {
     // Boost lost its key: tapping space already sends GLIDE, and GLIDE
     // carries a boost, so the key was doing what space did. DragonFlight.boost
     // is still called -- from there -- it just is not an action any more.
-    SIGHT(0, "Sight"),
+    SIGHT(0, "Dragonsight"),
     // five ticks between shots, so a held key reads as a stream
     DRAGONFIRE(5, "Fire (Hold)", true),
     SUMMON(200, "Summon"),

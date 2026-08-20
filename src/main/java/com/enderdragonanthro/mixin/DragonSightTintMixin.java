@@ -1,6 +1,7 @@
 package com.enderdragonanthro.mixin;
 
-import com.enderdragonanthro.client.render.DragonSightRender;
+import com.enderdragonanthro.client.DragonSightClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
@@ -20,9 +21,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(Gui.class)
 public abstract class DragonSightTintMixin {
+    /** How strong the wash is over the whole screen. Very, as asked. */
+    private static final int TINT_ALPHA = 0x66;
+
     @Inject(method = "render", at = @At("HEAD"), require = 0)
     private void enderdragonanthro$sightTint(GuiGraphics graphics, DeltaTracker delta,
                                              CallbackInfo ci) {
-        DragonSightRender.tint(graphics);
+        if (!DragonSightClient.isOpen()) {
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        graphics.fill(0, 0, client.getWindow().getGuiScaledWidth(),
+                client.getWindow().getGuiScaledHeight(),
+                (TINT_ALPHA << 24) | DragonSightClient.EYE);
     }
 }
