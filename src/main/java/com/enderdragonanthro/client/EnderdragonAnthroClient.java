@@ -110,6 +110,14 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                 if (clientTick - lastJumpTick <= DOUBLE_TAP_WINDOW
                         && !client.player.onGround()
                         && DragonHud.isDragonForm(client.player)) {
+                    // GLIDE carries a free boost, so tapping space is a boost
+                    // in its own right and had every business flapping. The
+                    // beat is the same one the Boost key starts, which is what
+                    // keeps it uninterruptible: DragonWings.beat refuses to
+                    // restart a stroke already in flight, so tapping faster
+                    // than a wingbeat lasts queues nothing and snaps nothing --
+                    // the wing finishes, and the next tap after that flaps.
+                    DragonWings.beat(client.player);
                     ClientPlayNetworking.send(new AbilityActionPayload(AbilityAction.GLIDE));
                     lastJumpTick = -100;
                 } else {
