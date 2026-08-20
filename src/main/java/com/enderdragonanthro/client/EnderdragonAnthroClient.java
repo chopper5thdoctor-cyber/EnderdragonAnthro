@@ -95,10 +95,11 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         // exactly as a flame should, and none of that was worth rewriting.
         ParticleFactoryRegistry.getInstance().register(
                 ModParticles.DRAGON_FLAME, net.minecraft.client.particle.FlameParticle.Provider::new);
-        // Vanilla's smoke behaviour on our eight frames: it rises, spreads and
-        // tears exactly as smoke should, and none of that was worth rewriting.
+        // Vanilla's smoke behaviour, minus the grey it multiplies onto its own
+        // white masks -- see DragonSmokeParticle, which exists for that alone.
         ParticleFactoryRegistry.getInstance().register(
-                ModParticles.DRAGON_SMOKE, net.minecraft.client.particle.SmokeParticle.Provider::new);
+                ModParticles.DRAGON_SMOKE,
+                com.enderdragonanthro.client.particle.DragonSmokeParticle.Provider::new);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             DragonHud.tick();
