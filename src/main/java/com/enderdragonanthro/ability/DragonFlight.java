@@ -152,6 +152,17 @@ public final class DragonFlight {
     private static final double LOOKAHEAD = 2.0;
     /** Extra width per block/tick of speed, so the hole outgrows the hitbox. */
     private static final double WIDEN = 0.5;
+    /**
+     * How far the rounded bore reaches past the box it replaces.
+     *
+     * A box bores square corners, which is not what anything flying leaves
+     * behind. The corridor is an ellipsoid now, sized off the same swept box
+     * and then given another block on every axis — so it reaches one further
+     * than the box did where it matters, along the direction of travel and
+     * straight out to the sides, and stops short of the corners nothing was
+     * ever going to touch.
+     */
+    private static final double ROUNDING = 1.0;
 
     /** Landing or leaving dragon form ends the glide; walls get their answer. */
     public static void tick(MinecraftServer server) {
@@ -217,12 +228,23 @@ public final class DragonFlight {
         // why spamming space stopped working, and why the margin is scaled by
         // speed rather than fixed.
         double speed = delta.length();
-        AABB box = player.getBoundingBox()
+        AABB swept = player.getBoundingBox()
                 .inflate(TUNNEL_MARGIN + speed * WIDEN)
                 .expandTowards(delta.scale(LOOKAHEAD));
+        Vec3 centre = swept.getCenter();
+        double rx = swept.getXsize() / 2.0 + ROUNDING;
+        double ry = swept.getYsize() / 2.0 + ROUNDING;
+        double rz = swept.getZsize() / 2.0 + ROUNDING;
+        AABB box = swept.inflate(ROUNDING);
         for (BlockPos pos : BlockPos.betweenClosed(
                 BlockPos.containing(box.minX, box.minY, box.minZ),
                 BlockPos.containing(box.maxX, box.maxY, box.maxZ))) {
+            double ex = (pos.getX() + 0.5 - centre.x) / rx;
+            double ey = (pos.getY() + 0.5 - centre.y) / ry;
+            double ez = (pos.getZ() + 0.5 - centre.z) / rz;
+            if (ex * ex + ey * ey + ez * ez > 1.0) {
+                continue;                                  // outside the sphere
+            }
             BlockState state = level.getBlockState(pos);
             if (state.isAir() || state.is(BlockTags.DRAGON_TRANSPARENT)
                     || state.is(BlockTags.DRAGON_IMMUNE)) {
