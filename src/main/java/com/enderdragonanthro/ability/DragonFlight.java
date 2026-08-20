@@ -50,17 +50,46 @@ public final class DragonFlight {
     }
 
     /**
-     * A wingbeat. The firework rocket uses 0.1 push and a 1.5 target speed;
-     * these are wings, so they beat it — 0.2 push toward a 2.6 target, and the
-     * whole pull is applied rather than half of it.
+     * The speed a wingbeat pulls toward, unarmed.
+     *
+     * The firework rocket uses 0.1 push toward 1.5 and applies half the pull;
+     * these are wings, so they beat it — 0.2 push toward 2.6, all of the pull.
+     * Sustained, that settles around 2.7 a tick, which is 54 blocks a second.
      */
+    private static final double TARGET = 2.6;
+
+    /**
+     * ...and armed.
+     *
+     * A boost is a target rather than a force: it pulls your velocity toward a
+     * speed and then stops mattering, which is why even this beat, much harder
+     * than a firework's, settles below terminal velocity. Falling has no target
+     * — 0.08 a tick, forever, balanced against drag at 3.92 — so anything that
+     * merely converges cannot beat a stone dropped beside it.
+     *
+     * Raising the target is the only way past that, and 4.5 is chosen to clear
+     * free fall even when the beat is lazy: 4.49 a tick beating every five
+     * ticks, and still 4.28 at every ten, against falling's 3.92. Ninety blocks
+     * a second, and the first speed in this mod that outruns gravity.
+     *
+     * The risk is not bolted on, it is what ninety blocks a second already
+     * costs. Terrain arrives faster than the server sends it. And the tunnel
+     * has exceptions — bedrock, obsidian, crying obsidian, end stone, iron
+     * bars, barriers, the End's portal furniture and command blocks are all
+     * BlockTags.DRAGON_IMMUNE — so the one thing that will not move is the one
+     * thing you meet at full speed.
+     */
+    private static final double ARMED_TARGET = 4.5;
+
+    /** A wingbeat, harder with Explosive Intent armed. */
     public static void boost(ServerPlayer player) {
         if (!player.isFallFlying()) {
             return;
         }
         Vec3 look = player.getLookAngle();
         Vec3 delta = player.getDeltaMovement();
-        double push = 0.2, target = 2.6, pull = 0.75;
+        double push = 0.2, pull = 0.75;
+        double target = DragonAbilities.craterArmed(player) ? ARMED_TARGET : TARGET;
         player.setDeltaMovement(delta.add(
                 look.x * push + (look.x * target - delta.x) * pull,
                 look.y * push + (look.y * target - delta.y) * pull,
