@@ -31,6 +31,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class DragonSightFogMixin {
     /** Where the fog starts once the murk is gone: behind the camera. */
     private static final float START = -8.0F;
+    /**
+     * ...and where it ends: well past anything that will be drawn.
+     *
+     * Ending it exactly at the far plane still leaves a gradient that reaches
+     * full strength at the edge of view, which underwater is the difference
+     * between clear and slightly green. Pushing it out four times removes the
+     * gradient entirely rather than merely stretching it.
+     */
+    private static final float BEYOND = 4.0F;
 
     @Inject(method = "setupFog", at = @At("RETURN"))
     private static void enderdragonanthro$clearWater(Camera camera, FogRenderer.FogMode mode,
@@ -41,6 +50,6 @@ public abstract class DragonSightFogMixin {
             return;
         }
         RenderSystem.setShaderFogStart(START);
-        RenderSystem.setShaderFogEnd(farPlane);
+        RenderSystem.setShaderFogEnd(farPlane * BEYOND);
     }
 }

@@ -60,6 +60,9 @@ public final class DragonSight {
     private static final int VISION_TICKS = 600;
     private static final int VISION_RENEW_BELOW = 300;
 
+    /** Bumped by hand when the sight changes; shown when it opens. */
+    private static final String BUILD = "sight-6";
+
     private static final Set<UUID> ACTIVE = new HashSet<>();
 
     private DragonSight() {
@@ -88,7 +91,12 @@ public final class DragonSight {
         } else {
             ACTIVE.add(player.getUUID());
             sweep(player);
-            player.displayClientMessage(Component.literal("The sight opens.")
+            // The build stamp is here because three separate fixes have now
+            // been reported broken while the jar under test predated them, and
+            // neither of us could tell that apart from a real bug. Bumped by
+            // hand whenever something in the sight changes, so one keypress
+            // says which build is actually loaded.
+            player.displayClientMessage(Component.literal("The sight opens. [" + BUILD + "]")
                     .withStyle(ChatFormatting.DARK_PURPLE), true);
         }
         player.serverLevel().playSound(null, player.blockPosition(),
