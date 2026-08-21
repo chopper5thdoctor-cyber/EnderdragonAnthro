@@ -65,11 +65,19 @@ public final class DragonMinions {
         /** Not a standing order — a moment's fuss, then back to what it was doing. */
         PET(ChatFormatting.WHITE, "Pet"),
         /** Also momentary: come here, wherever "here" has got to. */
-        RECALL(ChatFormatting.YELLOW, "Recall");
+        RECALL(ChatFormatting.YELLOW, "Recall"),
+        /**
+         * Cut a way through, sized for what has to walk through it.
+         *
+         * Momentary, because it is a thing done once rather than a duty: the
+         * shade raises the frame, lights it, and goes back to standing with
+         * you.
+         */
+        PORTAL(ChatFormatting.DARK_PURPLE, "Portal");
 
         /** The ones that are actions rather than duties. */
         public boolean momentary() {
-            return this == PET || this == RECALL;
+            return this == PET || this == RECALL || this == PORTAL;
         }
 
         public final ChatFormatting colour;
@@ -573,6 +581,16 @@ public final class DragonMinions {
                 standDown(owner, target, shade,
                         ShadeVoice.duty(Order.RECALL, level.random, "")
                                 + " (" + moved + "m away)");
+            } else if (order == Order.PORTAL) {
+                BlockPos cut = raiseGate(owner, level, target);
+                if (cut == null) {
+                    say(owner, NAMES[slot] + " has no room to raise a gate here.",
+                            ChatFormatting.DARK_GRAY, true);
+                } else {
+                    say(owner, NAMES[slot] + ": \"A way through, majesty.\" ("
+                            + cut.getX() + ", " + cut.getY() + ", " + cut.getZ() + ")",
+                            TINTS[slot], false);
+                }
             } else {
                 target.getLookControl().setLookAt(owner, 60.0F, 60.0F);
                 EndermanAffection.adore(level, target);
@@ -793,6 +811,74 @@ public final class DragonMinions {
                 }
             }
         }
+    }
+
+
+    /**
+     * A gate the size of what has to walk through it.
+     *
+     * Vanilla's portal is a two-by-three hole, which is a doorway for a person
+     * and a wall for anything else. A dragon is 2.67 across and 8 tall, so it
+     * cannot use its own world's portals at all — the frame is smaller than the
+     * body. The interior here is measured off the actual hitbox and then given
+     * a block of clearance on each side, so it fits whatever DragonConfig says
+     * the dragon is rather than whatever it happened to be when this was
+     * written.
+     *
+     * Well inside vanilla's limits: PortalShape.MAX_WIDTH and MAX_HEIGHT are 21
+     * each, and this asks for roughly 5 by 10.
+     *
+     * The frame is raised on the axis across your line of sight, so it faces
+     * you, and lit with our own fire — BaseFireBlock.onPlace runs the portal
+     * check for any fire, so the ignition is vanilla's and the shape is ours.
+     */
+    private static BlockPos raiseGate(ServerPlayer owner, ServerLevel level, EnderMan shade) {
+        int inner = (int) Math.ceil(owner.getBbWidth()) + 2;
+        int tall = (int) Math.ceil(owner.getBbHeight()) + 2;
+        inner = Math.min(inner, net.minecraft.world.level.portal.PortalShape.MAX_WIDTH - 2);
+        tall = Math.min(tall, net.minecraft.world.level.portal.PortalShape.MAX_HEIGHT - 2);
+
+        // Across the look direction, so you walk into its face rather than its
+        // edge. The wider horizontal component of the look decides the axis.
+        Vec3 look = owner.getLookAngle();
+        boolean alongX = Math.abs(look.x) < Math.abs(look.z);
+        net.minecraft.core.Direction across = alongX
+                ? net.minecraft.core.Direction.EAST : net.minecraft.core.Direction.SOUTH;
+
+        BlockPos foot = owner.blockPosition()
+                .relative(net.minecraft.core.Direction.fromYRot(owner.getYRot()), 4)
+                .offset(-(alongX ? inner / 2 : 0), 0, -(alongX ? 0 : inner / 2));
+        foot = level.getHeightmapPos(
+                net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                foot);
+
+        // Everything the frame and the hole will occupy has to be free first,
+        // or a half-buried gate is worse than none.
+        for (int w = -1; w <= inner; w++) {
+            for (int h = -1; h <= tall; h++) {
+                BlockPos at = foot.relative(across, w).above(h);
+                if (!level.getBlockState(at).canBeReplaced()
+                        && !level.getBlockState(at).is(Blocks.OBSIDIAN)) {
+                    return null;
+                }
+            }
+        }
+
+        for (int w = -1; w <= inner; w++) {
+            for (int h = -1; h <= tall; h++) {
+                BlockPos at = foot.relative(across, w).above(h);
+                boolean edge = w == -1 || w == inner || h == -1 || h == tall;
+                level.setBlockAndUpdate(at, edge
+                        ? Blocks.OBSIDIAN.defaultBlockState()
+                        : Blocks.AIR.defaultBlockState());
+            }
+        }
+
+        burst(level, shade);
+        BlockPos spark = foot.relative(across, inner / 2);
+        level.setBlockAndUpdate(spark, Blocks.FIRE.defaultBlockState());
+        level.playSound(null, spark, SoundEvents.PORTAL_TRIGGER, SoundSource.BLOCKS, 0.8F, 1.4F);
+        return foot;
     }
 
     /**

@@ -24,6 +24,14 @@ public final class ShadeVoice {
     private ShadeVoice() {
     }
 
+    /** Raising a gate: matter-of-fact, because it is a service. */
+    private static final String[] PORTAL = {
+        "\"A way through, majesty.\"",
+        "\"The frame is yours. Mind the step.\"",
+        "\"Cut wide enough for wings.\"",
+        "\"It will hold. I made it hold.\"",
+    };
+
     private static final String[] DEFEND = {
         "\"At your side, my liege.\"",
         "\"None reach you but through me, your highness.\"",
@@ -157,6 +165,7 @@ public final class ShadeVoice {
     /** A shade taking up a standing duty. */
     public static String duty(DragonMinions.Order order, RandomSource random, String quarry) {
         String[] lines = switch (order) {
+            case PORTAL -> PORTAL;
             case DEFEND -> DEFEND;
             case ATTACK -> ATTACK;
             case COLLECT -> COLLECT;
