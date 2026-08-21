@@ -74,6 +74,14 @@ public class EnderdragonAnthro implements ModInitializer {
         // knows, so a dragon that fits through a wide gate arrives at a narrow
         // one. Widened on arrival rather than by rewriting the generator, which
         // also fixes the portals that were already there and too small.
+        // Being hit is what turns fear into a fight.
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DAMAGE
+                .register((entity, source, dealt, taken, blocked) -> {
+                    if (source.getEntity() instanceof net.minecraft.server.level.ServerPlayer hitter
+                            && DragonFormManager.isDragon(hitter) && entity != hitter) {
+                        com.enderdragonanthro.ability.DragonPresence.provoke(entity, hitter);
+                    }
+                });
         net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
                 .AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) ->
                         com.enderdragonanthro.ability.NetherGate.widenArrival(player));
@@ -94,6 +102,7 @@ public class EnderdragonAnthro implements ModInitializer {
             DragonFlight.tick(server);
             com.enderdragonanthro.ability.DragonSight.tick(server);
             DragonMinions.tick(server);
+            com.enderdragonanthro.ability.DragonPresence.tick(server);
             CrystalHealing.tick(server);
             HomingCrystals.tick(server);
             EndermanAffection.tick(server);

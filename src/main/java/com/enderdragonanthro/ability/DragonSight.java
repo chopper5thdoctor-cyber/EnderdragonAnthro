@@ -61,7 +61,7 @@ public final class DragonSight {
     private static final int VISION_RENEW_BELOW = 300;
 
     /** Bumped by hand when the sight changes; shown when it opens. */
-    private static final String BUILD = "sight-9";
+    private static final String BUILD = "sight-10";
 
     private static final Set<UUID> ACTIVE = new HashSet<>();
 
