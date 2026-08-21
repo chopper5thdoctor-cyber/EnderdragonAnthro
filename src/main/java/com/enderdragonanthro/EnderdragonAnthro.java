@@ -70,6 +70,13 @@ public class EnderdragonAnthro implements ModInitializer {
         // Reapply the (transient) attribute modifiers and boss bar when a saved dragon logs in
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 DragonFormManager.onJoin(handler.getPlayer()));
+        // The far side of a portal is built by PortalForcer at the only size it
+        // knows, so a dragon that fits through a wide gate arrives at a narrow
+        // one. Widened on arrival rather than by rewriting the generator, which
+        // also fixes the portals that were already there and too small.
+        net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
+                .AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) ->
+                        com.enderdragonanthro.ability.NetherGate.widenArrival(player));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             DragonFormManager.onLeave(handler.getPlayer());
             DragonMinions.onLeave(handler.getPlayer());   // let the held chunks close

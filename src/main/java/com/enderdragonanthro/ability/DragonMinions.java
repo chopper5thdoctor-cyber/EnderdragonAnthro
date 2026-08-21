@@ -833,10 +833,8 @@ public final class DragonMinions {
      * check for any fire, so the ignition is vanilla's and the shape is ours.
      */
     private static BlockPos raiseGate(ServerPlayer owner, ServerLevel level, EnderMan shade) {
-        int inner = (int) Math.ceil(owner.getBbWidth()) + 2;
-        int tall = (int) Math.ceil(owner.getBbHeight()) + 2;
-        inner = Math.min(inner, net.minecraft.world.level.portal.PortalShape.MAX_WIDTH - 2);
-        tall = Math.min(tall, net.minecraft.world.level.portal.PortalShape.MAX_HEIGHT - 2);
+        int inner = NetherGate.innerFor(owner);
+        int tall = NetherGate.tallFor(owner);
 
         // Across the look direction, so you walk into its face rather than its
         // edge. The wider horizontal component of the look decides the axis.
@@ -864,20 +862,11 @@ public final class DragonMinions {
             }
         }
 
-        for (int w = -1; w <= inner; w++) {
-            for (int h = -1; h <= tall; h++) {
-                BlockPos at = foot.relative(across, w).above(h);
-                boolean edge = w == -1 || w == inner || h == -1 || h == tall;
-                level.setBlockAndUpdate(at, edge
-                        ? Blocks.OBSIDIAN.defaultBlockState()
-                        : Blocks.AIR.defaultBlockState());
-            }
-        }
-
         burst(level, shade);
-        BlockPos spark = foot.relative(across, inner / 2);
-        level.setBlockAndUpdate(spark, Blocks.FIRE.defaultBlockState());
-        level.playSound(null, spark, SoundEvents.PORTAL_TRIGGER, SoundSource.BLOCKS, 0.8F, 1.4F);
+        // carve = false: a shade refuses rather than burying a gate in
+        // somebody's hillside, and the clearance check above is that refusal.
+        NetherGate.raise(level, foot, across, inner, tall, false);
+        level.playSound(null, foot, SoundEvents.PORTAL_TRIGGER, SoundSource.BLOCKS, 0.8F, 1.4F);
         return foot;
     }
 
