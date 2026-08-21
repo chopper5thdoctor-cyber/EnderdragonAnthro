@@ -79,7 +79,7 @@ public final class DragonFire {
             // far end of the stream is what fouls the air.
             if (d > 4.0) {
                 level.sendParticles(ModParticles.DRAGON_SMOKE, at.x, at.y, at.z,
-                        2, spread, spread, spread, 0.01);
+                        3, spread, spread, spread, 0.04);
             }
         }
 

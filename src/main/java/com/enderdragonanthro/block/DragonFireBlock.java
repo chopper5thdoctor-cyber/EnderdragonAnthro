@@ -239,6 +239,9 @@ public class DragonFireBlock extends BaseFireBlock {
             double x = pos.getX() + random.nextDouble();
             double y = pos.getY() + random.nextDouble() * 0.5 + 0.5;
             double z = pos.getZ() + random.nextDouble();
+            // No initial velocity, exactly as BaseFireBlock.animateTick does
+            // it. The climb is the particle's own negative gravity, and adding
+            // to it only made ours drift differently from the fire beside it.
             level.addParticle(ModParticles.DRAGON_SMOKE, x, y, z, 0.0, 0.0, 0.0);
         }
     }

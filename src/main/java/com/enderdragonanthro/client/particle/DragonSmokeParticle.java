@@ -1,33 +1,38 @@
 package com.enderdragonanthro.client.particle;
 
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.particle.LargeSmokeParticle;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.ParticleRenderType;
-import net.minecraft.client.particle.SmokeParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.SimpleParticleType;
 
 /**
- * Vanilla's smoke, with the tint taken off it.
+ * Vanilla's fire smoke, with the grey taken off it. Nothing else changed.
  *
- * SmokeParticle passes {@code 0.1f, 0.1f, 0.1f} down to BaseAshSmokeParticle,
- * because Mojang's eight frames are pure white masks and the grey is applied at
- * draw time rather than painted. Reusing the provider directly on coloured
- * sprites therefore multiplies them by a tenth, and a purple through that comes
- * out very near black — which is what shipped, and why this class exists.
+ * This extended SmokeParticle, and that was the whole problem with the column:
+ * a burning block does not spawn ParticleTypes.SMOKE. BaseFireBlock.animateTick
+ * spawns LARGE_SMOKE, which is the same particle at a quadSizeMultiplier of
+ * 2.5. Matching the small one made a smoke two and a half times too short in
+ * every dimension, and the rise that comes with it looked like nothing because
+ * the thing rising was the size of a spark.
  *
- * Setting the colour to white gives the sprites back. Everything else about the
- * particle is vanilla's: the rise, the drift, the shrink, the lifetime, the way
- * it walks its frames by age. Only the colour was ever in the way, and our
- * frames can carry it better than a flat multiply can — smoke off a flame is
- * brighter at its heart than at its edge.
+ * Extending the large one instead means the gravity, the friction, the drift,
+ * the lifetime and the way it walks its frames by age are all vanilla's own
+ * numbers, byte for byte — so the column climbs exactly as far as the orange
+ * one climbing beside it. The only difference left is which sprites it uses.
+ *
+ * The colour still has to be undone. SmokeParticle multiplies its sprites by
+ * 0.1 grey because Mojang's eight frames are white masks and the colour is
+ * applied at draw time; run purple through that and it comes out near black.
+ * White gives our frames back, and they carry their own colour.
  */
-public class DragonSmokeParticle extends SmokeParticle {
+public class DragonSmokeParticle extends LargeSmokeParticle {
     protected DragonSmokeParticle(ClientLevel level, double x, double y, double z,
                                   double xSpeed, double ySpeed, double zSpeed,
                                   SpriteSet sprites) {
-        super(level, x, y, z, xSpeed, ySpeed, zSpeed, 1.0F, sprites);
+        super(level, x, y, z, xSpeed, ySpeed, zSpeed, sprites);
         setColor(1.0F, 1.0F, 1.0F);
     }
 
