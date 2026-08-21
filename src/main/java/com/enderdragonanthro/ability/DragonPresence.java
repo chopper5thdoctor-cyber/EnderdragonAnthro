@@ -2,17 +2,18 @@ package com.enderdragonanthro.ability;
 
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.util.DefaultRandomPos;
+import com.enderdragonanthro.mixin.MobGoalAccessor;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.goal.AvoidEntityGoal;
 import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.animal.Pig;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -46,15 +47,16 @@ import java.util.UUID;
 public final class DragonPresence {
     /** How far a mob notices you from. Vanilla's own avoid range is 16. */
     private static final double NOTICE = 20.0;
-    /** How far it runs before it stops to think. */
-    private static final int FLEE_DISTANCE = 20;
-    private static final int FLEE_HEIGHT = 8;
-    /** Panic is faster than a walk and slower than a sprint. */
-    private static final double FLEE_SPEED = 1.45;
+    /** Walking away, and running once it is close. Creeper numbers are 1.0/1.2. */
+    private static final double WALK = 1.0;
+    private static final double SPRINT = 1.45;
     /** How long being hit keeps a mob angry, in ticks. */
     private static final int GRUDGE = 400;
-    /** Only look for something to run to this often; pathing is not cheap. */
-    private static final int REPATH = 20;
+    /** Sweeping the grudge list does not need doing every tick. */
+    private static final int SWEEP = 100;
+
+    /** Above strolling, below the goals that keep a mob alive. Creepers use 3. */
+    private static final int FEAR_PRIORITY = 3;
 
     private static final Map<UUID, Long> PROVOKED = new HashMap<>();
 
@@ -95,37 +97,39 @@ public final class DragonPresence {
                 || mob instanceof EnderMan;
     }
 
-    public static void tick(MinecraftServer server) {
-        if (server.getTickCount() % REPATH != 0) {
+    /**
+     * Give a mob its fear when it loads, as a goal.
+     *
+     * The first version of this pushed mobs around from a tick handler --
+     * looking up a spot to run to and calling moveTo directly. That is not how
+     * anything in the game is afraid of anything, and it does not work like it
+     * either: the mob's own strolling and looking goals own the navigation, so
+     * an outside path gets overwritten a tick later and the mob wanders back.
+     *
+     * A creeper avoiding a cat is AvoidEntityGoal at priority 3, and this is
+     * the same goal with the same shape -- it competes in the goal selector, it
+     * interrupts strolling, it walks until the threat is far and sprints while
+     * it is near, and it stops on its own. The only difference is the predicate:
+     * a dragon rather than a cat, and only while this mob has no grudge, since
+     * something that has decided to fight you should not also be running away.
+     */
+    public static void afraidOfDragons(Entity entity) {
+        if (!(entity instanceof PathfinderMob mob) || unbothered(mob)) {
             return;
         }
-        PROVOKED.values().removeIf(until -> until < server.overworld().getGameTime() - GRUDGE * 4);
+        ((MobGoalAccessor) mob).enderdragonanthro$goals().addGoal(FEAR_PRIORITY,
+                new AvoidEntityGoal<>(mob, Player.class, (float) NOTICE, WALK, SPRINT,
+                        living -> living instanceof Player player
+                                && DragonFormManager.isDragon(player)
+                                && !provoked(mob, player)));
+    }
 
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (!DragonFormManager.isDragon(player)) {
-                continue;
-            }
-            ServerLevel level = player.serverLevel();
-            // PathfinderMob rather than Mob: getPosAway wants something that
-            // walks, and anything that does not (a ghast, a shulker) has no
-            // ground path to run down anyway.
-            for (net.minecraft.world.entity.PathfinderMob mob : level.getEntitiesOfClass(
-                    net.minecraft.world.entity.PathfinderMob.class,
-                    player.getBoundingBox().inflate(NOTICE))) {
-                if (unbothered(mob) || !mob.isAlive()
-                        || DragonMinions.isOwnedBy(player, mob)
-                        || provoked(mob, player)) {
-                    continue;                       // angry things do not flee
-                }
-                if (!mob.getSensing().hasLineOfSight(player)) {
-                    continue;                       // it has to see you to be afraid
-                }
-                Vec3 away = DefaultRandomPos.getPosAway(mob, FLEE_DISTANCE, FLEE_HEIGHT,
-                        player.position());
-                if (away != null) {
-                    mob.getNavigation().moveTo(away.x, away.y, away.z, FLEE_SPEED);
-                }
-            }
+    /** Only the housekeeping is left on the tick. */
+    public static void tick(MinecraftServer server) {
+        if (server.getTickCount() % SWEEP != 0) {
+            return;
         }
+        long now = server.overworld().getGameTime();
+        PROVOKED.values().removeIf(until -> until < now);
     }
 }

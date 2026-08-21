@@ -74,6 +74,11 @@ public class EnderdragonAnthro implements ModInitializer {
         // knows, so a dragon that fits through a wide gate arrives at a narrow
         // one. Widened on arrival rather than by rewriting the generator, which
         // also fixes the portals that were already there and too small.
+        // Fear is a goal, added as each mob loads, so it competes in the goal
+        // selector exactly as a creeper's fear of cats does.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents.ENTITY_LOAD
+                .register((entity, world) ->
+                        com.enderdragonanthro.ability.DragonPresence.afraidOfDragons(entity));
         // Being hit is what turns fear into a fight.
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DAMAGE
                 .register((entity, source, dealt, taken, blocked) -> {

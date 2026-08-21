@@ -11,6 +11,7 @@
     "LivingEntityEffectImmunityMixin",
     "LivingEntityGlideMixin",
     "LivingEntityTargetabilityMixin",
+    "MobGoalAccessor",
     "PlayerCrystalImmunityMixin",
     "PlayerDamageResilienceMixin",
     "PlayerEyeHeightMixin",
