@@ -5,6 +5,10 @@ Dragon** — canon 8-block height, canon 200 HP, canon palette, the dragon's abi
 keybinds, a court of named endermen, and a pink boss bar other players see — while
 keeping every normal player mechanic: inventory, tools, hunger, crafting, all of it.
 
+Tunnel through a mountain at ninety blocks a second, breathe a third kind of fire,
+read the health of everything in sight through the walls it is standing behind, and
+send your court to cut a portal wide enough to walk through.
+
 | | |
 |---|---|
 | **Play-test guide** | **[TESTING.md](TESTING.md)** — keys, an eight-part test plan, and what is most likely to break |
@@ -38,16 +42,30 @@ render on a fullbright pass, so they glow in the dark.
 
 **Canon toughness.** Everything you take is `damage/4 + 1`. Immune to fire, lava, every
 status effect, and — for fairness, since an anthro walks among its own crystals rather
-than circling them — End Crystal blasts. No mob will target you at all; nothing in
-vanilla is hostile to the Ender Dragon.
+than circling them — End Crystal blasts. Flying into scenery costs nothing at all, and
+a glide banks no fall damage however far you dive.
+
+**And they are afraid of you.** Nothing targets a dragon unprovoked — canon — but
+"unprovoked" is doing work there. Anything that can see you *runs*, using the same
+`AvoidEntityGoal` a creeper uses to avoid a cat, and anything you actually hit stops
+running and comes back at you for twenty seconds. Pigs, cows and sheep are too dumb to
+know what they are looking at, and endermen are too friendly; those four stand their
+ground. Hitting one still provokes it.
 
 **Crystal Link.** Stand within 32 blocks of an End Crystal and it beams at you, healing
 2 HP/s and refilling hunger. Pop a crystal that is healing you and it costs 10 HP, canon.
 
 **Flight is literally elytra.** Rather than imitating the physics, a mixin keeps the
 fall-flying flag set so the untouched vanilla elytra code path runs. Double-tap `Space`
-mid-air to start; `H` beats the wings — twice a firework rocket's push toward a 2.6
-target speed, because these are wings and a rocket is a firework.
+mid-air to start, then **every further tap beats the wings** — twice a firework
+rocket's push toward a 2.6 target speed, because these are wings and a rocket is a
+firework. Two or three taps a second holds top speed.
+
+A boost is a *target* rather than a force, which is why even that settles below
+terminal velocity: it pulls your speed toward a number and then stops mattering, while
+falling adds 0.08 a tick forever and balances against drag at 3.92. Sustained flight is
+2.7 a tick against a rocket elytra's 1.7 — and 4.5 with Explosive Intent armed, which is
+the only speed here that outruns gravity.
 
 **The court.** Four named elite endermen — **Vaëlle** (red), **Keshaire** (blue),
 **Nyrelle** (green) and **Orrinne** (orange), French like Jean — scaled to 4 blocks, each addressed and ordered
@@ -71,14 +89,15 @@ burst is not something to post to every client in view distance every tick.
 | `G` | Dragon Fireball — canon lingering cloud **plus** an entity-only blast | 3 s |
 | `V` | Wing Buffet — canon 3/5/7 damage, huge knockback | 5 s |
 | `C` | Charge dash — canon 6/10/15. Sprinting alone also deals charge damage | 4 s |
-| `B` | Crater punch **toggle** — 5×5×5, silk-touch | — |
+| `B` | **Explosive Intent** toggle — tunnel through terrain, and fly faster than falling | — |
 | `X` | Evasive jump — somewhere random 1000+ blocks out, under open sky | 60 s |
 | `K` | Warp to a random player beyond 100 blocks | 10 s |
 | `J` | Return to your anchor | 5 s |
-| `H` | Wing boost — **hold** | 1 s |
+| `H` | **Dragonsight** toggle — see the passage below | — |
 | `Z` | Summon a shade (four maximum) | 10 s |
 | `M` | Open **the court** — the orders screen | — |
-| double-`Space` | Start gliding (mid-air) | — |
+| `N` | **Dragonfire** — hold to breathe a stream of purple fire | 0.25 s |
+| double-`Space` | Start gliding (mid-air); once gliding, **every** tap beats the wings | — |
 
 All rebindable. The HUD is a column down the left edge, each key chip with its ability
 name beside it; chips flash on press, drain while recharging, and stay lit while a toggle
@@ -105,6 +124,7 @@ happened to be looking at on the way through; nothing is passed through now.
 | **Attack** | Attacks whatever you look at, else the nearest hostile |
 | **Collect** | Leaves, digs out a vein within 100 blocks, walks back in with it |
 | **Crystal** | Finds bedrock and **forges** an End Crystal on it every 20 s |
+| **Portal** | Raises a nether portal **sized for you** and lights it, then goes back to Defend |
 
 Shades make crystals rather than spending yours — a dragon has no hands for a workbench,
 so stocking a domain is the court's trade.
@@ -190,14 +210,92 @@ healed standing in the pool.
 Once, not per tick. The jet stays drawn for ten ticks afterwards, but a beam
 reapplying instant damage on every one of them would be twenty times the ability.
 
-## Crater punch
+## Dragonsight
 
-Toggle with `B`, then left-click. A 5×5×5 volume breaks and drops **silk-touch**.
+Toggle with `H`. Four things at once, and it says which build it is when it opens, which
+is there because "it does not work" and "you are running last week's jar" look identical
+from the outside.
 
-- **Obsidian and end stone hold** — the canon dragon's own limits, and what keeps the End
-  fight standing.
-- **Bedrock does not.** Breaking the floor out from under yourself is a choice you are
-  allowed to make.
+**A violet wash** over the world and under the HUD — `#CC00FA`, the darker of the two
+colours painted on the dragon's own eyes, so the world is seen through the same violet
+they are. Drawn at the head of `Gui.render` rather than from `HudRenderCallback`, which
+fires at the end: a tint you cannot read your own health through is a blindfold.
+
+**Dark vision.** The dragon is immune to every status effect, which meant it was also
+immune to the night vision its own sight grants; the exception is allowed only while the
+sight is open, so a thrown potion still does nothing.
+
+**Health on everything.** Every living thing wears its name and its health, coloured by
+what is left, at 2.5× the usual tag. It is drawn as a name tag rather than as anything
+of ours — the same path that puts an account name over a player's head — so it cannot be
+positioned wrong. Reaching it took answering `shouldShowName` at the *call site*: it is
+overridden three deep and each override ANDs the one below with a clause a nameless mob
+fails, so patching any single one is multiplied away by the next.
+
+**Clear water.** Underwater fog is pushed past the far plane. Lava is untouched, and
+deliberately: water fog is atmosphere, so seeing through it is a sharper eye, while lava
+fog is the fluid being opaque.
+
+**And where the doors are** — a hit indicator around the crosshair rather than a marker
+in the world, since a portal is usually behind you or under a mountain. A teal **eye**
+points at the nearest stronghold, asked of the chunk generator with
+`StructureTags.EYE_OF_ENDER_LOCATED` so it answers from the seed whether or not the
+chunks exist. A violet **doorway** points at the nearest live nether portal, which is
+what keeps you from getting lost on the other side. Both carry coordinates, because a
+bearing tells you which way to set off and nothing about where you are going.
+
+## Gates
+
+A dragon is 2.67 blocks across and 8 tall. A vanilla portal's interior is 2×3, so **you
+cannot fit through your own world's portals** — the frame is narrower than the body.
+
+Order a shade to **Portal** and it raises one measured off your live hitbox with a
+block of clearance: 5×10 at the canon eight blocks, well inside `PortalShape`'s limit of
+21 each way. It refuses rather than burying a gate in somebody's hillside.
+
+The far side is vanilla's problem — `PortalForcer` builds the destination at the only
+size it knows — so the portal you arrive in is widened on arrival instead. That also
+repairs portals that were already there and too small, which a generator patch would
+not. Ignition is vanilla's on both sides: `BaseFireBlock.onPlace` runs the portal check
+for any fire, so only the shape is ours.
+
+## Dragonfire
+
+Hold `N`. A stream of purple fire out of the mouth, 24 blocks, costing hunger — not the
+`R` breath, which lobs a pool at a place and leaves it.
+
+It leaves **a third fire block**, after the orange one and the blue one. It burns at 3 a
+tick against fire's 1 and soul fire's 2, spreads and ages out on a scheduled tick the
+way vanilla fire is paced, and carries vanilla's five attachment booleans so it lies
+flat against leaves instead of standing in the air as a cube. Its screen overlay is a
+separate sheet from the block's, because the block has to touch the ground and the
+overlay wants height.
+
+## Explosive Intent
+
+Toggle with `B`. It does two things, and both are what the real dragon does.
+
+**You tunnel.** `EnderDragon` sets `noPhysics` and clears blocks inside its own hitbox
+every tick, which is why its flight looks unbothered by terrain rather than like
+something smashing through it. A player collides for real, so the bore is cut *ahead*
+of the move instead: a capsule swept two ticks along your heading, widening with speed
+— about 15 blocks across and 9 long at full pelt. Vanilla's two rules are kept exactly.
+`BlockTags.DRAGON_TRANSPARENT` is passed over, `BlockTags.DRAGON_IMMUNE` survives
+(bedrock, obsidian, end stone, iron bars, barriers, the End's portal furniture), and
+`mobGriefing` is obeyed. Nothing drops.
+
+It only cuts when you are moving fast enough that a wall *would* have hurt.
+`LivingEntity.travel` bills a gliding player `(speedLost * 10 - 3)`, so the threshold is
+vanilla's own 0.3 a tick — or a descent steeper than 45°, which is the 2.45 terminal
+sink for that angle. Drift past a cliff on the way down to land and nothing breaks.
+
+**You fly faster than you fall.** Armed, a wingbeat pulls toward 4.5 a tick instead of
+2.6 — 90 blocks a second, clearing free fall's 3.92 even when the beat is lazy. Water
+and lava stop slowing you above that speed, since `LivingEntity.travel` picks swimming
+before elytra and a lake would otherwise kill a flight for a tick.
+
+The risk is not bolted on. Terrain arrives faster than the server sends it, and the one
+thing that will not move is the one thing you meet at full speed.
 
 ## The homing crystal
 
