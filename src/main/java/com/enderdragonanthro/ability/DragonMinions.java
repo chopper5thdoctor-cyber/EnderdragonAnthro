@@ -843,17 +843,38 @@ public final class DragonMinions {
         net.minecraft.core.Direction across = alongX
                 ? net.minecraft.core.Direction.EAST : net.minecraft.core.Direction.SOUTH;
 
-        BlockPos foot = owner.blockPosition()
+        BlockPos ahead = owner.blockPosition()
                 .relative(net.minecraft.core.Direction.fromYRot(owner.getYRot()), 4)
                 .offset(-(alongX ? inner / 2 : 0), 0, -(alongX ? 0 : inner / 2));
-        foot = level.getHeightmapPos(
-                net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                foot);
 
-        // Everything the frame and the hole will occupy has to be free first,
-        // or a half-buried gate is worse than none.
+        // Two things were wrong with taking one heightmap sample as the foot.
+        //
+        // The frame's bottom row sits one BELOW the foot -- that is the sill,
+        // and a sill is meant to be in the ground -- but the clearance check
+        // below tested it along with everything else, saw dirt and refused. On
+        // water it passed, because water is replaceable and the sill could sink
+        // into it, which is exactly why a gate could only ever be raised over a
+        // lake. The sill is now exempt: it is allowed to be ground, because it
+        // is replacing ground.
+        //
+        // And one sample is one column. A twelve-block frame spans seven of
+        // them, and on any slope at all the others are higher, so the check hit
+        // a hillside standing in the doorway. The foot now stands at the highest
+        // ground under the whole footprint, and the slope is what gets buried.
+        int ground = Integer.MIN_VALUE;
         for (int w = -1; w <= inner; w++) {
-            for (int h = -1; h <= tall; h++) {
+            BlockPos column = ahead.relative(across, w);
+            ground = Math.max(ground, level.getHeight(
+                    net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    column.getX(), column.getZ()));
+        }
+        BlockPos foot = ahead.atY(ground);
+
+        // Everything above the sill has to be free, or a half-buried gate is
+        // worse than none. Grass, flowers and snow are replaceable and so do not
+        // count as in the way.
+        for (int w = -1; w <= inner; w++) {
+            for (int h = 0; h <= tall; h++) {
                 BlockPos at = foot.relative(across, w).above(h);
                 if (!level.getBlockState(at).canBeReplaced()
                         && !level.getBlockState(at).is(Blocks.OBSIDIAN)) {

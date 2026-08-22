@@ -37,9 +37,20 @@ import java.util.List;
  * doorway would say less than a single mark does.
  */
 public final class DragonSightCompass {
-    /** How far out from the crosshair the marks sit. */
-    private static final float RADIUS = 58.0F;
+    /**
+     * How far out from the crosshair the marks sit.
+     *
+     * Close enough to read without looking away from what you are flying at.
+     * The first pass put them at 58, which is most of the way to the hotbar and
+     * reads as decoration at the edge of vision rather than as part of the
+     * crosshair; 34 clears the crosshair itself and nothing else.
+     */
+    private static final float RADIUS = 34.0F;
     private static final int MARK = 16;
+    /** The label is a footnote to the mark, not a second thing to read. */
+    private static final float LABEL_SCALE = 0.7F;
+    /** Screen pixels between labels, before the scale is applied to the text. */
+    private static final int LABEL_STEP = 8;
     private static final ResourceLocation END_MARK =
             EnderdragonAnthro.id("textures/gui/dragonsight/mark_end.png");
     private static final ResourceLocation GATE_MARK =
@@ -109,11 +120,18 @@ public final class DragonSightCompass {
         // mark, because text rotated to a bearing is text nobody can read. The
         // coordinates are here because a bearing tells you which way to set off
         // and nothing about where you are going.
+        //
+        // Drawn under a scale rather than at the font's own size: full-size chat
+        // text sitting under the crosshair is the loudest thing on the screen,
+        // and this is a number you glance at once every few minutes.
         Font font = Minecraft.getInstance().font;
         int metres = (int) Math.round(at.distanceTo(player.position()));
         String label = name + "  " + target.getX() + ", " + target.getZ() + "  (" + metres + "m)";
-        graphics.drawString(font, label, cx - font.width(label) / 2, cy + 24 + line * 11,
-                tint, true);
+        pose.pushPose();
+        pose.translate(cx, cy + RADIUS / 2.0F + line * LABEL_STEP, 0.0F);
+        pose.scale(LABEL_SCALE, LABEL_SCALE, 1.0F);
+        graphics.drawString(font, label, -font.width(label) / 2, 0, tint, true);
+        pose.popPose();
         return line + 1;
     }
 }

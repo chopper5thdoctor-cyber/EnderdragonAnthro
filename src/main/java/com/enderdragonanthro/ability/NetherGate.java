@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.NetherPortalBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -39,14 +40,35 @@ public final class NetherGate {
     private NetherGate() {
     }
 
-    /** Interior width a body of this size needs, with a block of clearance. */
+    /**
+     * Interior width a body of this size needs, with a block of clearance.
+     *
+     * Measured from the STANDING pose rather than from getBbWidth/getBbHeight,
+     * and that is the whole of the "portal is 7x7, too small for me" bug. Those
+     * two accessors report the hitbox of the pose the player is in right now,
+     * and a player who is gliding is in FALL_FLYING — which is 0.6 by 0.6 before
+     * scale, so a dragon eight blocks tall measured 2.67 and asked for a five by
+     * five hole. Ordering a gate is something you do on the wing, so the pose at
+     * the moment of asking is the one pose the size must not come from.
+     */
     public static int innerFor(ServerPlayer player) {
-        return Math.min((int) Math.ceil(player.getBbWidth()) + 2, PortalShape.MAX_WIDTH - 2);
+        return size(player.getDimensions(Pose.STANDING).width(), 2, PortalShape.MAX_WIDTH);
     }
 
     /** ...and interior height. */
     public static int tallFor(ServerPlayer player) {
-        return Math.min((int) Math.ceil(player.getBbHeight()) + 2, PortalShape.MAX_HEIGHT - 2);
+        return size(player.getDimensions(Pose.STANDING).height(), 3, PortalShape.MAX_HEIGHT);
+    }
+
+    /**
+     * A body, plus a block of air on each side of it, within what will light.
+     *
+     * The floor is vanilla's minimum portal — two by three interior — because a
+     * frame smaller than that is not a portal at all, and the ceiling is its
+     * maximum, because a frame larger than that will not ignite.
+     */
+    private static int size(float body, int least, int most) {
+        return Math.max(least, Math.min((int) Math.ceil(body) + 2, most - 2));
     }
 
     /**
@@ -65,6 +87,9 @@ public final class NetherGate {
         if (seed == null) {
             return;
         }
+        // The door you just came out of is the door back, and it is worth
+        // remembering whether or not it needs widening.
+        GateMemory.of(level).remember(seed);
 
         List<BlockPos> interior = flood(level, seed);
         if (interior.isEmpty()) {
@@ -123,8 +148,12 @@ public final class NetherGate {
                         : Blocks.AIR.defaultBlockState());
             }
         }
-        level.setBlockAndUpdate(foot.relative(across, inner / 2),
-                Blocks.FIRE.defaultBlockState());
+        BlockPos heart = foot.relative(across, inner / 2);
+        level.setBlockAndUpdate(heart, Blocks.FIRE.defaultBlockState());
+        // Written down at the moment it is cut rather than waiting for a sweep
+        // to notice it, so the mark for the gate you just made is there before
+        // you have flown out of range of it.
+        GateMemory.of(level).remember(heart);
     }
 
     private static BlockPos findPortal(ServerLevel level, BlockPos around) {

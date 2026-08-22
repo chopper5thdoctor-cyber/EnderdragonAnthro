@@ -61,7 +61,7 @@ public final class DragonSight {
     private static final int VISION_RENEW_BELOW = 300;
 
     /** Bumped by hand when the sight changes; shown when it opens. */
-    private static final String BUILD = "sight-12";
+    private static final String BUILD = "sight-13";
 
     private static final Set<UUID> ACTIVE = new HashSet<>();
 
@@ -127,10 +127,17 @@ public final class DragonSight {
         }
     }
 
-    /** Everything worth knowing about, sent as it stands. */
+    /**
+     * Everything worth knowing about, sent as it stands.
+     *
+     * The block scan is a way of learning gates, not of listing them. What goes
+     * out is whatever has ever been learned — see GateMemory — because a portal
+     * whose chunk has closed is still a portal, and the mark for it was most
+     * useful exactly when it stopped being drawn.
+     */
     private static void sweep(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
-        List<BlockPos> gateways = new ArrayList<>();
+        List<BlockPos> seen = new ArrayList<>();
         List<BlockPos> end = new ArrayList<>();
         ChunkPos origin = player.chunkPosition();
 
@@ -142,21 +149,24 @@ public final class DragonSight {
                 if (chunk == null) {
                     continue;
                 }
-                scan(chunk, gateways, end);
-                if (gateways.size() + end.size() >= MAX_MARKS) {
-                    stronghold(player, end);
-                    send(player, gateways, end);
-                    return;
+                scan(chunk, seen, end);
+                if (seen.size() + end.size() >= MAX_MARKS) {
+                    break;
                 }
             }
         }
-        // On the ordinary path too, not only when the block scan fills up.
-        // This call used to exist solely on the early exit above, which needs
+        GateMemory memory = GateMemory.of(level);
+        for (BlockPos gate : seen) {
+            memory.remember(gate);
+        }
+        memory.prune(level);
+
+        // stronghold() runs on the ordinary path, not only when the block scan
+        // fills up. This call used to exist solely on an early exit that needed
         // two dozen portal blocks nearby to be reached -- so in every normal
-        // world the end list went out empty and the eye had nothing to point
-        // at. That is the whole of "no aim indicator".
+        // world the end list went out empty and the eye had nothing to point at.
         stronghold(player, end);
-        send(player, gateways, end);
+        send(player, memory.nearest(player.blockPosition(), MAX_MARKS), end);
     }
 
     /**

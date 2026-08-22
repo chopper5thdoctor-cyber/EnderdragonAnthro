@@ -8,7 +8,12 @@ import net.minecraft.world.entity.Mob;
 import com.enderdragonanthro.mixin.MobGoalAccessor;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.PathfinderMob;
-import net.minecraft.world.entity.ai.goal.AvoidEntityGoal;
+import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.ai.util.DefaultRandomPos;
+import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.EnumSet;
 import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.animal.Pig;
 import net.minecraft.world.entity.animal.Sheep;
@@ -43,6 +48,10 @@ import java.util.UUID;
  *
  * Being hit still provokes an exempt animal. A cow that does not know to run
  * from a dragon still knows it has been hit by one.
+ *
+ * Bats are afraid too, and are handled in BatFearMixin rather than here,
+ * because a bat is the one common mob whose movement does not go through the
+ * goal selector at all.
  */
 public final class DragonPresence {
     /** How far a mob notices you from. Vanilla's own avoid range is 16. */
@@ -117,25 +126,103 @@ public final class DragonPresence {
         if (!(entity instanceof PathfinderMob mob) || unbothered(mob) || afraid(mob)) {
             return;
         }
-        ((MobGoalAccessor) mob).enderdragonanthro$goals().addGoal(FEAR_PRIORITY,
-                new Fear<>(mob, Player.class, (float) NOTICE, WALK, SPRINT,
-                        living -> living instanceof Player player
-                                && DragonFormManager.isDragon(player)
-                                && !provoked(mob, player)));
+        ((MobGoalAccessor) mob).enderdragonanthro$goals().addGoal(FEAR_PRIORITY, new Fear(mob));
     }
 
     /**
-     * A marker subclass, so a mob can be asked whether it already has this.
+     * AvoidEntityGoal's shape, without its targeting conditions.
      *
-     * AvoidEntityGoal is used by half the mobs in the game for their own
-     * reasons, so "does it have an AvoidEntityGoal" is not the same question as
-     * "does it have ours".
+     * The vanilla goal cannot be used here, and the reason is the blanket rule
+     * again. AvoidEntityGoal looks for what to avoid through
+     * {@code TargetingConditions.forCombat()}, and that test calls both
+     * canBeSeenAsEnemy and canAttack on the candidate — so a dragon, which
+     * answers no to being anyone's enemy, is invisible to it. The goal was
+     * installed on every mob and could never find anything to run from.
+     *
+     * Everything else is copied from it deliberately: MOVE flag so it competes
+     * for the navigation, a path computed away from the threat, walk while far
+     * and sprint while near, and it ends when the path does. Only the search is
+     * ours, and it just looks for the nearest dragon in range with line of
+     * sight.
      */
-    private static final class Fear<T extends LivingEntity> extends AvoidEntityGoal<T> {
-        private Fear(PathfinderMob mob, Class<T> avoid, float distance, double walk,
-                     double sprint, java.util.function.Predicate<LivingEntity> when) {
-            super(mob, avoid, distance, walk, sprint, when);
+    private static final class Fear extends Goal {
+        private final PathfinderMob mob;
+        private Player threat;
+        private Path path;
+
+        private Fear(PathfinderMob mob) {
+            this.mob = mob;
+            setFlags(EnumSet.of(Goal.Flag.MOVE));
         }
+
+        @Override
+        public boolean canUse() {
+            this.threat = dreadedBy(this.mob);
+            if (this.threat == null) {
+                return false;
+            }
+            Vec3 away = DefaultRandomPos.getPosAway(this.mob, 16, 7, this.threat.position());
+            if (away == null || this.threat.distanceToSqr(away.x, away.y, away.z)
+                    < this.threat.distanceToSqr(this.mob)) {
+                return false;                 // no point running somewhere worse
+            }
+            this.path = this.mob.getNavigation().createPath(away.x, away.y, away.z, 0);
+            return this.path != null;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return !this.mob.getNavigation().isDone();
+        }
+
+        @Override
+        public void start() {
+            this.mob.getNavigation().moveTo(this.path, WALK);
+        }
+
+        @Override
+        public void stop() {
+            this.threat = null;
+        }
+
+        @Override
+        public void tick() {
+            // Sprinting only once it is close, exactly as the vanilla goal does.
+            this.mob.getNavigation().setSpeedModifier(
+                    this.threat != null && this.mob.distanceToSqr(this.threat) < 49.0
+                            ? SPRINT : WALK);
+        }
+    }
+
+    /**
+     * The dragon this creature can see and has no quarrel with, if any.
+     *
+     * Ours rather than TargetingConditions', and that is the point. Every
+     * vanilla way of asking "what is near me that matters" routes through
+     * TargetingConditions.forCombat, whose test calls canBeSeenAsEnemy and
+     * canAttack -- and a dragon answers no to being anybody's enemy, by the
+     * blanket rule that makes the world stop attacking you. So a dragon is
+     * invisible to every vanilla search, including the avoid goal's, which is
+     * why the fear was installed on every mob in the world and never once fired.
+     *
+     * Line of sight is required because this is fear at the sight of you, not
+     * dread through a wall.
+     */
+    public static Player dreadedBy(Mob mob) {
+        Player best = null;
+        double closest = NOTICE * NOTICE;
+        for (Player player : mob.level().players()) {
+            if (!DragonFormManager.isDragon(player) || player.isSpectator()
+                    || provoked(mob, player)) {
+                continue;
+            }
+            double gap = player.distanceToSqr(mob);
+            if (gap < closest && mob.getSensing().hasLineOfSight(player)) {
+                closest = gap;
+                best = player;
+            }
+        }
+        return best;
     }
 
     private static boolean afraid(PathfinderMob mob) {

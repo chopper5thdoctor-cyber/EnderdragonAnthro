@@ -3,6 +3,7 @@
   "package": "com.enderdragonanthro.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "BatFearMixin",
     "DragonFireballExplosionMixin",
     "DragonFluidDragMixin",
     "EndCrystalHomingMixin",

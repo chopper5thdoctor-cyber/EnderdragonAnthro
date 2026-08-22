@@ -46,11 +46,19 @@ than circling them — End Crystal blasts. Flying into scenery costs nothing at 
 a glide banks no fall damage however far you dive.
 
 **And they are afraid of you.** Nothing targets a dragon unprovoked — canon — but
-"unprovoked" is doing work there. Anything that can see you *runs*, using the same
-`AvoidEntityGoal` a creeper uses to avoid a cat, and anything you actually hit stops
-running and comes back at you for twenty seconds. Pigs, cows and sheep are too dumb to
-know what they are looking at, and endermen are too friendly; those four stand their
-ground. Hitting one still provokes it.
+"unprovoked" is doing work there. Anything that can see you *runs*, and anything you
+actually hit stops running and comes back at you for twenty seconds. Pigs, cows and
+sheep are too dumb to know what they are looking at, and endermen are too friendly;
+those four stand their ground. Hitting one still provokes it.
+
+Fear is a goal at priority 3, where a creeper keeps its fear of cats, so it competes for
+the navigation and interrupts strolling like any other. It is not `AvoidEntityGoal`
+itself, and the reason is worth writing down: that goal searches with
+`TargetingConditions.forCombat()`, whose test calls `canBeSeenAsEnemy` — which a dragon
+answers *no* to, by the very rule above. Every vanilla way of asking "what is near me
+that matters" is blind to you, so the search here is ours. Bats have their own path
+again, in `BatFearMixin`: a bat's movement never touches the goal selector, so its
+target block is aimed away from you instead.
 
 **Crystal Link.** Stand within 32 blocks of an End Crystal and it beams at you, healing
 2 HP/s and refilling hunger. Pop a crystal that is healing you and it costs 10 HP, canon.
@@ -240,18 +248,33 @@ fog is the fluid being opaque.
 in the world, since a portal is usually behind you or under a mountain. A teal **eye**
 points at the nearest stronghold, asked of the chunk generator with
 `StructureTags.EYE_OF_ENDER_LOCATED` so it answers from the seed whether or not the
-chunks exist. A violet **doorway** points at the nearest live nether portal, which is
-what keeps you from getting lost on the other side. Both carry coordinates, because a
-bearing tells you which way to set off and nothing about where you are going.
+chunks exist. A violet **doorway** points at the nearest nether portal, which is what
+keeps you from getting lost on the other side. Both carry coordinates, because a bearing
+tells you which way to set off and nothing about where you are going.
+
+The doorway points at a portal you have *seen*, not one currently loaded. Blocks only
+exist in loaded chunks, so a scan-based mark went out at about fifty metres — which is
+exactly backwards, since you need the bearing home most when home is far away and behind
+you. The block scan is now a way of learning gates rather than of listing them: anything
+seen once is written down per dimension, saved with the world, and forgotten only when a
+*loaded* chunk proves it has been broken.
 
 ## Gates
 
 A dragon is 2.67 blocks across and 8 tall. A vanilla portal's interior is 2×3, so **you
 cannot fit through your own world's portals** — the frame is narrower than the body.
 
-Order a shade to **Portal** and it raises one measured off your live hitbox with a
-block of clearance: 5×10 at the canon eight blocks, well inside `PortalShape`'s limit of
-21 each way. It refuses rather than burying a gate in somebody's hillside.
+Order a shade to **Portal** and it raises one measured off your hitbox with a block of
+clearance on every side: 5×10 of interior at the canon eight blocks, well inside
+`PortalShape`'s limit of 21 each way. The measurement is taken from the *standing* pose
+rather than the current one, which matters because ordering a gate is something you do
+on the wing and a gliding player's hitbox is 0.6 tall before scale — that read as 2.67
+and asked for a 5×5 hole.
+
+The frame stands at the highest ground under its whole footprint, and its sill is
+allowed to be buried, because a sill is a thing that replaces ground. Everything above
+the sill has to be clear: a shade refuses rather than cutting a doorway through
+somebody's hillside.
 
 The far side is vanilla's problem — `PortalForcer` builds the destination at the only
 size it knows — so the portal you arrive in is widened on arrival instead. That also
