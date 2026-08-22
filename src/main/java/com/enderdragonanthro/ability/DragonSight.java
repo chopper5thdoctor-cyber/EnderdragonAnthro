@@ -61,7 +61,7 @@ public final class DragonSight {
     private static final int VISION_RENEW_BELOW = 300;
 
     /** Bumped by hand when the sight changes; shown when it opens. */
-    private static final String BUILD = "sight-11";
+    private static final String BUILD = "sight-12";
 
     private static final Set<UUID> ACTIVE = new HashSet<>();
 
@@ -145,11 +145,17 @@ public final class DragonSight {
                 scan(chunk, gateways, end);
                 if (gateways.size() + end.size() >= MAX_MARKS) {
                     stronghold(player, end);
-        send(player, gateways, end);
+                    send(player, gateways, end);
                     return;
                 }
             }
         }
+        // On the ordinary path too, not only when the block scan fills up.
+        // This call used to exist solely on the early exit above, which needs
+        // two dozen portal blocks nearby to be reached -- so in every normal
+        // world the end list went out empty and the eye had nothing to point
+        // at. That is the whole of "no aim indicator".
+        stronghold(player, end);
         send(player, gateways, end);
     }
 

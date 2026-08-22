@@ -114,22 +114,59 @@ public final class DragonPresence {
      * something that has decided to fight you should not also be running away.
      */
     public static void afraidOfDragons(Entity entity) {
-        if (!(entity instanceof PathfinderMob mob) || unbothered(mob)) {
+        if (!(entity instanceof PathfinderMob mob) || unbothered(mob) || afraid(mob)) {
             return;
         }
         ((MobGoalAccessor) mob).enderdragonanthro$goals().addGoal(FEAR_PRIORITY,
-                new AvoidEntityGoal<>(mob, Player.class, (float) NOTICE, WALK, SPRINT,
+                new Fear<>(mob, Player.class, (float) NOTICE, WALK, SPRINT,
                         living -> living instanceof Player player
                                 && DragonFormManager.isDragon(player)
                                 && !provoked(mob, player)));
     }
 
-    /** Only the housekeeping is left on the tick. */
+    /**
+     * A marker subclass, so a mob can be asked whether it already has this.
+     *
+     * AvoidEntityGoal is used by half the mobs in the game for their own
+     * reasons, so "does it have an AvoidEntityGoal" is not the same question as
+     * "does it have ours".
+     */
+    private static final class Fear<T extends LivingEntity> extends AvoidEntityGoal<T> {
+        private Fear(PathfinderMob mob, Class<T> avoid, float distance, double walk,
+                     double sprint, java.util.function.Predicate<LivingEntity> when) {
+            super(mob, avoid, distance, walk, sprint, when);
+        }
+    }
+
+    private static boolean afraid(PathfinderMob mob) {
+        return ((MobGoalAccessor) mob).enderdragonanthro$goals().getAvailableGoals().stream()
+                .anyMatch(wrapped -> wrapped.getGoal() instanceof Fear);
+    }
+
+    /**
+     * Housekeeping, and catching the mobs that were already here.
+     *
+     * ENTITY_LOAD only fires for something entering the world, so every mob
+     * standing in an already-loaded chunk when the mod started -- which is all
+     * of them, in a world you were already playing -- never got the goal and
+     * never ran. Nearby mobs are equipped here as well, which is idempotent
+     * because Fear is a marker subclass that can be looked for.
+     */
     public static void tick(MinecraftServer server) {
         if (server.getTickCount() % SWEEP != 0) {
             return;
         }
         long now = server.overworld().getGameTime();
         PROVOKED.values().removeIf(until -> until < now);
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (!DragonFormManager.isDragon(player)) {
+                continue;
+            }
+            for (PathfinderMob mob : player.serverLevel().getEntitiesOfClass(
+                    PathfinderMob.class, player.getBoundingBox().inflate(NOTICE * 2))) {
+                afraidOfDragons(mob);
+            }
+        }
     }
 }
