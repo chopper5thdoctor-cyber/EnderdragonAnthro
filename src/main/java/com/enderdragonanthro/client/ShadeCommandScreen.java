@@ -33,6 +33,15 @@ public class ShadeCommandScreen extends Screen {
     /** Five duties across the top of a shade's block, then its own controls. */
     private static final int DUTY_W = 56;
     private static final int DUTY_GAP = 59;
+    /**
+     * The second row: a quarry picker, then one button per momentary order.
+     *
+     * Sized so the three of them fit beside the picker rather than off the
+     * panel — Pet, Recall and Portal at 52 apiece with a 4-pixel gutter.
+     */
+    private static final int QUARRY_W = 130;
+    private static final int ACT_W = 50;
+    private static final int ACT_GAP = 53;
 
     /** Kept across rebuilds so a refresh does not lose an unsent choice. */
     private final Map<Integer, String> quarry = new HashMap<>();
@@ -87,17 +96,24 @@ public class ShadeCommandScreen extends Screen {
                             Component.literal("Quarry: " + describe(named)),
                             b -> this.minecraft.setScreen(new BlockPickerScreen(
                                     this, named, picked -> this.quarry.put(shade.slot(), picked))))
-                    .bounds(this.left, y + 32, 186, 18).build());
-            this.addRenderableWidget(Button.builder(
-                            Component.literal(DragonMinions.Order.PET.label)
-                                    .withStyle(DragonMinions.Order.PET.colour),
-                            b -> send(shade.slot(), DragonMinions.Order.PET.ordinal()))
-                    .bounds(this.left + 190, y + 32, 46, 18).build());
-            this.addRenderableWidget(Button.builder(
-                            Component.literal(DragonMinions.Order.RECALL.label)
-                                    .withStyle(DragonMinions.Order.RECALL.colour),
-                            b -> send(shade.slot(), DragonMinions.Order.RECALL.ordinal()))
-                    .bounds(this.left + 240, y + 32, 56, 18).build());
+                    .bounds(this.left, y + 32, QUARRY_W, 18).build());
+
+            // Built from the enum rather than written out, which is why Portal
+            // had no button at all: the duty row above skips momentary orders
+            // on purpose, and this row used to name Pet and Recall by hand, so
+            // a third one existed everywhere except on screen.
+            int slot = 0;
+            for (DragonMinions.Order order : orders) {
+                if (!order.momentary()) {
+                    continue;
+                }
+                this.addRenderableWidget(Button.builder(
+                                Component.literal(order.label).withStyle(order.colour),
+                                b -> send(shade.slot(), order.ordinal()))
+                        .bounds(this.left + QUARRY_W + 4 + slot * ACT_GAP, y + 32,
+                                ACT_W, 18).build());
+                slot++;
+            }
         }
     }
 
