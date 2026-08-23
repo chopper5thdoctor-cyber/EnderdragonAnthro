@@ -110,10 +110,27 @@ public final class DragonFire {
             // has air under it, so the one candidate failed and that was that.
             // Twenty-five candidates find a floor even when the middle does not.
             BlockPos centre = hit.getBlockPos().relative(hit.getDirection());
+            boolean steamed = false;
             for (int dx = -SPREAD; dx <= SPREAD; dx++) {
                 for (int dz = -SPREAD; dz <= SPREAD; dz++) {
-                    light(level, centre.offset(dx, 0, dz));
+                    BlockPos column = centre.offset(dx, 0, dz);
+                    // Before the flame, not instead of it. A single snow layer
+                    // has no collision shape, so the ray goes straight through
+                    // one and lands on the ground underneath -- and snow is
+                    // replaceable, so fire would quietly overwrite it and the
+                    // snowfield would just vanish a block at a time with nothing
+                    // to show for it. Both the spot and the one below are asked,
+                    // which is the same pair light() tries and for the same
+                    // reason.
+                    steamed |= thaw(level, column) | thaw(level, column.below());
+                    light(level, column);
                 }
+            }
+            if (steamed) {
+                // One hiss for the patch. Twenty-five of them at once is not
+                // louder, it is a buzz.
+                level.playSound(null, centre, SoundEvents.FIRE_EXTINGUISH,
+                        SoundSource.BLOCKS, 0.7F, 1.4F);
             }
         }
 
@@ -122,6 +139,52 @@ public final class DragonFire {
         }
         level.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE,
                 SoundSource.PLAYERS, 0.7F, 0.6F);
+    }
+
+    /**
+     * Snow does not survive being breathed on.
+     *
+     * Dragonfire sets stone alight and leaves a burn that outlasts lava's; a
+     * snowdrift standing in the middle of that was the one thing on screen
+     * arguing it was not hot. It goes off as steam rather than melting to water,
+     * because water is what a slow thaw leaves and this is not one.
+     *
+     * All three snows, since they are the same substance wearing different
+     * blocks: the layer you walk over, the block you build with, and the powder
+     * that hides a pit.
+     *
+     * @return whether there was anything there to lose
+     */
+    private static boolean thaw(ServerLevel level, BlockPos at) {
+        net.minecraft.world.level.block.state.BlockState state = level.getBlockState(at);
+        if (!state.is(net.minecraft.world.level.block.Blocks.SNOW)
+                && !state.is(net.minecraft.world.level.block.Blocks.SNOW_BLOCK)
+                && !state.is(net.minecraft.world.level.block.Blocks.POWDER_SNOW)) {
+            return false;
+        }
+        level.removeBlock(at, false);
+        level.sendParticles(net.minecraft.core.particles.ParticleTypes.CLOUD,
+                at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5,
+                STEAM, 0.25, 0.25, 0.25, 0.02);
+        return true;
+    }
+
+    /** Puffs per block of snow lost. Enough to read as a cloud, not a fog bank. */
+    private static final int STEAM = 6;
+
+    /**
+     * The same heat, standing still.
+     *
+     * A patch of dragonfire left burning in a snowfield should clear the ground
+     * around it rather than sitting in a hole the breath happened to make, so
+     * the block asks this of its neighbours as it ticks.
+     */
+    public static boolean thawAround(ServerLevel level, BlockPos pos) {
+        boolean any = false;
+        for (net.minecraft.core.Direction face : net.minecraft.core.Direction.values()) {
+            any |= thaw(level, pos.relative(face));
+        }
+        return any;
     }
 
     /**

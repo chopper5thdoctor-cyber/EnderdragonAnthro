@@ -271,6 +271,11 @@ public class DragonFireBlock extends BaseFireBlock {
             return;
         }
 
+        if (DragonFire.thawAround(level, pos)) {
+            level.playSound(null, pos, net.minecraft.sounds.SoundEvents.FIRE_EXTINGUISH,
+                    net.minecraft.sounds.SoundSource.BLOCKS, 0.5F, 1.4F);
+        }
+
         boolean fed = false;
         for (Direction face : Direction.values()) {
             BlockPos next = pos.relative(face);

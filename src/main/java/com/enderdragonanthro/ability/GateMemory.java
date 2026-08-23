@@ -40,8 +40,15 @@ public final class GateMemory extends SavedData {
      * the top and the bottom of one doorway as two.
      */
     private static final int SAME_GATE = 12;
-    /** More than this and the oldest is dropped; nobody needs 257 doors. */
-    private static final int CAP = 256;
+    /**
+     * More than this and the oldest is dropped.
+     *
+     * There is deliberately no *distance* limit — a gate is remembered wherever
+     * it is, and the mark will point at one on the other side of the world if
+     * that is the nearest one you know. This is only a bound on how many, so the
+     * file cannot grow without end; at eight bytes each it is eight kilobytes.
+     */
+    private static final int CAP = 1024;
 
     private final List<BlockPos> gates = new ArrayList<>();
 

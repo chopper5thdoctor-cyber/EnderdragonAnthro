@@ -14,9 +14,6 @@ import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.EnumSet;
-import net.minecraft.world.entity.animal.Cow;
-import net.minecraft.world.entity.animal.Pig;
-import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.player.Player;
 
@@ -37,17 +34,11 @@ import java.util.UUID;
  * mean something: fleeing from a thing that could never hurt you is just an
  * animation, and fighting a thing that never provoked you is just vanilla.
  *
- * Four exceptions, and they are the artist's:
+ * One exception: endermen, which are too friendly, and which the court is made
+ * of. Everything else in the world runs.
  *
- * <ul>
- *   <li>pigs, cows and sheep, which are too dumb to know what they are looking
- *       at — and a field that empties the moment you walk into it would make
- *       the overworld unusable;
- *   <li>endermen, which are too friendly, and which the court is made of.
- * </ul>
- *
- * Being hit still provokes an exempt animal. A cow that does not know to run
- * from a dragon still knows it has been hit by one.
+ * Being hit still provokes an enderman. One that does not know to run from a
+ * dragon still knows it has been hit by one.
  *
  * Bats are afraid too, and are handled in BatFearMixin rather than here,
  * because a bat is the one common mob whose movement does not go through the
@@ -98,12 +89,17 @@ public final class DragonPresence {
     /**
      * The ones that do not run.
      *
-     * Deliberately by class rather than by tag, because this is a character
-     * judgement rather than a category: sheep are exempt for being sheep.
+     * Livestock were exempt at first, on the theory that a field emptying the
+     * moment you walked into it would make the overworld unusable. Played, it
+     * was the other way round: the cows standing placidly in the middle of a
+     * stampede were what broke it, because they were the one thing on screen
+     * saying you were not frightening. Everything runs now.
+     *
+     * Endermen stay, and they are the whole of the list — the court is made of
+     * them, and a shade that flees the dragon she serves is not a shade.
      */
     private static boolean unbothered(Mob mob) {
-        return mob instanceof Pig || mob instanceof Cow || mob instanceof Sheep
-                || mob instanceof EnderMan;
+        return mob instanceof EnderMan;
     }
 
     /**

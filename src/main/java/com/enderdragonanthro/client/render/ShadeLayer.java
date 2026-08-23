@@ -64,9 +64,37 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
             EnderdragonAnthro.id("textures/entity/shade_angry.png");
     private static final ResourceLocation DIZZY =
             EnderdragonAnthro.id("textures/entity/shade_dizzy.png");
-    /** The spirals alone, burned on top of the dizzy shell. */
+
+    /**
+     * The paint alone, off each face, to be burned on top of it.
+     *
+     * An enderman's eyes are the brightest thing in a dark room and the shades'
+     * were not lit at all, which made them read as somebody in an enderman
+     * costume rather than as one of them. Every face she can wear gets a glow
+     * sheet now, her resting one included.
+     *
+     * They are extracted from the same paintings rather than drawn fresh, so
+     * the lit part cannot drift out of register with the painted part — the
+     * rule is simply "the violet marking, not the black hide". The dizzy sheet
+     * was already hand-made to that rule and the extraction reproduces it
+     * pixel for pixel, which is how the rule was checked.
+     *
+     * The two bright tiers in the paint, #E079FA and #CC00FA, are the canon
+     * enderman emissive colours exactly — eyedropped from
+     * entity/enderman/enderman_eyes.png, which is the whole of vanilla's
+     * palette there: six lit pixels in two shades. The darker #450052 is the
+     * artist's own, and additive it reads as the socket around the blaze.
+     */
+    private static final ResourceLocation RESTING_GLOW =
+            EnderdragonAnthro.id("textures/entity/shade_glow.png");
+    private static final ResourceLocation PET_GLOW =
+            EnderdragonAnthro.id("textures/entity/shade_pet_glow.png");
+    private static final ResourceLocation ANGRY_GLOW =
+            EnderdragonAnthro.id("textures/entity/shade_angry_glow.png");
     private static final ResourceLocation DIZZY_GLOW =
             EnderdragonAnthro.id("textures/entity/shade_dizzy_glow.png");
+    /** What an emissive pass is drawn at; the eyes shader ignores it anyway. */
+    private static final int BURNING = 15728640;
 
     private final ShadeModel model;
     private final ModelPart face;
@@ -102,6 +130,14 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
             return ANGRY;
         }
         return EndermanHappyClient.isHappy(enderman) ? PET : null;
+    }
+
+    /** The lit half of a face, paired with the face it belongs to. */
+    private static ResourceLocation glowFor(ResourceLocation mood) {
+        if (mood == ANGRY) {
+            return ANGRY_GLOW;
+        }
+        return mood == DIZZY ? DIZZY_GLOW : PET_GLOW;
     }
 
     /**
@@ -140,25 +176,26 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
                 buffers.getBuffer(RenderType.entityCutoutNoCull(SKINS[slot])), light);
 
         ResourceLocation mood = mood(enderman);
-        if (mood != null) {
+        if (mood == null) {
+            // Her resting face is painted on the body sheet, so the glow for it
+            // goes on the body too -- same model, same UVs, nothing to line up
+            // by hand. Only the eye texels are opaque on that sheet, so only
+            // they light, which is exactly how vanilla's own eyes layer works.
+            this.model.render(poseStack, buffers.getBuffer(RenderType.eyes(RESTING_GLOW)),
+                    BURNING);
+        } else {
             // She narrows her eyes or closes them rather than wearing the
-            // enderman's ^^ and its unhinged jaw -- one opaque pass, because
-            // hers are paint on a hide and do not glow, so the plate that
-            // covers the resting eyes and the expression drawn in their place
-            // are the same texels. The shell is a whole head: her eyes overhang
-            // the front face, and half an expression is worse than none.
+            // enderman's ^^ and its unhinged jaw. One opaque pass to cover the
+            // resting eyes -- the plate that hides them and the expression drawn
+            // in their place are the same texels -- and one additive pass for
+            // the paint on top. The shell is a whole head: her eyes overhang the
+            // front face, and half an expression is worse than none.
             this.face.copyFrom(this.model.head());
             this.face.render(poseStack,
                     buffers.getBuffer(RenderType.entityCutoutNoCull(mood)),
                     light, OverlayTexture.NO_OVERLAY);
-            if (mood == DIZZY) {
-                // Spirals are a state she is in rather than a face she is
-                // pulling, so they burn instead of sitting there. Additive over
-                // the opaque pass, which is why the glow sheet carries only the
-                // paint -- anything the shell left as hide stays hide.
-                this.face.render(poseStack, buffers.getBuffer(RenderType.eyes(DIZZY_GLOW)),
-                        15728640, OverlayTexture.NO_OVERLAY);
-            }
+            this.face.render(poseStack, buffers.getBuffer(RenderType.eyes(glowFor(mood))),
+                    BURNING, OverlayTexture.NO_OVERLAY);
         }
         poseStack.popPose();
     }

@@ -2,6 +2,7 @@ package com.enderdragonanthro.client.render;
 
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.client.DragonSightClient;
+import com.enderdragonanthro.mixin.BossOverlayAccessor;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
@@ -42,15 +43,18 @@ public final class DragonSightCompass {
      *
      * Close enough to read without looking away from what you are flying at.
      * The first pass put them at 58, which is most of the way to the hotbar and
-     * reads as decoration at the edge of vision rather than as part of the
-     * crosshair; 34 clears the crosshair itself and nothing else.
+     * reads as decoration at the edge of vision; 17 puts them just clear of the
+     * crosshair's own arms, so the whole indicator is one thing you look at.
      */
-    private static final float RADIUS = 34.0F;
+    private static final float RADIUS = 17.0F;
     private static final int MARK = 16;
     /** The label is a footnote to the mark, not a second thing to read. */
     private static final float LABEL_SCALE = 0.7F;
     /** Screen pixels between labels, before the scale is applied to the text. */
     private static final int LABEL_STEP = 8;
+    /** Vanilla's first boss bar sits at 12 and each one steps 19 down. */
+    private static final int BOSS_TOP = 12;
+    private static final int BOSS_STEP = 19;
     private static final ResourceLocation END_MARK =
             EnderdragonAnthro.id("textures/gui/dragonsight/mark_end.png");
     private static final ResourceLocation GATE_MARK =
@@ -75,6 +79,23 @@ public final class DragonSightCompass {
                 END_MARK, END_TINT, "stronghold", line);
         mark(graphics, player, nearest(player, DragonSightClient.gateways()),
                 GATE_MARK, GATE_TINT, "portal", line);
+    }
+
+    /**
+     * The first free row under the boss bars.
+     *
+     * The labels used to hang off the crosshair, which was fine until the ring
+     * came in to 17 and they started sharing space with the marks. Up under the
+     * bars is where Minecraft already puts standing information about the world
+     * rather than about the moment, and it leaves the middle of the screen for
+     * looking through.
+     */
+    private static int belowBossBars() {
+        Minecraft client = Minecraft.getInstance();
+        int bars = client.gui == null ? 0
+                : ((BossOverlayAccessor) client.gui.getBossOverlay()).enderdragonanthro$events()
+                        .size();
+        return BOSS_TOP + bars * BOSS_STEP + 2;
     }
 
     private static BlockPos nearest(LocalPlayer player, List<BlockPos> positions) {
@@ -116,19 +137,20 @@ public final class DragonSightCompass {
         graphics.blit(texture, -MARK / 2, -MARK / 2, 0, 0.0F, 0.0F, MARK, MARK, MARK, MARK);
         pose.popPose();
 
-        // The label stays upright beside the crosshair rather than riding the
-        // mark, because text rotated to a bearing is text nobody can read. The
-        // coordinates are here because a bearing tells you which way to set off
-        // and nothing about where you are going.
+        // The label stays upright rather than riding the mark, because text
+        // rotated to a bearing is text nobody can read, and it sits up under
+        // the boss bars rather than by the crosshair, because the ring is close
+        // enough now that anything below it would be inside it. The coordinates
+        // are here because a bearing tells you which way to set off and nothing
+        // about where you are going.
         //
-        // Drawn under a scale rather than at the font's own size: full-size chat
-        // text sitting under the crosshair is the loudest thing on the screen,
-        // and this is a number you glance at once every few minutes.
+        // Drawn under a scale rather than at the font's own size: this is a
+        // number you glance at once every few minutes.
         Font font = Minecraft.getInstance().font;
         int metres = (int) Math.round(at.distanceTo(player.position()));
         String label = name + "  " + target.getX() + ", " + target.getZ() + "  (" + metres + "m)";
         pose.pushPose();
-        pose.translate(cx, cy + RADIUS / 2.0F + line * LABEL_STEP, 0.0F);
+        pose.translate(cx, belowBossBars() + line * LABEL_STEP, 0.0F);
         pose.scale(LABEL_SCALE, LABEL_SCALE, 1.0F);
         graphics.drawString(font, label, -font.width(label) / 2, 0, tint, true);
         pose.popPose();

@@ -19,6 +19,7 @@
     "PlayerTransformDataMixin"
   ],
   "client": [
+    "BossOverlayAccessor",
     "CrystalBeamSmoothMixin",
     "DragonBurnFlameMixin",
     "DragonFireOverlayMixin",

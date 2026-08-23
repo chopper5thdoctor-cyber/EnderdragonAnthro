@@ -45,11 +45,17 @@ status effect, and — for fairness, since an anthro walks among its own crystal
 than circling them — End Crystal blasts. Flying into scenery costs nothing at all, and
 a glide banks no fall damage however far you dive.
 
+**And to cold**, which is the same claim from the other end: a thing that shrugs off
+lava has no business shivering in powder snow. The freeze meter never fills, so the
+frost vignette never draws over your own violet.
+
 **And they are afraid of you.** Nothing targets a dragon unprovoked — canon — but
 "unprovoked" is doing work there. Anything that can see you *runs*, and anything you
-actually hit stops running and comes back at you for twenty seconds. Pigs, cows and
-sheep are too dumb to know what they are looking at, and endermen are too friendly;
-those four stand their ground. Hitting one still provokes it.
+actually hit stops running and comes back at you for twenty seconds. Endermen are the
+only exception, because the court is made of them. Livestock were exempt at first, on
+the theory that a field emptying as you walked into it would make the overworld
+unusable; played, the cows standing placidly in the middle of a stampede were the one
+thing on screen saying you were not frightening.
 
 Fear is a goal at priority 3, where a creeper keeps its fear of cats, so it competes for
 the navigation and interrupts strolling like any other. It is not `AvoidEntityGoal`
@@ -187,6 +193,15 @@ only ends when it arrives, and arriving meant standing where you were standing,
 which is why they shoved. Walk into one yourself and vanilla collision still
 applies; they simply no longer come to you.
 
+**Their faces burn.** Every expression a shade wears is emissive — her resting eyes and
+the pet, angry and dizzy faces alike — because an enderman's eyes are the brightest thing
+in a dark room, and eyes that were not lit made the court read as somebody in an enderman
+costume rather than as one of them. Each glow sheet is extracted from its own painting by
+one rule, *the violet marking and not the black hide*, so the lit half cannot drift out of
+register with the painted half. The two bright tiers in that paint, `#E079FA` and
+`#CC00FA`, are the canon enderman emissive colours exactly — those two are the whole of
+vanilla's palette on `enderman_eyes.png`, six lit pixels in two shades.
+
 **They speak like a court.** Ten lines per order, picked at random, each in the
 shade's own colour, addressing Jean as a sovereign — *"At your side, my liege."*
 Four shades answering one order with one identical sentence was what made them
@@ -293,6 +308,12 @@ way vanilla fire is paced, and carries vanilla's five attachment booleans so it 
 flat against leaves instead of standing in the air as a cube. Its screen overlay is a
 separate sheet from the block's, because the block has to touch the ground and the
 overlay wants height.
+
+**Snow goes off as steam.** The stream clears it where it lands and a burning patch keeps
+clearing it as it ticks — the layer you walk over, the block you build with, and the
+powder that hides a pit, all three. Steam rather than meltwater, because water is what a
+slow thaw leaves and this is not one. A snowdrift standing in the middle of a fire that
+outlasts lava's was the one thing on screen arguing it was not hot.
 
 ## Explosive Intent
 
