@@ -323,6 +323,62 @@ def check_sheets():
         print("\n".join(bad))
         sys.exit(1)
     print("PASS: every rig carries its own sheet, unlayered")
+    check_shipped_sheet()
+
+
+def check_shipped_sheet():
+    """What ships has to be what the faces are mapped to.
+
+    A rig turned up carrying two sheets — one of them a stale copy still
+    holding the blue block-out guides on the fist UV, the other the repainted
+    one the faces actually referenced. The converter took textures[0] and
+    shipped 235 pixels of pure blue onto the dragon's hands. Nothing caught it,
+    because every geometric check passed: the geometry was right, only the
+    paint was a different file.
+
+    So this compares pixels rather than trusting the pipeline. A face's
+    `texture` field is an index into the textures array, which makes "the sheet
+    the faces are mapped to" the file's own answer to which one it means, and
+    the shipped PNG has to equal it exactly.
+    """
+    import base64
+    import collections
+    import io
+    from PIL import Image
+
+    bb = json.load(open(os.path.join(HERE, "art/dragon_form.bbmodel")))
+    votes = collections.Counter()
+    for e in bb["elements"]:
+        for f in (e.get("faces") or {}).values():
+            if f.get("texture") is not None:
+                votes[f["texture"]] += 1
+    if len(votes) > 1:
+        print(f"FAIL: faces are split across {len(votes)} textures {dict(votes)} — "
+              f"which one is the model painted with?")
+        sys.exit(1)
+    want = Image.open(io.BytesIO(base64.b64decode(
+        bb["textures"][votes.most_common(1)[0][0] if votes else 0]["source"]
+        .split(",", 1)[1]))).convert("RGBA")
+    shipped = Image.open(os.path.join(
+        HERE, "src/main/resources/assets/enderdragonanthro/textures/entity/"
+              "dragon_form.png")).convert("RGBA")
+
+    if shipped.size != want.size:
+        print(f"FAIL: shipped sheet is {shipped.size}, the rig's is {want.size}")
+        sys.exit(1)
+    # Compared band by band, NOT with ImageChops.difference(...).getbbox() on
+    # RGBA: getbbox reads the alpha channel there, so two sheets whose alpha
+    # agrees come back "identical" however far their colours differ. That is
+    # precisely how the blue was cleared as a non-difference the first time.
+    if shipped.tobytes() != want.tobytes():
+        wp, sp = want.load(), shipped.load()
+        off = [(x, y) for y in range(want.height) for x in range(want.width)
+               if wp[x, y] != sp[x, y]]
+        print(f"FAIL: the shipped sheet is not the one the rig is painted with "
+              f"— {len(off)} pixels differ, first at {off[0]}")
+        print("  re-run tools/bbmodel_to_java.py")
+        sys.exit(1)
+    print("PASS: the shipped sheet is pixel-for-pixel the one the faces are mapped to")
 
 
 def check_shade():

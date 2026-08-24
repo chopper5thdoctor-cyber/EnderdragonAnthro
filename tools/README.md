@@ -28,6 +28,31 @@ Conversions applied:
 | `mirror_uv` on a cube | `.mirror(true)` / `.mirror(false)` around it in the cube list |
 | `canon_head_REFERENCE` | renamed `skull` — it is real geometry now |
 | root `wing_left` / `wing_right` | re-parented under `body` |
+| the texture the **faces** reference | `dragon_form.png` (see below) |
+
+### Which sheet ships
+
+A `.bbmodel` can carry several textures, and a face's `texture` field is an
+index into that array — so the sheet the faces are mapped to is the file's own
+answer to which one the model is painted with. The converter reads that one.
+
+It used to read `textures[0]`. A rig arrived carrying two sheets, one of them a
+stale copy still holding blue block-out guides on the fist UV at (276, 161) and
+the other the repainted one the faces referenced; `textures[0]` was the stale
+one, and 235 pixels of pure blue shipped onto the dragon's hands. Every
+geometric check passed, because the geometry was right and only the paint came
+from a different file. `verify_model.py` now compares the shipped PNG to the
+faces' sheet pixel for pixel.
+
+Two notes for painting in Blockbench, both of which contributed:
+
+- **Do not leave `layers_enabled` set.** Blockbench then draws the layer stack
+  and treats `source` as a preview it may ignore, so a repaint can fail to
+  reach the file the converter reads.
+- **Do not compare sheets with `ImageChops.difference(a, b).getbbox()` on
+  RGBA.** `getbbox` reads the alpha channel there, so two sheets whose alpha
+  agrees come back "identical" however far their colours differ. Compare
+  `tobytes()`, or convert to RGB first.
 
 ### Rotation signs
 

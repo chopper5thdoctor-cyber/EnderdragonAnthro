@@ -6,6 +6,7 @@ Usage:  python3 tools/bbmodel_to_java.py [art/dragon_form.bbmodel]
 See tools/README.md for the coordinate conventions applied.
 """
 import base64
+import collections
 import io
 import json
 import math
@@ -21,6 +22,37 @@ RENAME = {"canon_head_REFERENCE": "skull", "ref_jaw": "jaw"}
 
 # Cubes on the arm that are not part of its length; see the ruler in emit().
 ARM_RULER_SKIP = {"delt_left", "delt_right"}
+
+
+def sheet(bb):
+    """The texture the model is actually painted with.
+
+    This used to be textures[0], on the assumption that a rig carries one
+    sheet. A file with two of them broke that silently and expensively: the
+    hands had been repainted on the second sheet -- blue block-out guides
+    cleaned off the fist UV at (276, 161) -- while the first still carried
+    them, and taking textures[0] shipped 235 pixels of pure blue onto the
+    dragon's hands.
+
+    A face's `texture` field is an index into this array, so the sheet the
+    faces are mapped to is the sheet the model is painted with, by definition.
+    That is not an assumption about which entry is newer or better named; it is
+    the file saying which one it means.
+    """
+    votes = collections.Counter()
+    for e in bb["elements"]:
+        for f in (e.get("faces") or {}).values():
+            if f.get("texture") is not None:
+                votes[f["texture"]] += 1
+    if not votes:
+        return bb["textures"][0]
+    picked, _ = votes.most_common(1)[0]
+    if len(votes) > 1:
+        print(f"WARNING: faces are split across {len(votes)} textures {dict(votes)}; "
+              f"using index {picked}")
+    return bb["textures"][picked]
+
+
 VANILLA_PIVOTS = {
     "head": (0.0, 0.0, 0.0), "body": (0.0, 0.0, 0.0),
     "right_arm": (-5.0, 2.0, 0.0), "left_arm": (5.0, 2.0, 0.0),
@@ -381,7 +413,7 @@ def convert(path):
                            az0=f"{arm['lo2']:.3f}", az1=f"{arm['hi2']:.3f}")
     os.makedirs(TEX_DIR, exist_ok=True)
     img = Image.open(io.BytesIO(base64.b64decode(
-        bb["textures"][0]["source"].split(",", 1)[1]))).convert("RGBA")
+        sheet(bb)["source"].split(",", 1)[1]))).convert("RGBA")
     img.save(os.path.join(TEX_DIR, "dragon_form.png"))
 
     glow = Image.new("RGBA", img.size, (0, 0, 0, 0))
