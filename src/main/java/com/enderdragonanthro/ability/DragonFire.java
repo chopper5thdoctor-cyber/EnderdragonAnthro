@@ -51,7 +51,7 @@ public final class DragonFire {
      */
     private static final float DAMAGE = 4.0F;
     /** What it was before the kit was weighed against the Warden. */
-    private static final float RESTRAINED_DAMAGE = 2.0F;
+    private static final float PASSIVE_DAMAGE = 2.0F;
     /**
      * Hunger per shot. At the ability's five-tick cooldown that is four shots a
      * second, so 0.6 drains roughly half a haunch a second held — enough that
@@ -106,7 +106,7 @@ public final class DragonFire {
             entity.igniteForTicks(BURN_TICKS);
             mark(level, entity, BURN_TICKS);
             entity.hurt(level.damageSources().onFire(),
-                    DragonIntent.heavy(player) ? DAMAGE : RESTRAINED_DAMAGE);
+                    DragonIntent.heavy(player) ? DAMAGE : PASSIVE_DAMAGE);
         }
 
         // What it leaves behind. The ray is traced separately from the cone so

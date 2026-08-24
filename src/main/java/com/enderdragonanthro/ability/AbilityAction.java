@@ -10,7 +10,7 @@ public enum AbilityAction {
     FIREBALL(60, "Fireball"),
     BUFFET(100, "Buffet"),
     CHARGE(80, "Charge"),
-    CRATER(0, "Intent"),
+    CRATER(0, "Intent: "),
     // evasive jump is the escape button, so it is the expensive one
     EVADE(1200, "Evade"),
     WARP(200, "Warp"),

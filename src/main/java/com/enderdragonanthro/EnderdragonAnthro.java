@@ -55,6 +55,11 @@ public class EnderdragonAnthro implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(
                 com.enderdragonanthro.network.DragonPickupPayload.TYPE,
                 com.enderdragonanthro.network.DragonPickupPayload.CODEC);
+        // Downward only: cycling already goes up as an AbilityAction, and a
+        // second way to ask is a second way for the two sides to disagree.
+        PayloadTypeRegistry.playS2C().register(
+                com.enderdragonanthro.network.DragonIntentPayload.TYPE,
+                com.enderdragonanthro.network.DragonIntentPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ShadeStatePayload.TYPE, ShadeStatePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(HomingCrystalPayload.TYPE, HomingCrystalPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(EndermanHappyPayload.TYPE, EndermanHappyPayload.CODEC);
@@ -85,6 +90,7 @@ public class EnderdragonAnthro implements ModInitializer {
             DragonFormManager.onJoin(handler.getPlayer());
             // The button has to know which way round it is before it is drawn.
             com.enderdragonanthro.ability.DragonPickup.tell(handler.getPlayer());
+            com.enderdragonanthro.ability.DragonIntent.tell(handler.getPlayer());
         });
         // The far side of a portal is built by PortalForcer at the only size it
         // knows, so a dragon that fits through a wide gate arrives at a narrow

@@ -3,6 +3,8 @@ package com.enderdragonanthro.client.smoke;
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.ability.AbilityAction;
 import com.enderdragonanthro.client.DragonHud;
+import com.enderdragonanthro.ability.DragonIntent;
+import com.enderdragonanthro.client.DragonIntentClient;
 import com.enderdragonanthro.client.DragonPickupClient;
 import com.enderdragonanthro.client.DragonSightClient;
 import com.enderdragonanthro.client.PickupButton;
@@ -183,8 +185,16 @@ public final class SmokeTest {
             }
             case 6 -> check("Dragonsight reaches the client", DragonSightClient.isOpen(),
                     "sent SIGHT and DragonSightClient never opened");
-            case 7 -> inventoryButton(client);
-            case 8 -> check("the pick-up switch starts on", DragonPickupClient.picksUp(),
+            case 7 -> {
+                ClientPlayNetworking.send(new AbilityActionPayload(AbilityAction.CRATER));
+                waited = ROUND_TRIP;
+            }
+            case 8 -> check("the Intent dial reaches the client",
+                    DragonIntentClient.get() == DragonIntent.HOSTILE,
+                    "cycled once from Alert and the HUD still says "
+                            + DragonIntentClient.get().label());
+            case 9 -> inventoryButton(client);
+            case 10 -> check("the pick-up switch starts on", DragonPickupClient.picksUp(),
                     "the client was never told which way the switch is");
             default -> finish(client);
         }
@@ -249,6 +259,7 @@ public final class SmokeTest {
     private static void skipped() {
         for (String what : new String[] {
             "transform reaches the client", "Dragonsight reaches the client",
+            "the Intent dial reaches the client",
             "the pick-up switch is on the inventory", "the pick-up switch starts on"}) {
             SKIPPED.add(what);
             EnderdragonAnthro.LOGGER.info("[smoke] SKIP {}", what);

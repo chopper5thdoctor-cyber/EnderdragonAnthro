@@ -104,7 +104,7 @@ firework. Two or three taps a second holds top speed.
 A boost is a *target* rather than a force, which is why even that settles below
 terminal velocity: it pulls your speed toward a number and then stops mattering, while
 falling adds 0.08 a tick forever and balances against drag at 3.92. Sustained flight is
-2.7 a tick against a rocket elytra's 1.7 — and 4.5 on Enderdragon Intent, which is the
+2.7 a tick against a rocket elytra's 1.7 — and 4.5 on Hostile Intent, which is the
 only speed here that outruns gravity.
 
 **The court.** Four named elite endermen — **Vaëlle** (red), **Keshaire** (blue),
@@ -127,9 +127,9 @@ burst is not something to post to every client in view distance every tick.
 | `Y` | Transform (dragon ⇄ human) | — |
 | `R` | Dragon's Breath — a visible jet along the raytrace; the pool always lands on ground | 4 s |
 | `G` | Dragon Fireball — canon lingering cloud **plus** an entity-only blast | 3 s |
-| `V` | Wing Buffet — 10/16/22 at boss weight, 3/5/7 restrained, huge knockback | 5 s |
-| `C` | Charge dash — 18/28/40 at boss weight, 6/10/15 restrained. Sprinting alone also deals it | 4 s |
-| `B` | **Intent** — cycles Restrained / Boss / Enderdragon; see the passage below | — |
+| `V` | Wing Buffet — 10/16/22 on Alert and Hostile, 3/5/7 on Passive, huge knockback | 5 s |
+| `C` | Charge dash — 18/28/40 on Alert and Hostile, 6/10/15 on Passive. Sprinting deals it too | 4 s |
+| `B` | **Intent** — cycles Passive / Alert / Hostile; the chip names the stop | — |
 | `X` | Evasive jump — somewhere random 1000+ blocks out, under open sky | 60 s |
 | `K` | Warp to a random player beyond 100 blocks | 10 s |
 | `J` | Return to your anchor | 5 s |
@@ -359,15 +359,19 @@ and none of the rest.
 
 | | Claw | Abilities | Crater punch | Flight |
 |---|---|---|---|---|
-| **Restrained** | 10 | as shipped | — | ordinary glide |
-| **Boss** *(default)* | 35 | boss weight | bare hand only | ordinary glide |
-| **Enderdragon** | 35 | boss weight | detonates, 3 s | tunnels |
+| 🟢 **Passive** | 10 | as shipped | — | ordinary glide |
+| 🟠 **Alert** *(default)* | 35 | boss weight | bare hand only | ordinary glide |
+| 🟣 **Hostile** | 35 | boss weight | detonates, 3 s | tunnels |
 
-**The empty hand is what makes Boss liveable as the default.** A punch is
+Named as a ladder rather than as three settings, and coloured like one — green,
+amber, then the dragon's own violet. The chip on the HUD reads **Intent: Alert**
+and repaints as you cycle, and Hostile is the only bold word on the screen.
+
+**The empty hand is what makes Alert liveable as the default.** A punch is
 something you throw with a fist, so holding a pickaxe means you are mining and
 mining mines. Without it every left click anywhere would be a seven-block
 sphere, and there would be no way to place a torch without redecorating. The
-Enderdragon punch is the one that bursts — eight damage at the centre falling to
+Hostile punch is the one that bursts — eight damage at the centre falling to
 nothing at the rim, small next to a claw at 35 on purpose, since it is the
 shockwave off a punch aimed at the ground and anything standing there has
 already lost the floor.

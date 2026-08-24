@@ -285,6 +285,7 @@ public final class DragonFormManager {
         // out, and the list above only carries the value it starts at. Applied
         // after, so the stop the player was on survives a re-dress.
         com.enderdragonanthro.ability.DragonIntent.refresh(player);
+        com.enderdragonanthro.ability.DragonIntent.tell(player);
         // Flight is elytra-style gliding (DragonFlight), not creative flight.
         player.onUpdateAbilities();
         player.setHealth(Math.min(health, player.getMaxHealth()));

@@ -51,7 +51,18 @@ import sys
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIXIN_DIR = os.path.join(HERE, "src/main/java/com/enderdragonanthro/mixin")
 CONFIG = os.path.join(HERE, "src/main/resources/enderdragonanthro.mixins.json")
-EXPORT = os.path.join(HERE, "run/.mixin.out/class")
+# Each run configuration has its own run directory, and Mixin writes the export
+# under whichever one launched. Looking only in run/ meant the audit could not
+# read an export produced by runSmoke, which is the run most likely to have
+# exercised something interesting. Newest wins, so a fresh run is what gets
+# audited without having to say which.
+EXPORT_DIRS = ("run", "build/smoke", "build/gametest")
+
+
+def newest_export():
+    found = [os.path.join(HERE, d, ".mixin.out/class") for d in EXPORT_DIRS]
+    found = [p for p in found if os.path.isdir(p)]
+    return max(found, key=os.path.getmtime) if found else None
 
 # Everything that weaves a method into the target class. @Accessor and @Invoker
 # are included because a missing accessor is the same silent nothing.
@@ -116,13 +127,16 @@ def sources():
 
 def transformed():
     """The methods Mixin actually wrote, keyed by target class simple name."""
-    if not os.path.isdir(EXPORT):
-        sys.exit(f"ERROR: no export at {os.path.relpath(EXPORT, HERE)}\n"
-                 f"  Run the client once with -Dmixin.debug.export=true first:\n"
-                 f'    JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dmixin.debug.export=true" \\\n'
-                 f"        xvfb-run -a ./gradlew runClient")
+    export = newest_export()
+    if export is None:
+        sys.exit("ERROR: no mixin export found in "
+                 + ", ".join(EXPORT_DIRS) + "\n"
+                 "  Run the client once with -Dmixin.debug.export=true first:\n"
+                 '    JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dmixin.debug.export=true" \\\n'
+                 "        xvfb-run -a ./gradlew runClient")
+    print(f"reading {os.path.relpath(export, HERE)}")
     classes = {}
-    for path in glob.glob(os.path.join(EXPORT, "**", "*.class"), recursive=True):
+    for path in glob.glob(os.path.join(export, "**", "*.class"), recursive=True):
         name = os.path.basename(path)[:-6]
         if "$" in name:
             continue                       # inner classes are not mixin targets

@@ -3,6 +3,8 @@ package com.enderdragonanthro.ability;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import com.enderdragonanthro.network.DragonIntentPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -25,13 +27,19 @@ import java.util.UUID;
  * So it is a dial with three stops, cycled with the same key.
  *
  * <ul>
- *   <li><b>Restrained</b> — the numbers the form shipped with. A claw is 10,
+ *   <li><b>Passive</b> — the numbers the form shipped with. A claw is 10,
  *       which is a stone sword. Nothing breaks that you did not mean to break.
- *   <li><b>Boss</b> — the weight measured against the Warden. A claw is 35, and
+ *   <li><b>Alert</b> — the weight measured against the Warden. A claw is 35, and
  *       an empty hand takes a seven-block sphere out of the world.
- *   <li><b>Enderdragon</b> — the same, and the punch detonates, and flight
- *       stops asking permission from the terrain.
+ *   <li><b>Hostile</b> — the same, and the punch detonates, and flight stops
+ *       asking permission from the terrain.
  * </ul>
+ *
+ * Named as a ladder rather than as three settings, and coloured like one: green
+ * to amber to the dragon's own violet, which is the one thing on the HUD drawn
+ * in the colour of the creature rather than in the interface's palette. Hostile
+ * is also the only bold word on the screen. It should not be possible to glance
+ * at the HUD and not know which of these you are in.
  *
  * The empty-hand rule is what makes Boss liveable as the default. A punch is
  * something you throw with a fist; holding a pickaxe means you are mining, and
@@ -39,28 +47,54 @@ import java.util.UUID;
  * be a crater, and there would be no way to place a torch without redecorating.
  */
 public enum DragonIntent {
-    /** As the form shipped: canon head-hit, 1 -> 10. */
-    RESTRAINED("Restrained", ChatFormatting.GRAY, 9.0, false, false, false),
+    /** As the form shipped: canon head-hit, 1 -> 10. Nothing breaks by accident. */
+    PASSIVE("Passive", ChatFormatting.GREEN, 0xFF54D14A, false, 9.0, false, false, false),
     /** Warden weight. The punch lands, but only bare-handed, and it does not burst. */
-    BOSS("Boss", ChatFormatting.LIGHT_PURPLE, 34.0, true, false, false),
+    ALERT("Alert", ChatFormatting.GOLD, 0xFFF0A020, false, 34.0, true, false, false),
     /** All of it: the punch detonates and the sky stops mattering. */
-    ENDERDRAGON("Enderdragon", ChatFormatting.DARK_PURPLE, 34.0, true, true, true);
+    HOSTILE("Hostile", ChatFormatting.LIGHT_PURPLE, 0xFFE079FA, true, 34.0, true, true, true);
 
     private final String label;
     private final ChatFormatting tint;
+    private final int rgb;
+    private final boolean bold;
     private final double attackBonus;
     private final boolean craters;
     private final boolean detonates;
     private final boolean tunnels;
 
-    DragonIntent(String label, ChatFormatting tint, double attackBonus,
+    DragonIntent(String label, ChatFormatting tint, int rgb, boolean bold, double attackBonus,
                  boolean craters, boolean detonates, boolean tunnels) {
         this.label = label;
         this.tint = tint;
+        this.rgb = rgb;
+        this.bold = bold;
         this.attackBonus = attackBonus;
         this.craters = craters;
         this.detonates = detonates;
         this.tunnels = tunnels;
+    }
+
+    /** What it is called on screen. */
+    public String label() {
+        return this.label;
+    }
+
+    /**
+     * The HUD's colour, as ARGB.
+     *
+     * Separate from the chat formatting because the two draw through different
+     * paths -- a chip label is drawn with an int and a chat component with a
+     * style -- and because the HUD wants the dragon's own #E079FA rather than
+     * the sixteen-colour approximation of it.
+     */
+    public int rgb() {
+        return this.rgb;
+    }
+
+    /** Only Hostile. One bold word on the whole screen, and it means this. */
+    public boolean bold() {
+        return this.bold;
     }
 
     /** What a bare claw gains over a bare fist at this stop. */
@@ -90,19 +124,19 @@ public enum DragonIntent {
      * differ in what the fist and the wings do, not in what the breath is worth.
      */
     public boolean heavy() {
-        return this != RESTRAINED;
+        return this != PASSIVE;
     }
 
     // ------------------------------------------------------------------ state
 
     /**
-     * Boss by default, which is only safe because of the empty-hand rule.
+     * Alert by default, which is only safe because of the empty-hand rule.
      *
      * It is what the form is — the powerscale is written against these numbers
-     * — and starting a dragon at Restrained would mean the answer to "why am I
+     * — and starting a dragon at Passive would mean the answer to "why am I
      * hitting for ten" is a keypress nobody was told about.
      */
-    private static final DragonIntent DEFAULT = BOSS;
+    private static final DragonIntent DEFAULT = ALERT;
 
     private static final Map<UUID, DragonIntent> HELD = new HashMap<>();
 
@@ -134,18 +168,45 @@ public enum DragonIntent {
         DragonIntent next = all[(of(player).ordinal() + 1) % all.length];
         HELD.put(player.getUUID(), next);
         refresh(player);
+        tell(player);
 
         player.displayClientMessage(Component.literal("Intent: ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(next.label).withStyle(next.tint)), true);
+                .withStyle(ChatFormatting.GRAY).append(next.name(true)), true);
+        // Rising with the ladder, so the ear knows which way you went even when
+        // the message has already faded.
         player.serverLevel().playSound(null, player.blockPosition(),
                 SoundEvents.ENDER_DRAGON_GROWL, SoundSource.PLAYERS, 0.7F,
                 0.7F + 0.25F * next.ordinal());
     }
 
+    /**
+     * The stop's name, styled.
+     *
+     * {@code loud} is what separates the notifier from anything else that wants
+     * to say the word: the action bar shouts Hostile in bold and a passing
+     * mention of it does not.
+     */
+    public Component name(boolean loud) {
+        Component named = Component.literal(this.label).withStyle(this.tint);
+        return loud && this.bold
+                ? named.copy().withStyle(ChatFormatting.BOLD) : named;
+    }
+
+    /** Tell the client which stop this is, so the HUD can draw it. */
+    public static void tell(ServerPlayer player) {
+        ServerPlayNetworking.send(player,
+                new DragonIntentPayload(of(player).ordinal()));
+    }
+
     /** Push the current stop's claw into the attribute. Safe to call any time. */
     public static void refresh(ServerPlayer player) {
         DragonFormManager.setAttackBonus(player, of(player).attackBonus());
+    }
+
+    /** By ordinal, for the payload. Out of range means the default. */
+    public static DragonIntent byOrdinal(int index) {
+        DragonIntent[] all = values();
+        return index >= 0 && index < all.length ? all[index] : DEFAULT;
     }
 
     /** A player who logs out stops being anyone's problem. */

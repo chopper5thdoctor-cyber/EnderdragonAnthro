@@ -2,8 +2,10 @@ package com.enderdragonanthro.client;
 
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.ability.AbilityAction;
+import com.enderdragonanthro.ability.DragonIntent;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
@@ -112,8 +114,22 @@ public final class DragonHud {
             }
             graphics.drawCenteredString(mc.font, keyLabel(entry.getKey()),
                     x + keyW / 2, y + (CHIP_H - 8) / 2, lit ? TEXT_GLOW : TEXT);
-            graphics.drawString(mc.font, action.label, x + keyW + 4,
-                    y + (CHIP_H - 8) / 2, lit ? LABEL_ON : LABEL, true);
+            int textY = y + (CHIP_H - 8) / 2;
+            int textX = graphics.drawString(mc.font, action.label, x + keyW + 4,
+                    textY, lit ? LABEL_ON : LABEL, true);
+            if (action == AbilityAction.CRATER) {
+                // The one chip that says what it is set to rather than what it
+                // does. Drawn as a second string in the stop's own colour --
+                // green, amber, then the dragon's violet -- so the state reads
+                // at a glance without looking at the ability list at all.
+                // drawString returns where it stopped, so the two pieces meet
+                // whatever the font does with the first one.
+                DragonIntent intent = DragonIntentClient.get();
+                Component named = Component.literal(intent.label())
+                        .withStyle(style -> style.withBold(intent.bold()));
+                graphics.drawString(mc.font, named, textX + 1, textY,
+                        intent.rgb(), true);
+            }
             y += rowH;
         }
     }

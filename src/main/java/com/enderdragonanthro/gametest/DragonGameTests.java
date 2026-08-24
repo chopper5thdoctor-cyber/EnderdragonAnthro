@@ -144,18 +144,18 @@ public class DragonGameTests implements FabricGameTest {
         floor(helper, 6);
         FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(1, 1, 1));
 
-        double boss = dragon.getAttributeValue(Attributes.ATTACK_DAMAGE);
-        DragonIntent.cycle(dragon);                       // Boss -> Enderdragon
-        DragonIntent.cycle(dragon);                       // -> Restrained
-        double restrained = dragon.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        double alert = dragon.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        DragonIntent.cycle(dragon);                       // Alert -> Hostile
+        DragonIntent.cycle(dragon);                       // -> Passive
+        double passive = dragon.getAttributeValue(Attributes.ATTACK_DAMAGE);
 
-        if (DragonIntent.of(dragon) != DragonIntent.RESTRAINED) {
-            helper.fail("two cycles from Boss should land on Restrained, got "
+        if (DragonIntent.of(dragon) != DragonIntent.PASSIVE) {
+            helper.fail("two cycles from Alert should land on Passive, got "
                     + DragonIntent.of(dragon));
         }
-        if (restrained >= boss) {
-            helper.fail("Restrained hits for " + restrained
-                    + ", which is not less than Boss's " + boss);
+        if (passive >= alert) {
+            helper.fail("Passive hits for " + passive
+                    + ", which is not less than Alert's " + alert);
         }
         helper.succeed();
     }
@@ -167,7 +167,7 @@ public class DragonGameTests implements FabricGameTest {
         FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(1, 1, 1));
 
         if (!DragonAbilities.cratersNow(dragon)) {
-            helper.fail("a bare-handed dragon on Boss should crater");
+            helper.fail("a bare-handed dragon on Alert should crater");
         }
         dragon.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,
                 new ItemStack(Items.DIAMOND_PICKAXE));
