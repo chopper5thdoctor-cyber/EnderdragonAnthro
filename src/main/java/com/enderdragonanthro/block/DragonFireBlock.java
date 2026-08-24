@@ -72,8 +72,15 @@ public class DragonFireBlock extends BaseFireBlock {
      */
     private static final float FIRE_DAMAGE = 3.0F;
 
-    /** How long standing in it keeps the burn marked as ours. */
-    private static final int MARK_TICKS = 300;
+    /**
+     * How long standing in it keeps the burn marked as ours.
+     *
+     * The breath's own figure rather than a copy of it. These were two 300s
+     * side by side, which is one edit away from a burn that outlasts the mark
+     * on it and finishes in vanilla orange. There is no second number to keep
+     * in step now.
+     */
+    private static final int MARK_TICKS = DragonFire.BURN_TICKS;
     /** Chance per tick that a flammable neighbour is burnt away outright. */
     private static final float CONSUME_CHANCE = 0.2F;
     /** ...and that the flame reaches past it into open air instead. */

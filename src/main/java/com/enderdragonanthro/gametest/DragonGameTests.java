@@ -234,6 +234,41 @@ public class DragonGameTests implements FabricGameTest {
         helper.succeed();
     }
 
+    /**
+     * SHIPPED BUG: the last few seconds of a long burn came out orange.
+     *
+     * Two clocks for one burn. The server lit the victim for BURN_TICKS and the
+     * client counted the purple mark down itself, on END_CLIENT_TICK -- which
+     * runs while the world is paused, so the mark expired early and the flame
+     * carried on in vanilla orange. Reported on an iron golem, where the burn is
+     * long enough to see it happen.
+     *
+     * The mark is now held until the fire goes out rather than counted, so the
+     * only thing left that can be wrong is the burn itself: this pins what the
+     * breath actually sets, because everything the client draws is now measured
+     * against it.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void aBurnLastsAsLongAsItSays(GameTestHelper helper) {
+        floor(helper, 6);
+        FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(1, 1, 1));
+        // Facing the victim, since the stream only catches what is in the cone.
+        Zombie victim = helper.spawn(EntityType.ZOMBIE, new BlockPos(4, 1, 1));
+        dragon.moveTo(dragon.getX(), dragon.getY(), dragon.getZ(), -90.0F, 0.0F);
+
+        DragonFire.breathe(dragon);
+
+        if (!victim.isOnFire()) {
+            helper.fail("breathing on a zombie did not set it alight");
+        }
+        int lit = victim.getRemainingFireTicks();
+        if (lit != DragonFire.BURN_TICKS) {
+            helper.fail("the breath lit it for " + lit + " ticks, but the mark sent to"
+                    + " every client says " + DragonFire.BURN_TICKS);
+        }
+        helper.succeed();
+    }
+
     /** A floor to stand on; the empty structure is air all the way down. */
     private static void floor(GameTestHelper helper, int size) {
         for (int x = 0; x < size; x++) {

@@ -91,6 +91,14 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                     DragonSightClient.clear();
                 });
 
+        // On the WORLD tick, deliberately, unlike everything else in this file.
+        // A burn mark is compared against an entity's own fire counter, and that
+        // one stops while the world is paused -- so this one has to as well, or
+        // the mark expires during a pause menu and the rest of the burn draws
+        // orange. END_WORLD_TICK is fired from ClientLevel.tickEntities, which
+        // is the call the pause stops.
+        ClientTickEvents.END_WORLD_TICK.register(DragonBurnClient::tick);
+
         // Without this the block draws on the SOLID layer, where alpha is not
         // read at all and every transparent texel comes out opaque black -- a
         // black slab with flames along the bottom of it.
@@ -121,7 +129,6 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
             DragonHud.tick();
             DragonWings.tick();
             DragonTail.tick();
-            DragonBurnClient.tick();
             EndermanHappyClient.tick();
             clientTick++;
             if (client.player == null) {

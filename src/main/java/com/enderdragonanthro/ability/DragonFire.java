@@ -40,7 +40,7 @@ public final class DragonFire {
      * Fifteen seconds, which is what lava leaves on you once you climb out.
      * Dragonfire has no business going out sooner than the ground does.
      */
-    private static final int BURN_TICKS = 300;
+    public static final int BURN_TICKS = 300;
     /**
      * Per shot. Small, because the burn is the weapon and this is the light.
      *
