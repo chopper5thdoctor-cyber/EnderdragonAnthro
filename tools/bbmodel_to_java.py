@@ -26,17 +26,26 @@ ARM_RULER_SKIP = {"delt_left", "delt_right"}
 
 FLAP_NAME = "wing_flap"
 FLAP_BONES = ("wing_right", "wing_left", "wing_tip_right", "wing_tip_left")
-# Samples the baked table holds across one beat. Two per tick at the seeded
-# 12-tick length: past the point where anyone can see the difference between
-# the table and the curve it came from, and small enough to read in the file.
-FLAP_SAMPLES = 24
+WAG_NAME = "tailwag in flight"
+WAG_BONES = ("tail1", "tail2", "tail3")
+# Samples a baked track holds across one cycle. Two per tick at the seeded
+# lengths: past the point where anyone can see the difference between the table
+# and the curve it came from, and small enough to read in the file.
+CLIP_SAMPLES = 32
+# rotation is degrees->radians with x and z flipped, the same rule the geometry
+# takes. position is a translation, so only Y flips -- java y counts downward.
+AXIS_SIGN = {
+    "rotation": {"x": -1.0, "y": 1.0, "z": -1.0},
+    "position": {"x": 1.0, "y": -1.0, "z": 1.0},
+}
+CHANNELS = ("rotation", "position")
 
 
 def catmullrom(points, u):
     """Blockbench's smooth interpolation, on a looping track.
 
     A Catmull-Rom spline through the keyframes, wrapping at both ends because
-    the beat loops -- the wing coming out of the last keyframe has to arrive at
+    the clip loops -- the wing coming out of the last keyframe has to arrive at
     the first one already moving, or the loop reads as a hitch once a second.
     """
     n = len(points)
@@ -49,87 +58,88 @@ def catmullrom(points, u):
                   + (-p0 + 3 * p1 - 3 * p2 + p3) * f * f * f)
 
 
-def flap_table(bb):
-    """Bake the rig's wing_flap animation into per-axis sample tables.
+def bake(bb, clip, bones):
+    """Bake one of the rig's animations into per-axis sample tables.
 
     Baked rather than emitted as keyframes because the interpolation is then
     settled here, in one place, at conversion time -- the generated Java only
     has to walk a table and lerp, and cannot drift from what Blockbench drew.
 
-    Returns (ticks, {bone: {axis: [samples]}}) in Java radians, or None if the
-    rig carries no such animation, in which case flap() keeps the trigonometry
-    it was born with.
+    Returns (ticks, {(bone, channel, axis): [samples]}) already in Java's
+    space and units, or None if the rig carries no such animation.
     """
     anim = next((a for a in bb.get("animations", [])
-                 if a.get("name") == FLAP_NAME), None)
+                 if a.get("name") == clip), None)
     if anim is None:
         return None
     by_uuid = {g["uuid"]: g["name"] for g in bb.get("groups", [])}
     length = float(anim.get("length") or 0.0)
     if length <= 0.0:
-        sys.exit(f"ERROR: the {FLAP_NAME} animation has no length")
+        sys.exit(f"ERROR: the {clip!r} animation has no length")
 
     tracks = {}
+    seen = set()
     for uid, animator in (anim.get("animators") or {}).items():
         name = animator.get("name") or by_uuid.get(uid)
-        if name not in FLAP_BONES:
+        if name not in bones:
             continue
-        # Anything that is not rotation is not baked, and a channel that
-        # vanishes without a word is the failure mode this project has been
-        # bitten by twice -- an arm ruler that quietly stopped measuring the
-        # hand, a texture that quietly came from the wrong file. Both looked
-        # fine and were wrong. So say so and stop.
-        others = {k.get("channel") for k in animator.get("keyframes", [])
-                  if k.get("channel") != "rotation"}
-        if others:
-            sys.exit(f"ERROR: {name} in {FLAP_NAME} animates "
-                     f"{', '.join(sorted(others))}, which flap() cannot bake — "
-                     f"it only writes rotations. Either drop the channel or "
-                     f"teach flap_table/flap_java to carry it.")
-        keys = sorted((k for k in animator.get("keyframes", [])
-                       if k.get("channel") == "rotation"),
-                      key=lambda k: float(k["time"]))
-        if not keys:
-            continue
-        # Blockbench stores every keyframe value as a molang expression, so a
-        # plain number arrives as a string. Anything that is not a number is
-        # something this cannot bake, and guessing would be worse than saying so.
-        def val(k, axis):
-            raw = k["data_points"][0].get(axis, 0)
-            try:
-                return float(raw)
-            except (TypeError, ValueError):
-                sys.exit(f"ERROR: {name}.{axis} at t={k['time']} is an expression "
-                         f"({raw!r}); flap() can only bake plain numbers")
-        times = [float(k["time"]) for k in keys]
-        smooth = any(k.get("interpolation") == "catmullrom" for k in keys)
-        axes = {}
-        for axis in ("x", "y", "z"):
-            pts = [val(k, axis) for k in keys]
-            out = []
-            for s in range(FLAP_SAMPLES):
-                at = s / FLAP_SAMPLES * length
-                if smooth and len(pts) > 2:
-                    # Even spacing is what a spline through keyframe INDICES
-                    # assumes, and the seeder lays them on the tick grid. If a
-                    # tweak moves one off the grid, fall back to walking the
-                    # times so the shape still follows the keyframes.
-                    even = all(abs(times[i] - i * length / len(times)) < 1e-6
-                               for i in range(len(times)))
-                    u = at / length * len(pts) if even else _index_at(times, at, length)
-                    out.append(catmullrom(pts, u))
-                else:
-                    out.append(_lerp_at(times, pts, at, length))
-            # Blockbench space -> Java: x and z flip, y is unchanged, degrees
-            # to radians. Same rule the geometry takes, and for the same reason.
-            sign = {"x": -1.0, "y": 1.0, "z": -1.0}[axis]
-            axes[axis] = [v * sign * math.pi / 180.0 for v in out]
-        tracks[name] = axes
+        # A channel that vanishes without a word is the failure mode this
+        # project has been bitten by twice -- an arm ruler that quietly stopped
+        # measuring the hand, a sheet that quietly came from the wrong file.
+        # Both looked fine and were wrong. So name it and stop.
+        strange = {k.get("channel") for k in animator.get("keyframes", [])
+                   if k.get("channel") not in CHANNELS}
+        if strange:
+            sys.exit(f"ERROR: {name} in {clip!r} animates "
+                     f"{', '.join(sorted(strange))}, which cannot be baked — "
+                     f"only {' and '.join(CHANNELS)} are carried.")
 
-    missing = [b for b in FLAP_BONES if b not in tracks]
+        for channel in CHANNELS:
+            keys = sorted((k for k in animator.get("keyframes", [])
+                           if k.get("channel") == channel),
+                          key=lambda k: float(k["time"]))
+            if not keys:
+                continue
+            seen.add(name)
+            times = [float(k["time"]) for k in keys]
+            smooth = any(k.get("interpolation") == "catmullrom" for k in keys)
+            for axis in ("x", "y", "z"):
+                pts = [_value(name, channel, axis, k) for k in keys]
+                if all(abs(v) < 1e-9 for v in pts):
+                    continue
+                sign = AXIS_SIGN[channel][axis]
+                scale = math.pi / 180.0 if channel == "rotation" else 1.0
+                row = []
+                for t in range(CLIP_SAMPLES):
+                    at = t / CLIP_SAMPLES * length
+                    if smooth and len(pts) > 2:
+                        # Even spacing is what a spline through keyframe INDICES
+                        # assumes. If a tweak moves one off that grid, walk the
+                        # times instead so the shape still follows the keys.
+                        even = all(abs(times[i] - i * length / len(times)) < 1e-6
+                                   for i in range(len(times)))
+                        u = (at / length * len(pts) if even
+                             else _index_at(times, at, length))
+                        row.append(catmullrom(pts, u))
+                    else:
+                        row.append(_lerp_at(times, pts, at, length))
+                tracks[(name, channel, axis)] = [v * sign * scale for v in row]
+
+    missing = [b for b in bones if b not in seen]
     if missing:
-        sys.exit(f"ERROR: {FLAP_NAME} has no rotation track for {missing}")
+        sys.exit(f"ERROR: {clip!r} has no keyframes for {missing}")
     return int(round(length * 20.0)), tracks
+
+
+def _value(bone, channel, axis, k):
+    """One keyframe value, which Blockbench stores as a molang expression."""
+    raw = k["data_points"][0].get(axis, 0)
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        sys.exit(f"ERROR: {bone}.{channel}.{axis} at t={k['time']} is "
+                 f"{raw!r}, which is an expression rather than a number. "
+                 f"Only plain numbers can be baked.")
 
 
 def _index_at(times, at, length):
@@ -167,6 +177,8 @@ FLAP_TRIG = """    /**
      */
     public static final int BEAT_TICKS = 12;
 
+    private static final float[][] BEAT = new float[24][];
+
     public void flap(float phase) {
         float t = phase * ((float) Math.PI * 2.0F);
         float sweep = Mth.cos(t) * 0.2F;
@@ -174,83 +186,80 @@ FLAP_TRIG = """    /**
         float trail = -(Mth.sin(t + 2.0F) + 0.5F) * 0.75F;
         this.wingRight.xRot = this.restWing[0] - sweep;
         this.wingRight.zRot = this.restWing[2] + lift;
-        this.wingLeft.xRot = this.restWing[3] - sweep;
-        this.wingLeft.zRot = this.restWing[5] - lift;
-        this.wingTipRight.zRot = this.restWing[8] + trail;
-        this.wingTipLeft.zRot = this.restWing[11] - trail;
+        this.wingLeft.xRot = this.restWing[6] - sweep;
+        this.wingLeft.zRot = this.restWing[8] - lift;
+        this.wingTipRight.zRot = this.restWing[14] + trail;
+        this.wingTipLeft.zRot = this.restWing[20] - trail;
     }"""
 
+WAG_NONE = """    /** No tailwag in the rig, so the tail is carried however it was posed. */
+    public static final int WAG_TICKS = 1;
 
-def flap_java(baked):
-    """The beat, as a table walked at runtime."""
-    if baked is None:
-        return FLAP_TRIG
-    ticks, tracks = baked
-    rows = []
-    for b, bone in enumerate(FLAP_BONES):
-        for a, axis in enumerate(("x", "y", "z")):
-            vals = tracks[bone][axis]
-            if all(abs(v) < 1e-6 for v in vals):
-                continue
-            nums = ", ".join(f"{v:.5f}F" for v in vals)
-            rows.append(f"        BEAT[{b * 3 + a}] = new float[] {{{nums}}};")
-    body = "\n".join(rows)
-    return f"""    /**
+    private static final float[][] WAG = new float[18][];
+
+    public void wag(float phase, float weight) {
+    }"""
+
+FLAP_DOC = """    /**
      * The wingbeat, baked from the rig's own wing_flap animation.
      *
      * GENERATED, like everything else here. The beat used to be three lines of
      * trigonometry in this file, which is a fine way to write an animation and
-     * a terrible way to tweak one -- every adjustment was a number in a Java
-     * file, compiled and launched to be squinted at. It lives in the .bbmodel
-     * now, where it can be scrubbed, and tools/bbmodel_to_java.py bakes it back
-     * out to this table. Open the rig, drag a keyframe, re-run the converter.
+     * a terrible way to tweak one. It lives in the .bbmodel now, where it can
+     * be scrubbed, and the converter bakes it back out to this table. Open the
+     * rig, drag a keyframe, re-run the converter.
      *
-     * One row per bone axis, {FLAP_SAMPLES} samples across the beat, in radians
-     * and already in Java's space. Rows nothing touches stay null and cost
-     * nothing. Interpolation was settled at conversion time, so this only has
-     * to walk the table -- it cannot drift from what Blockbench drew.
-     *
+     * Six rows per bone -- rotation x/y/z then position x/y/z -- already in
+     * Java's space and units. Rows nothing touches stay null and cost nothing.
      * The values are DELTAS on the folded pose the artist posed, not absolute
-     * angles. A wing that flapped to zero would jump the moment the beat ended.
+     * angles: a wing that flapped to zero would jump the moment the beat ended.
      */
-    private static final int BEAT_SAMPLES = {FLAP_SAMPLES};
+"""
 
-    /** How long one beat runs, from the animation's own length. */
-    public static final int BEAT_TICKS = {ticks};
+WAG_DOC = """    /**
+     * The tail in the wind, baked from the rig's own tailwag animation.
+     *
+     * Separate from the beat on purpose. The beat is a one-shot fired by a
+     * keypress; this is ambient, and a tail that only moved when you tapped
+     * would read as attached to the wings rather than pushed around by the air.
+     *
+     * Every keyframe of it carries the flight carriage as well as the wag, so
+     * frame zero is a long way from the rest pose -- which is exactly why wag()
+     * takes a weight and flap() does not. See apply().
+     */
+"""
 
-    private static final float[][] BEAT = new float[12][];
 
-    static {{
-{body}
-    }}
-
-    public void flap(float phase) {{
-        float at = Mth.positiveModulo(phase, 1.0F) * BEAT_SAMPLES;
-        int lo = (int) at;
-        int hi = (lo + 1) % BEAT_SAMPLES;
-        float f = at - lo;
-        this.wingRight.setRotation(
-                this.restWing[0] + beat(0, lo, hi, f),
-                this.restWing[1] + beat(1, lo, hi, f),
-                this.restWing[2] + beat(2, lo, hi, f));
-        this.wingLeft.setRotation(
-                this.restWing[3] + beat(3, lo, hi, f),
-                this.restWing[4] + beat(4, lo, hi, f),
-                this.restWing[5] + beat(5, lo, hi, f));
-        this.wingTipRight.setRotation(
-                this.restWing[6] + beat(6, lo, hi, f),
-                this.restWing[7] + beat(7, lo, hi, f),
-                this.restWing[8] + beat(8, lo, hi, f));
-        this.wingTipLeft.setRotation(
-                this.restWing[9] + beat(9, lo, hi, f),
-                this.restWing[10] + beat(10, lo, hi, f),
-                this.restWing[11] + beat(11, lo, hi, f));
-    }}
-
-    private static float beat(int row, int lo, int hi, float f) {{
-        float[] track = BEAT[row];
-        return track == null ? 0.0F : Mth.lerp(f, track[lo], track[hi]);
-    }}"""
+def clip_java(name, const, bones, baked, fallback=""):
+    """The tables for one clip, plus the constant naming its length."""
+    if baked is None:
+        return fallback
+    ticks, tracks = baked
+    rows = []
+    for b, bone in enumerate(bones):
+        for c, channel in enumerate(CHANNELS):
+            for a, axis in enumerate("xyz"):
+                row = tracks.get((bone, channel, axis))
+                if row is None:
+                    continue
+                nums = ", ".join(f"{v:.5f}F" for v in row)
+                rows.append(f"        {name}[{(b * len(CHANNELS) + c) * 3 + a}] = "
+                            f"new float[] {{{nums}}};   // {bone}.{channel}.{axis}")
+    doc = FLAP_DOC if name == "BEAT" else WAG_DOC
+    if name == "BEAT":
+        call = ("    public void flap(float phase) {\n"
+                "        apply(this.wingBones, this.restWing, BEAT, phase, 1.0F);\n"
+                "    }")
+    else:
+        call = ("    public void wag(float phase, float weight) {\n"
+                "        apply(this.tailBones, this.restTail, WAG, phase, weight);\n"
+                "    }")
+    return (doc
+            + f"    public static final int {const} = {ticks};\n\n"
+            + f"    private static final float[][] {name} = "
+              f"new float[{len(bones) * len(CHANNELS) * 3}][];\n\n"
+            + f"    static {{\n" + "\n".join(rows) + "\n    }\n\n"
+            + call + "\n")
 
 
 def sheet(bb):
@@ -628,7 +637,8 @@ def convert(path):
     vanilla = "\n".join(f"    private static final float[] V_{k.upper()} = "
                         f"{{{v[0]}F, {v[1]}F, {v[2]}F}};" for k, v in VANILLA_PIVOTS.items())
 
-    baked = flap_table(bb)
+    beat = bake(bb, FLAP_NAME, FLAP_BONES)
+    wag = bake(bb, WAG_NAME, WAG_BONES)
     if len(arm) != 6:
         sys.exit("ERROR: could not measure left_arm; the first-person hand needs it")
     # Java y counts downward from the foot plane, so the topmost point is the
@@ -641,7 +651,11 @@ def convert(path):
                            ax0=f"{arm['lo0']:.3f}", ax1=f"{arm['hi0']:.3f}",
                            ay0=f"{arm['lo1']:.3f}", ay1=f"{arm['hi1']:.3f}",
                            az0=f"{arm['lo2']:.3f}", az1=f"{arm['hi2']:.3f}",
-                           flap=flap_java(baked))
+                           samples=CLIP_SAMPLES,
+                           flap=clip_java("BEAT", "BEAT_TICKS", FLAP_BONES, beat,
+                                          FLAP_TRIG),
+                           wag=clip_java("WAG", "WAG_TICKS", WAG_BONES, wag,
+                                         WAG_NONE))
     os.makedirs(TEX_DIR, exist_ok=True)
     img = Image.open(io.BytesIO(base64.b64decode(
         sheet(bb)["source"].split(",", 1)[1]))).convert("RGBA")
@@ -770,8 +784,11 @@ public class DragonFormModel {{
     private final ModelPart wingLeft;
     private final ModelPart wingTipRight;
     private final ModelPart wingTipLeft;
-    /** The folded pose the beat is measured from, x/y/z per wing bone. */
+    private final ModelPart[] wingBones;
+    private final ModelPart[] tailBones;
+    /** The posed rest the clips are measured from: rot x/y/z then pos x/y/z. */
     private final float[] restWing;
+    private final float[] restTail;
 
     public DragonFormModel(ModelPart root) {{
         this.root = root;
@@ -789,15 +806,77 @@ public class DragonFormModel {{
         // folded in the rig, at an angle the artist chose and will change
         // again; a beat measured from a constant would drift away from the pose
         // the moment they do.
-        this.restWing = new float[] {{
-            this.wingRight.xRot, this.wingRight.yRot, this.wingRight.zRot,
-            this.wingLeft.xRot, this.wingLeft.yRot, this.wingLeft.zRot,
-            this.wingTipRight.xRot, this.wingTipRight.yRot, this.wingTipRight.zRot,
-            this.wingTipLeft.xRot, this.wingTipLeft.yRot, this.wingTipLeft.zRot}};
+        this.wingBones = new ModelPart[] {{
+            this.wingRight, this.wingLeft, this.wingTipRight, this.wingTipLeft}};
+        ModelPart tail1 = this.body.getChild("tail1");
+        ModelPart tail2 = tail1.getChild("tail2");
+        this.tailBones = new ModelPart[] {{tail1, tail2, tail2.getChild("tail3")}};
+        this.restWing = rest(this.wingBones);
+        this.restTail = rest(this.tailBones);
     }}
 
-{flap}
+    /**
+     * Six numbers per bone off the fresh bake: rotation then offset.
+     *
+     * Read from the bake rather than written down here. The wings are folded
+     * and the tail is carried at an angle the artist chose and will change
+     * again; a clip measured from a constant would drift away from the pose the
+     * moment it does.
+     */
+    private static float[] rest(ModelPart[] bones) {{
+        float[] out = new float[bones.length * 6];
+        for (int i = 0; i < bones.length; i++) {{
+            out[i * 6] = bones[i].xRot;
+            out[i * 6 + 1] = bones[i].yRot;
+            out[i * 6 + 2] = bones[i].zRot;
+            out[i * 6 + 3] = bones[i].x;
+            out[i * 6 + 4] = bones[i].y;
+            out[i * 6 + 5] = bones[i].z;
+        }}
+        return out;
+    }}
 
+    /**
+     * Lay one baked clip over the pose, at a weight.
+     *
+     * The weight is what makes a looping clip usable at all. A loop cannot ease
+     * itself in: every frame of it, the first included, is however far from the
+     * rest pose the artist keyed it, so switching one on is a jump of exactly
+     * that distance -- for the tail wag, whose keys carry the flight carriage,
+     * five and a half blocks at the tip. Ramped from outside instead, so the
+     * clip stays a loop and the transition is the caller's business.
+     *
+     * At weight 0 nothing is touched, so a bone with no clip running keeps
+     * whatever copyPose put there.
+     */
+    private static void apply(ModelPart[] bones, float[] restPose, float[][] clip,
+                              float phase, float weight) {{
+        if (weight <= 0.0F) {{
+            return;
+        }}
+        float at = Mth.positiveModulo(phase, 1.0F) * CLIP_SAMPLES;
+        int lo = (int) at;
+        int hi = (lo + 1) % CLIP_SAMPLES;
+        float f = at - lo;
+        for (int b = 0; b < bones.length; b++) {{
+            float[] d = new float[6];
+            for (int k = 0; k < 6; k++) {{
+                float[] track = clip[b * 6 + k];
+                d[k] = track == null ? 0.0F
+                        : Mth.lerp(f, track[lo], track[hi]) * weight;
+            }}
+            bones[b].setRotation(restPose[b * 6] + d[0],
+                    restPose[b * 6 + 1] + d[1], restPose[b * 6 + 2] + d[2]);
+            bones[b].setPos(restPose[b * 6 + 3] + d[3],
+                    restPose[b * 6 + 4] + d[4], restPose[b * 6 + 5] + d[5]);
+        }}
+    }}
+
+    /** Samples each baked clip holds across one cycle. */
+    private static final int CLIP_SAMPLES = {samples};
+
+{flap}
+{wag}
     public static LayerDefinition createLayer() {{
         MeshDefinition mesh = new MeshDefinition();
         PartDefinition root = mesh.getRoot();

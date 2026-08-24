@@ -2,6 +2,7 @@ package com.enderdragonanthro.client.render;
 
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.client.DragonHud;
+import com.enderdragonanthro.client.DragonTail;
 import com.enderdragonanthro.client.DragonWings;
 import com.enderdragonanthro.config.DragonConfig;
 import com.enderdragonanthro.client.model.DragonFormModel;
@@ -51,6 +52,12 @@ public class DragonFormLayer extends RenderLayer<AbstractClientPlayer, PlayerMod
         if (beat >= 0.0F) {
             this.model.flap(beat);
         }
+        // And the tail, which is not tied to the beat at all -- it is the air
+        // pushing a long heavy thing around, so it runs the whole time you are
+        // gliding rather than when you tap. The weight is what fades it in and
+        // out; see DragonTail for why a looping clip needs one.
+        this.model.wag(DragonTail.phase(player, partialTick),
+                DragonTail.weight(player, partialTick));
 
         float scale = DragonConfig.trueProportions()
                 ? DragonFormModel.TRUE_SCALE       // as drawn; the head overshoots

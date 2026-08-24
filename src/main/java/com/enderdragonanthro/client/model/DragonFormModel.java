@@ -101,8 +101,11 @@ public class DragonFormModel {
     private final ModelPart wingLeft;
     private final ModelPart wingTipRight;
     private final ModelPart wingTipLeft;
-    /** The folded pose the beat is measured from, x/y/z per wing bone. */
+    private final ModelPart[] wingBones;
+    private final ModelPart[] tailBones;
+    /** The posed rest the clips are measured from: rot x/y/z then pos x/y/z. */
     private final float[] restWing;
+    private final float[] restTail;
 
     public DragonFormModel(ModelPart root) {
         this.root = root;
@@ -120,73 +123,135 @@ public class DragonFormModel {
         // folded in the rig, at an angle the artist chose and will change
         // again; a beat measured from a constant would drift away from the pose
         // the moment they do.
-        this.restWing = new float[] {
-            this.wingRight.xRot, this.wingRight.yRot, this.wingRight.zRot,
-            this.wingLeft.xRot, this.wingLeft.yRot, this.wingLeft.zRot,
-            this.wingTipRight.xRot, this.wingTipRight.yRot, this.wingTipRight.zRot,
-            this.wingTipLeft.xRot, this.wingTipLeft.yRot, this.wingTipLeft.zRot};
+        this.wingBones = new ModelPart[] {
+            this.wingRight, this.wingLeft, this.wingTipRight, this.wingTipLeft};
+        ModelPart tail1 = this.body.getChild("tail1");
+        ModelPart tail2 = tail1.getChild("tail2");
+        this.tailBones = new ModelPart[] {tail1, tail2, tail2.getChild("tail3")};
+        this.restWing = rest(this.wingBones);
+        this.restTail = rest(this.tailBones);
     }
+
+    /**
+     * Six numbers per bone off the fresh bake: rotation then offset.
+     *
+     * Read from the bake rather than written down here. The wings are folded
+     * and the tail is carried at an angle the artist chose and will change
+     * again; a clip measured from a constant would drift away from the pose the
+     * moment it does.
+     */
+    private static float[] rest(ModelPart[] bones) {
+        float[] out = new float[bones.length * 6];
+        for (int i = 0; i < bones.length; i++) {
+            out[i * 6] = bones[i].xRot;
+            out[i * 6 + 1] = bones[i].yRot;
+            out[i * 6 + 2] = bones[i].zRot;
+            out[i * 6 + 3] = bones[i].x;
+            out[i * 6 + 4] = bones[i].y;
+            out[i * 6 + 5] = bones[i].z;
+        }
+        return out;
+    }
+
+    /**
+     * Lay one baked clip over the pose, at a weight.
+     *
+     * The weight is what makes a looping clip usable at all. A loop cannot ease
+     * itself in: every frame of it, the first included, is however far from the
+     * rest pose the artist keyed it, so switching one on is a jump of exactly
+     * that distance -- for the tail wag, whose keys carry the flight carriage,
+     * five and a half blocks at the tip. Ramped from outside instead, so the
+     * clip stays a loop and the transition is the caller's business.
+     *
+     * At weight 0 nothing is touched, so a bone with no clip running keeps
+     * whatever copyPose put there.
+     */
+    private static void apply(ModelPart[] bones, float[] restPose, float[][] clip,
+                              float phase, float weight) {
+        if (weight <= 0.0F) {
+            return;
+        }
+        float at = Mth.positiveModulo(phase, 1.0F) * CLIP_SAMPLES;
+        int lo = (int) at;
+        int hi = (lo + 1) % CLIP_SAMPLES;
+        float f = at - lo;
+        for (int b = 0; b < bones.length; b++) {
+            float[] d = new float[6];
+            for (int k = 0; k < 6; k++) {
+                float[] track = clip[b * 6 + k];
+                d[k] = track == null ? 0.0F
+                        : Mth.lerp(f, track[lo], track[hi]) * weight;
+            }
+            bones[b].setRotation(restPose[b * 6] + d[0],
+                    restPose[b * 6 + 1] + d[1], restPose[b * 6 + 2] + d[2]);
+            bones[b].setPos(restPose[b * 6 + 3] + d[3],
+                    restPose[b * 6 + 4] + d[4], restPose[b * 6 + 5] + d[5]);
+        }
+    }
+
+    /** Samples each baked clip holds across one cycle. */
+    private static final int CLIP_SAMPLES = 32;
 
     /**
      * The wingbeat, baked from the rig's own wing_flap animation.
      *
      * GENERATED, like everything else here. The beat used to be three lines of
      * trigonometry in this file, which is a fine way to write an animation and
-     * a terrible way to tweak one -- every adjustment was a number in a Java
-     * file, compiled and launched to be squinted at. It lives in the .bbmodel
-     * now, where it can be scrubbed, and tools/bbmodel_to_java.py bakes it back
-     * out to this table. Open the rig, drag a keyframe, re-run the converter.
+     * a terrible way to tweak one. It lives in the .bbmodel now, where it can
+     * be scrubbed, and the converter bakes it back out to this table. Open the
+     * rig, drag a keyframe, re-run the converter.
      *
-     * One row per bone axis, 24 samples across the beat, in radians
-     * and already in Java's space. Rows nothing touches stay null and cost
-     * nothing. Interpolation was settled at conversion time, so this only has
-     * to walk the table -- it cannot drift from what Blockbench drew.
-     *
+     * Six rows per bone -- rotation x/y/z then position x/y/z -- already in
+     * Java's space and units. Rows nothing touches stay null and cost nothing.
      * The values are DELTAS on the folded pose the artist posed, not absolute
-     * angles. A wing that flapped to zero would jump the moment the beat ended.
+     * angles: a wing that flapped to zero would jump the moment the beat ended.
      */
-    private static final int BEAT_SAMPLES = 24;
-
-    /** How long one beat runs, from the animation's own length. */
     public static final int BEAT_TICKS = 12;
 
-    private static final float[][] BEAT = new float[12][];
+    private static final float[][] BEAT = new float[24][];
 
     static {
-        BEAT[0] = new float[] {-0.20000F, -0.19285F, -0.17320F, -0.14118F, -0.10000F, -0.05167F, -0.00000F, 0.05167F, 0.10000F, 0.14118F, 0.17320F, 0.19285F, 0.20000F, 0.19285F, 0.17320F, 0.14118F, 0.10000F, 0.05167F, -0.00000F, -0.05167F, -0.10000F, -0.14118F, -0.17320F, -0.19285F};
-        BEAT[2] = new float[] {0.10000F, 0.30670F, 0.50000F, 0.66471F, 0.79282F, 0.87141F, 0.90000F, 0.87141F, 0.79282F, 0.66471F, 0.50000F, 0.30670F, 0.10000F, -0.10670F, -0.30000F, -0.46471F, -0.59282F, -0.67141F, -0.70000F, -0.67141F, -0.59282F, -0.46471F, -0.30000F, -0.10670F};
-        BEAT[3] = new float[] {-0.20000F, -0.19285F, -0.17320F, -0.14118F, -0.10000F, -0.05167F, -0.00000F, 0.05167F, 0.10000F, 0.14118F, 0.17320F, 0.19285F, 0.20000F, 0.19285F, 0.17320F, 0.14118F, 0.10000F, 0.05167F, -0.00000F, -0.05167F, -0.10000F, -0.14118F, -0.17320F, -0.19285F};
-        BEAT[5] = new float[] {-0.10000F, -0.30670F, -0.50000F, -0.66471F, -0.79282F, -0.87141F, -0.90000F, -0.87141F, -0.79282F, -0.66471F, -0.50000F, -0.30670F, -0.10000F, 0.10670F, 0.30000F, 0.46471F, 0.59282F, 0.67141F, 0.70000F, 0.67141F, 0.59282F, 0.46471F, 0.30000F, 0.10670F};
-        BEAT[8] = new float[] {-1.05697F, -0.95196F, -0.80955F, -0.63608F, -0.44569F, -0.25025F, -0.06289F, 0.10216F, 0.23628F, 0.32671F, 0.37166F, 0.36324F, 0.30697F, 0.20196F, 0.05955F, -0.11392F, -0.30431F, -0.49975F, -0.68711F, -0.85216F, -0.98628F, -1.07671F, -1.12166F, -1.11324F};
-        BEAT[11] = new float[] {1.05697F, 0.95196F, 0.80955F, 0.63608F, 0.44569F, 0.25025F, 0.06289F, -0.10216F, -0.23628F, -0.32671F, -0.37166F, -0.36324F, -0.30697F, -0.20196F, -0.05955F, 0.11392F, 0.30431F, 0.49975F, 0.68711F, 0.85216F, 0.98628F, 1.07671F, 1.12166F, 1.11324F};
+        BEAT[0] = new float[] {-0.20000F, -0.19592F, -0.18442F, -0.16646F, -0.14118F, -0.11075F, -0.07688F, -0.03868F, -0.00000F, 0.03868F, 0.07688F, 0.11075F, 0.14118F, 0.16646F, 0.18442F, 0.19592F, 0.20000F, 0.19592F, 0.18442F, 0.16646F, 0.14118F, 0.11075F, 0.07688F, 0.03868F, -0.00000F, -0.03868F, -0.07688F, -0.11075F, -0.14118F, -0.16646F, -0.18442F, -0.19592F};   // wing_right.rotation.x
+        BEAT[2] = new float[] {0.10000F, 0.25471F, 0.40754F, 0.54300F, 0.66471F, 0.76583F, 0.83769F, 0.88367F, 0.90000F, 0.88367F, 0.83769F, 0.76583F, 0.66471F, 0.54300F, 0.40754F, 0.25471F, 0.10000F, -0.05471F, -0.20754F, -0.34300F, -0.46471F, -0.56583F, -0.63769F, -0.68367F, -0.70000F, -0.68367F, -0.63769F, -0.56583F, -0.46471F, -0.34300F, -0.20754F, -0.05471F};   // wing_right.rotation.z
+        BEAT[6] = new float[] {-0.20000F, -0.19592F, -0.18442F, -0.16646F, -0.14118F, -0.11075F, -0.07688F, -0.03868F, -0.00000F, 0.03868F, 0.07688F, 0.11075F, 0.14118F, 0.16646F, 0.18442F, 0.19592F, 0.20000F, 0.19592F, 0.18442F, 0.16646F, 0.14118F, 0.11075F, 0.07688F, 0.03868F, -0.00000F, -0.03868F, -0.07688F, -0.11075F, -0.14118F, -0.16646F, -0.18442F, -0.19592F};   // wing_left.rotation.x
+        BEAT[8] = new float[] {-0.10000F, -0.25471F, -0.40754F, -0.54300F, -0.66471F, -0.76583F, -0.83769F, -0.88367F, -0.90000F, -0.88367F, -0.83769F, -0.76583F, -0.66471F, -0.54300F, -0.40754F, -0.25471F, -0.10000F, 0.05471F, 0.20754F, 0.34300F, 0.46471F, 0.56583F, 0.63769F, 0.68367F, 0.70000F, 0.68367F, 0.63769F, 0.56583F, 0.46471F, 0.34300F, 0.20754F, 0.05471F};   // wing_left.rotation.z
+        BEAT[14] = new float[] {-1.05697F, -0.98269F, -0.88388F, -0.76977F, -0.63608F, -0.49288F, -0.34936F, -0.20115F, -0.06289F, 0.06262F, 0.17497F, 0.26241F, 0.32671F, 0.36543F, 0.37384F, 0.35341F, 0.30697F, 0.23269F, 0.13388F, 0.01977F, -0.11392F, -0.25712F, -0.40064F, -0.54885F, -0.68711F, -0.81262F, -0.92497F, -1.01241F, -1.07671F, -1.11543F, -1.12384F, -1.10341F};   // wing_tip_right.rotation.z
+        BEAT[20] = new float[] {1.05697F, 0.98269F, 0.88388F, 0.76977F, 0.63608F, 0.49288F, 0.34936F, 0.20115F, 0.06289F, -0.06262F, -0.17497F, -0.26241F, -0.32671F, -0.36543F, -0.37384F, -0.35341F, -0.30697F, -0.23269F, -0.13388F, -0.01977F, 0.11392F, 0.25712F, 0.40064F, 0.54885F, 0.68711F, 0.81262F, 0.92497F, 1.01241F, 1.07671F, 1.11543F, 1.12384F, 1.10341F};   // wing_tip_left.rotation.z
     }
 
     public void flap(float phase) {
-        float at = Mth.positiveModulo(phase, 1.0F) * BEAT_SAMPLES;
-        int lo = (int) at;
-        int hi = (lo + 1) % BEAT_SAMPLES;
-        float f = at - lo;
-        this.wingRight.setRotation(
-                this.restWing[0] + beat(0, lo, hi, f),
-                this.restWing[1] + beat(1, lo, hi, f),
-                this.restWing[2] + beat(2, lo, hi, f));
-        this.wingLeft.setRotation(
-                this.restWing[3] + beat(3, lo, hi, f),
-                this.restWing[4] + beat(4, lo, hi, f),
-                this.restWing[5] + beat(5, lo, hi, f));
-        this.wingTipRight.setRotation(
-                this.restWing[6] + beat(6, lo, hi, f),
-                this.restWing[7] + beat(7, lo, hi, f),
-                this.restWing[8] + beat(8, lo, hi, f));
-        this.wingTipLeft.setRotation(
-                this.restWing[9] + beat(9, lo, hi, f),
-                this.restWing[10] + beat(10, lo, hi, f),
-                this.restWing[11] + beat(11, lo, hi, f));
+        apply(this.wingBones, this.restWing, BEAT, phase, 1.0F);
     }
 
-    private static float beat(int row, int lo, int hi, float f) {
-        float[] track = BEAT[row];
-        return track == null ? 0.0F : Mth.lerp(f, track[lo], track[hi]);
+    /**
+     * The tail in the wind, baked from the rig's own tailwag animation.
+     *
+     * Separate from the beat on purpose. The beat is a one-shot fired by a
+     * keypress; this is ambient, and a tail that only moved when you tapped
+     * would read as attached to the wings rather than pushed around by the air.
+     *
+     * Every keyframe of it carries the flight carriage as well as the wag, so
+     * frame zero is a long way from the rest pose -- which is exactly why wag()
+     * takes a weight and flap() does not. See apply().
+     */
+    public static final int WAG_TICKS = 28;
+
+    private static final float[][] WAG = new float[18][];
+
+    static {
+        WAG[0] = new float[] {-0.21817F, -0.21884F, -0.21986F, -0.22106F, -0.22225F, -0.22328F, -0.22397F, -0.22414F, -0.22376F, -0.22297F, -0.22193F, -0.22078F, -0.21968F, -0.21878F, -0.21825F, -0.21821F, -0.21861F, -0.21932F, -0.22024F, -0.22126F, -0.22226F, -0.22315F, -0.22381F, -0.22414F, -0.22406F, -0.22364F, -0.22297F, -0.22213F, -0.22119F, -0.22025F, -0.21937F, -0.21865F};   // tail1.rotation.x
+        WAG[1] = new float[] {0.00000F, -0.00853F, -0.02148F, -0.03664F, -0.05185F, -0.06490F, -0.07362F, -0.07589F, -0.07258F, -0.06541F, -0.05534F, -0.04336F, -0.03044F, -0.01756F, -0.00569F, 0.00415F, 0.01443F, 0.02570F, 0.03728F, 0.04849F, 0.05864F, 0.06704F, 0.07301F, 0.07586F, 0.07475F, 0.06944F, 0.06093F, 0.05023F, 0.03837F, 0.02639F, 0.01532F, 0.00618F};   // tail1.rotation.y
+        WAG[2] = new float[] {-0.00000F, 0.01766F, 0.04444F, 0.07583F, 0.10729F, 0.13430F, 0.15234F, 0.15703F, 0.15019F, 0.13534F, 0.11451F, 0.08971F, 0.06298F, 0.03633F, 0.01178F, -0.00860F, -0.02985F, -0.05317F, -0.07714F, -0.10033F, -0.12133F, -0.13871F, -0.15106F, -0.15696F, -0.15467F, -0.14369F, -0.12607F, -0.10393F, -0.07940F, -0.05461F, -0.03170F, -0.01278F};   // tail1.rotation.z
+        WAG[6] = new float[] {-0.69813F, -0.70287F, -0.70971F, -0.71779F, -0.72621F, -0.73410F, -0.74057F, -0.74439F, -0.74566F, -0.74677F, -0.74770F, -0.74847F, -0.74907F, -0.74950F, -0.74975F, -0.74984F, -0.74976F, -0.74952F, -0.74910F, -0.74851F, -0.74776F, -0.74683F, -0.74574F, -0.74447F, -0.74173F, -0.73721F, -0.73159F, -0.72529F, -0.71872F, -0.71231F, -0.70647F, -0.70160F};   // tail2.rotation.x
+        WAG[7] = new float[] {0.00000F, -0.00212F, -0.00547F, -0.00937F, -0.01315F, -0.01615F, -0.01770F, -0.01733F, -0.01641F, -0.01499F, -0.01316F, -0.01097F, -0.00850F, -0.00581F, -0.00299F, -0.00009F, 0.00281F, 0.00565F, 0.00834F, 0.01083F, 0.01303F, 0.01489F, 0.01634F, 0.01729F, 0.01778F, 0.01706F, 0.01528F, 0.01276F, 0.00980F, 0.00674F, 0.00387F, 0.00152F};   // tail2.rotation.y
+        WAG[8] = new float[] {-0.00000F, 0.00530F, 0.01367F, 0.02342F, 0.03288F, 0.04038F, 0.04424F, 0.04332F, 0.04102F, 0.03749F, 0.03290F, 0.02742F, 0.02124F, 0.01453F, 0.00747F, 0.00022F, -0.00703F, -0.01411F, -0.02085F, -0.02707F, -0.03259F, -0.03724F, -0.04084F, -0.04322F, -0.04444F, -0.04265F, -0.03820F, -0.03189F, -0.02451F, -0.01684F, -0.00968F, -0.00380F};   // tail2.rotation.z
+        WAG[12] = new float[] {-0.47997F, -0.47727F, -0.47318F, -0.46838F, -0.46357F, -0.45945F, -0.45669F, -0.45598F, -0.45708F, -0.45946F, -0.46278F, -0.46667F, -0.47079F, -0.47480F, -0.47835F, -0.48109F, -0.48373F, -0.48648F, -0.48921F, -0.49179F, -0.49409F, -0.49596F, -0.49727F, -0.49789F, -0.49763F, -0.49637F, -0.49436F, -0.49183F, -0.48903F, -0.48620F, -0.48358F, -0.48143F};   // tail3.rotation.x
+        WAG[13] = new float[] {0.00000F, -0.01850F, -0.04656F, -0.07944F, -0.11240F, -0.14070F, -0.15960F, -0.16452F, -0.15734F, -0.14177F, -0.11993F, -0.09394F, -0.06593F, -0.03802F, -0.01232F, 0.00898F, 0.03118F, 0.05552F, 0.08052F, 0.10471F, 0.12660F, 0.14472F, 0.15760F, 0.16375F, 0.16136F, 0.14990F, 0.13152F, 0.10842F, 0.08283F, 0.05697F, 0.03307F, 0.01334F};   // tail3.rotation.y
+        WAG[14] = new float[] {-0.00000F, 0.00348F, 0.00877F, 0.01496F, 0.02117F, 0.02650F, 0.03006F, 0.03098F, 0.02962F, 0.02666F, 0.02252F, 0.01761F, 0.01233F, 0.00708F, 0.00228F, -0.00165F, -0.00571F, -0.01013F, -0.01465F, -0.01901F, -0.02295F, -0.02620F, -0.02851F, -0.02961F, -0.02918F, -0.02711F, -0.02379F, -0.01961F, -0.01498F, -0.01030F, -0.00598F, -0.00241F};   // tail3.rotation.z
+    }
+
+    public void wag(float phase, float weight) {
+        apply(this.tailBones, this.restTail, WAG, phase, weight);
     }
 
     public static LayerDefinition createLayer() {

@@ -100,31 +100,54 @@ Now: open the rig, drag a keyframe, re-run `bbmodel_to_java.py`. The animation's
 `DragonWings` reads, so shortening the stroke on the timeline shortens it in
 game.
 
-### How it round-trips
+### The two clips the converter reads
 
-`bbmodel_to_java.py` bakes the animation into a table of 24 samples per beat,
-in radians and already in Java's space, and `flap()` walks that table. Baked
-rather than emitted as keyframes so the interpolation is settled once, at
-conversion time — the generated Java cannot drift from what Blockbench drew.
-Re-baking the seeded animation reproduces the original trigonometry to within
-**0.43°** at its worst point.
+| animation in the rig | baked to | driven by |
+|---|---|---|
+| `wing_flap` | `BEAT` / `BEAT_TICKS`, `flap(phase)` | one-shot per Boost, `DragonWings` |
+| `tailwag in flight` | `WAG` / `WAG_TICKS`, `wag(phase, weight)` | ambient while gliding, `DragonTail` |
 
-Two things about the values:
+Both are baked into tables of 32 samples per cycle, already in Java's space and
+units, six rows per bone — rotation `x/y/z` then position `x/y/z`. Baked rather
+than emitted as keyframes so the interpolation is settled once, at conversion
+time; the generated Java cannot drift from what Blockbench drew. Re-baking
+reproduces the source curves to within **0.11°**.
+
+Either clip missing from the rig is fine: `flap()` falls back to the
+trigonometry it was born with, and `wag()` becomes a no-op.
+
+### The values
 
 - They are **deltas** on the pose the artist posed, in both Blockbench and
-  Minecraft — Blockbench's animator offsets a bone from its rest rotation, and
+  Minecraft — Blockbench's animator offsets a bone from its rest pose, and
   `AnimationChannel.Targets.ROTATION` adds to the part's current rotation. The
-  rig's wings are folded at rest; a wing that flapped to zero would jump the
-  moment the beat ended.
-- They take the **same axis conversion as the geometry**, backwards:
+  wings are folded at rest; a wing that flapped to zero would jump the moment
+  the beat ended.
+- **rotation** takes the same axis conversion as the geometry, backwards:
   `bb_x = -java_x`, `bb_y = +java_y`, `bb_z = -java_z`, degrees to radians.
+- **position** is a translation, so only Y flips — `bb_y = -java_y`, X and Z
+  unchanged, and the units are model units either way.
+- Keyframe values are molang expressions in Blockbench, and only plain numbers
+  can be baked. An expression, or a channel that is neither rotation nor
+  position, fails the conversion loudly rather than being dropped.
 
-If the rig carries no `wing_flap` animation, `flap()` falls back to the
-trigonometry it was born with, so removing the animation is safe.
+### Why `wag()` takes a weight and `flap()` does not
 
-Keyframe values are molang expressions in Blockbench, and only plain numbers
-can be baked. An expression fails the conversion loudly rather than being
-guessed at.
+**A looping clip cannot ease itself in.** The wag's keyframes carry the flight
+carriage as well as the wag — about 80° of cumulative tail curl on top of the
+rest pose, which is right, because the body pitches prone in a glide and a tail
+curled "down" in model space streams *backwards* in the world.
+
+But that puts frame zero of the clip **5.5 blocks** from where the tail is
+standing. The loop is seamless — last frame to first frame is exact to four
+decimal places — and that is a different seam from the one that matters. The
+jump is between *not playing* and *playing*, and no amount of care inside a loop
+can smooth it, because a loop has no frame that is at rest.
+
+So `DragonTail` ramps a weight 0→1 over 6 ticks when the glide starts and back
+down when it ends, and `apply()` scales the deltas by it. The clip stays a clean
+loop; the transition is the caller's business. `flap()` needs none of this
+because the beat is a one-shot whose first and last frames *are* rest.
 
 ## verify_model.py
 

@@ -104,6 +104,7 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             DragonHud.tick();
             DragonWings.tick();
+            DragonTail.tick();
             DragonBurnClient.tick();
             EndermanHappyClient.tick();
             clientTick++;
