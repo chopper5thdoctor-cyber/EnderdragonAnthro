@@ -45,14 +45,14 @@ status effect, and — for fairness, since an anthro walks among its own crystal
 than circling them — End Crystal blasts. Flying into scenery costs nothing at all, and
 a glide banks no fall damage however far you dive.
 
-**A switch for picking things up.** Bottom right of the inventory panel. A dragon
-eight blocks across hoovers up every arrow shaft it steps over and cannot walk
-around the mess, which is why vanilla has never needed one. Per player, not per
-form, so it survives dropping out of dragon shape and back.
-
 **And to cold**, which is the same claim from the other end: a thing that shrugs off
 lava has no business shivering in powder snow. The freeze meter never fills, so the
 frost vignette never draws over your own violet.
+
+**A switch for picking things up.** Top right of the inventory panel, in dragon form
+only. Something eight blocks across hoovers up every arrow shaft it steps over and
+cannot walk around the mess, which is why vanilla has never needed one. Per player
+rather than per form, so a preference about what you carry survives transforming.
 
 **And they are afraid of you.** Nothing targets a dragon unprovoked — canon — but
 "unprovoked" is doing work there. Anything that can see you *runs*, and anything you
@@ -83,8 +83,8 @@ firework. Two or three taps a second holds top speed.
 A boost is a *target* rather than a force, which is why even that settles below
 terminal velocity: it pulls your speed toward a number and then stops mattering, while
 falling adds 0.08 a tick forever and balances against drag at 3.92. Sustained flight is
-2.7 a tick against a rocket elytra's 1.7 — and 4.5 with Explosive Intent armed, which is
-the only speed here that outruns gravity.
+2.7 a tick against a rocket elytra's 1.7 — and 4.5 on Enderdragon Intent, which is the
+only speed here that outruns gravity.
 
 **The court.** Four named elite endermen — **Vaëlle** (red), **Keshaire** (blue),
 **Nyrelle** (green) and **Orrinne** (orange), French like Jean — scaled to 4 blocks, each addressed and ordered
@@ -106,9 +106,9 @@ burst is not something to post to every client in view distance every tick.
 | `Y` | Transform (dragon ⇄ human) | — |
 | `R` | Dragon's Breath — a visible jet along the raytrace; the pool always lands on ground | 4 s |
 | `G` | Dragon Fireball — canon lingering cloud **plus** an entity-only blast | 3 s |
-| `V` | Wing Buffet — canon 3/5/7 damage, huge knockback | 5 s |
-| `C` | Charge dash — canon 6/10/15. Sprinting alone also deals charge damage | 4 s |
-| `B` | **Explosive Intent** toggle — tunnel through terrain, and fly faster than falling | — |
+| `V` | Wing Buffet — 10/16/22 at boss weight, 3/5/7 restrained, huge knockback | 5 s |
+| `C` | Charge dash — 18/28/40 at boss weight, 6/10/15 restrained. Sprinting alone also deals it | 4 s |
+| `B` | **Intent** — cycles Restrained / Boss / Enderdragon; see the passage below | — |
 | `X` | Evasive jump — somewhere random 1000+ blocks out, under open sky | 60 s |
 | `K` | Warp to a random player beyond 100 blocks | 10 s |
 | `J` | Return to your anchor | 5 s |
@@ -120,7 +120,7 @@ burst is not something to post to every client in view distance every tick.
 
 All rebindable. The HUD is a column down the left edge, each key chip with its ability
 name beside it; chips flash on press, drain while recharging, and stay lit while a toggle
-is armed.
+is armed. The Intent chip names the stop you are on as you cycle past it.
 
 `/shade collect <block>` names a quarry by typing rather than by looking at one. It
 speaks to the shade you are looking at, else the first. There used to be an `N` key
