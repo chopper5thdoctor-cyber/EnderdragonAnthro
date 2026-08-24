@@ -256,7 +256,11 @@ public final class DragonAbilities {
     private static void wingBuffet(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
         AABB area = player.getBoundingBox().inflate(6.0, 3.0, 6.0);
-        float damage = byDifficulty(level.getDifficulty(), 3.0F, 5.0F, 7.0F);
+        // Was 3/5/7, which is a wooden sword swung in a circle. This is a
+        // six-block wing sweep off something eight blocks tall on a five second
+        // cooldown; the Warden's melee is 30 and this should be felt in the
+        // same conversation, discounted for hitting everything at once.
+        float damage = byDifficulty(level.getDifficulty(), 10.0F, 16.0F, 22.0F);
         for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, area,
                 e -> e != player && e.isAlive() && !DragonMinions.isOwnedBy(player, e))) {
             target.hurt(level.damageSources().playerAttack(player), damage);
@@ -276,7 +280,10 @@ public final class DragonAbilities {
 
     private static void chargeContactDamage(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
-        float damage = byDifficulty(level.getDifficulty(), 6.0F, 10.0F, 15.0F);
+        // Was 6/10/15. A charge is the most committed thing in the kit -- you
+        // give up your position, it can miss outright, and it is over in twelve
+        // ticks -- so it is the one that should hurt most when it lands.
+        float damage = byDifficulty(level.getDifficulty(), 18.0F, 28.0F, 40.0F);
         AABB path = player.getBoundingBox().expandTowards(player.getDeltaMovement()).inflate(1.0);
         for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, path,
                 e -> e != player && e.isAlive() && !DragonMinions.isOwnedBy(player, e))) {

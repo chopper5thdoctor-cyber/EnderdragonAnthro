@@ -88,11 +88,32 @@ public final class DragonFormManager {
             new Mod(id("dragon_jump"), Attributes.JUMP_STRENGTH,
                     VANILLA_JUMP * (Math.sqrt(DragonConfig.scaleFactor()) - 1.0),
                     AttributeModifier.Operation.ADD_VALUE),
-            // canon head-hit is 10 on Normal: bare fist 1 -> 10
-            new Mod(id("dragon_attack"), Attributes.ATTACK_DAMAGE, 9.0,
+            /*
+             * Boss weight, benchmarked against the Warden.
+             *
+             * This was 9 — bare fist 1 to 10, the canon dragon's head-hit on
+             * Normal — and it is the number that kept the form from reading as
+             * a boss at all. The Warden hits for 30 and is the yardstick
+             * anybody reaches for; ten is a stone sword. Through netherite it
+             * landed for about two.
+             *
+             * 34 puts a bare claw at 35, above the Warden, and a weapon still
+             * stacks on top of it.
+             */
+            new Mod(id("dragon_attack"), Attributes.ATTACK_DAMAGE, 34.0,
                     AttributeModifier.Operation.ADD_VALUE),
             // dragon hits launch people
             new Mod(id("dragon_attack_knockback"), Attributes.ATTACK_KNOCKBACK, 1.5,
+                    AttributeModifier.Operation.ADD_VALUE),
+            /*
+             * And is not launched itself.
+             *
+             * The Warden has this at 1.0 and it is half of why it reads as a
+             * boss: a thing that staggers backwards every time a sword lands is
+             * being handled, not fought. Eight tonnes of dragon should not skid
+             * when a human swings at it.
+             */
+            new Mod(id("dragon_knockback_resist"), Attributes.KNOCKBACK_RESISTANCE, 1.0,
                     AttributeModifier.Operation.ADD_VALUE));
     }
 

@@ -41,8 +41,15 @@ public final class DragonFire {
      * Dragonfire has no business going out sooner than the ground does.
      */
     private static final int BURN_TICKS = 300;
-    /** Per shot. Small, because the burn is the weapon and this is the light. */
-    private static final float DAMAGE = 2.0F;
+    /**
+     * Per shot. Small, because the burn is the weapon and this is the light.
+     *
+     * Doubled from 2 when the kit was scaled to boss weight. It is still the
+     * smallest number in it, and deliberately: at four shots a second the
+     * stream already lands 16 a second before the fifteen-second burn starts,
+     * and it costs hunger the whole time it is held.
+     */
+    private static final float DAMAGE = 4.0F;
     /**
      * Hunger per shot. At the ability's five-tick cooldown that is four shots a
      * second, so 0.6 drains roughly half a haunch a second held — enough that
