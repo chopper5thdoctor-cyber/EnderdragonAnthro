@@ -62,12 +62,12 @@ public class DragonFormModel {
      * Fitted from these numbers, so reshaping the arm in Blockbench moves the
      * first-person hand with it.
      */
-    public static final float ARM_MIN_X = 0.500F;
+    public static final float ARM_MIN_X = -0.750F;
     public static final float ARM_MAX_X = 17.000F;
     public static final float ARM_MIN_Y = -1.000F;
     public static final float ARM_MAX_Y = 46.000F;
-    public static final float ARM_MIN_Z = -10.500F;
-    public static final float ARM_MAX_Z = 8.000F;
+    public static final float ARM_MIN_Z = -9.750F;
+    public static final float ARM_MAX_Z = 8.250F;
 
     /**
      * Scaled so the dragon's arm is as long on screen as the human one it
@@ -301,23 +301,27 @@ public class DragonFormModel {
         // ---- right_arm ----
         PartDefinition right_arm = root.addOrReplaceChild("right_arm", CubeListBuilder.create()
                         .texOffs(76, 164).addBox(-17.000F, -1.000F, -8.000F, 16.000F, 17.000F, 16.000F)
-                        .texOffs(208, 164).addBox(-16.000F, 16.000F, -7.500F, 14.000F, 18.000F, 15.000F)
-                        .mirror(true).texOffs(276, 161).addBox(-15.500F, 32.000F, -10.500F, 15.000F, 14.000F, 18.000F)
-                        .mirror(false),
+                        .texOffs(208, 164).addBox(-16.000F, 16.000F, -7.500F, 14.000F, 18.000F, 15.000F),
                 PartPose.offset(-20.000F, -5.000F, 2.000F));
         right_arm.addOrReplaceChild("right_arm_spin", CubeListBuilder.create()
                         .texOffs(96, 384).addBox(-9.500F, -6.000F, -9.000F, 19.000F, 12.000F, 18.000F),
                 PartPose.offsetAndRotation(-6.726F, -1.708F, 0.000F, -0.0000F, 0.0000F, -0.4800F));
+        right_arm.addOrReplaceChild("right_arm_spin_", CubeListBuilder.create()
+                        .mirror(true).texOffs(276, 161).addBox(-7.500F, -9.000F, -10.000F, 15.000F, 14.000F, 18.000F),
+                PartPose.offsetAndRotation(-6.750F, 41.000F, 0.250F, -0.0000F, 0.0000F, -0.2182F));
 
         // ---- left_arm ----
         PartDefinition left_arm = root.addOrReplaceChild("left_arm", CubeListBuilder.create()
                         .mirror(true).texOffs(76, 164).addBox(1.000F, -1.000F, -8.000F, 16.000F, 17.000F, 16.000F)
                         .texOffs(208, 164).addBox(2.000F, 16.000F, -7.500F, 14.000F, 18.000F, 15.000F)
-                        .mirror(false).texOffs(276, 161).addBox(0.500F, 32.000F, -10.500F, 15.000F, 14.000F, 18.000F),
+                        .mirror(false),
                 PartPose.offset(20.000F, -5.000F, 2.000F));
         left_arm.addOrReplaceChild("left_arm_spin", CubeListBuilder.create()
                         .mirror(true).texOffs(172, 384).addBox(-9.500F, -6.000F, -9.000F, 19.000F, 12.000F, 18.000F),
                 PartPose.offsetAndRotation(6.726F, -1.708F, 0.000F, -0.0000F, 0.0000F, 0.4800F));
+        left_arm.addOrReplaceChild("left_arm_spin_", CubeListBuilder.create()
+                        .texOffs(276, 161).addBox(-7.500F, -9.000F, -10.000F, 15.000F, 14.000F, 18.000F),
+                PartPose.offsetAndRotation(6.750F, 41.000F, 0.250F, -0.0000F, 0.0000F, 0.2182F));
 
         // ---- right_leg ----
         PartDefinition right_leg = root.addOrReplaceChild("right_leg", CubeListBuilder.create()

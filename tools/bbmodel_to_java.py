@@ -18,6 +18,9 @@ from PIL import Image
 GROUND = 96.0          # bb y of the model's foot plane in the authoring rig
 ROOTS = ("head", "body", "right_arm", "left_arm", "right_leg", "left_leg")
 RENAME = {"canon_head_REFERENCE": "skull", "ref_jaw": "jaw"}
+
+# Cubes on the arm that are not part of its length; see the ruler in emit().
+ARM_RULER_SKIP = {"delt_left", "delt_right"}
 VANILLA_PIVOTS = {
     "head": (0.0, 0.0, 0.0), "body": (0.0, 0.0, 0.0),
     "right_arm": (-5.0, 2.0, 0.0), "left_arm": (5.0, 2.0, 0.0),
@@ -264,7 +267,36 @@ def convert(path):
             (x, y, z), (w, h, d) = jbox(e)
             tex = f".texOffs({int(round(u))}, {int(round(v))})"
             want = wants_mirror(e)
-            if any(abs(t) > 1e-9 for t in e.get("rotation", [0, 0, 0])):
+            spins = any(abs(t) > 1e-9 for t in e.get("rotation", [0, 0, 0]))
+
+            # The arm's extent is a ruler for the first-person hand: shoulder
+            # joint to fingertip, which is the span ARM_SCALE divides 12 by.
+            #
+            # Which cubes it reads used to be an accident of which ones carried
+            # a rotation, because only cubes staying in this part's own list
+            # were measured. That held while the fist was axis-aligned and broke
+            # the moment it was given a 12.5 degree tilt: the fist left for a
+            # sub-part, ARM_MAX_Y fell from 46 to 34 -- the wrist -- and
+            # ARM_SCALE jumped a third. An edit that only meant to turn the
+            # hands slightly would have grown the first-person arm and ended it
+            # at the cuff.
+            #
+            # So the rule is named instead of inferred. Every cube counts
+            # whichever part it is emitted into, except the deltoid, which is a
+            # pauldron over the joint rather than a segment of the limb and
+            # reaches eight units ABOVE the shoulder line -- counting it would
+            # push ARM_MIN_Y into the torso.
+            #
+            # Measured off the unrotated boxes throughout, deliberately: this is
+            # a ruler for how long the arm is, not a bounding volume.
+            if name == "left_arm" and e.get("name") not in ARM_RULER_SKIP:
+                lo = (x - piv[0], y - piv[1], z - piv[2])
+                hi = (lo[0] + w, lo[1] + h, lo[2] + d)
+                for i in range(3):
+                    arm[f"lo{i}"] = min(arm.get(f"lo{i}", lo[i]), lo[i])
+                    arm[f"hi{i}"] = max(arm.get(f"hi{i}", hi[i]), hi[i])
+
+            if spins:
                 spun.append((e, tex, (x, y, z), (w, h, d), want))
             else:
                 prefix = ""
@@ -275,12 +307,6 @@ def convert(path):
                              f"{z - piv[2]:.3f}F, {w:.3f}F, {h:.3f}F, {d:.3f}F)")
                 if name == "skull":
                     tops["skull"] = min(tops.get("skull", y), y)
-                if name == "left_arm":
-                    lo = (x - piv[0], y - piv[1], z - piv[2])
-                    hi = (lo[0] + w, lo[1] + h, lo[2] + d)
-                    for i in range(3):
-                        arm[f"lo{i}"] = min(arm.get(f"lo{i}", lo[i]), lo[i])
-                        arm[f"hi{i}"] = max(arm.get(f"hi{i}", hi[i]), hi[i])
         if mirrored:
             boxes.append(".mirror(false)")
         cl = "CubeListBuilder.create()" if not boxes else \
