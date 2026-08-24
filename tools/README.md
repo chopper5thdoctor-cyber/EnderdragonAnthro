@@ -107,6 +107,11 @@ game.
 | `wing_flap` | `BEAT` / `BEAT_TICKS`, `flap(phase)` | one-shot per Boost, `DragonWings` |
 | `tailwag in flight` | `WAG` / `WAG_TICKS`, `wag(phase, weight)` | ambient while gliding, `DragonTail` |
 
+Matched **by name**, so swapping a clip is a rename in Blockbench and a re-run
+of the converter — nothing in Java names an animation. Anything else in the rig
+is ignored, which is how `wing_flap_original` survives as reference without
+being built.
+
 Both are baked into tables of 32 samples per cycle, already in Java's space and
 units, six rows per bone — rotation `x/y/z` then position `x/y/z`. Baked rather
 than emitted as keyframes so the interpolation is settled once, at conversion

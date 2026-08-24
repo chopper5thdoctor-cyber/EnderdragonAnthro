@@ -1,6 +1,7 @@
 package com.enderdragonanthro.client.render;
 
 import com.enderdragonanthro.EnderdragonAnthro;
+import com.enderdragonanthro.client.DragonHud;
 import com.enderdragonanthro.client.DragonSightClient;
 import com.enderdragonanthro.mixin.BossOverlayAccessor;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -89,13 +90,24 @@ public final class DragonSightCompass {
      * bars is where Minecraft already puts standing information about the world
      * rather than about the moment, and it leaves the middle of the screen for
      * looking through.
+     *
+     * Counting the vanilla stack is not enough, and this landed the label
+     * straight on top of a bar the first time it was tried. The bar a
+     * transformed player sees is DragonHud's own, drawn with fill() at the same
+     * y=12 vanilla starts at — it is not a BossEvent, so it is not in
+     * BossHealthOverlay.events and the count came back zero while a bar was
+     * plainly on screen. Ours takes a slot like any other.
      */
     private static int belowBossBars() {
         Minecraft client = Minecraft.getInstance();
         int bars = client.gui == null ? 0
                 : ((BossOverlayAccessor) client.gui.getBossOverlay()).enderdragonanthro$events()
                         .size();
-        return BOSS_TOP + bars * BOSS_STEP + 2;
+        if (client.player != null && DragonHud.isDragonForm(client.player)
+                && !client.options.hideGui) {
+            bars++;
+        }
+        return BOSS_TOP + bars * BOSS_STEP + 3;
     }
 
     private static BlockPos nearest(LocalPlayer player, List<BlockPos> positions) {
