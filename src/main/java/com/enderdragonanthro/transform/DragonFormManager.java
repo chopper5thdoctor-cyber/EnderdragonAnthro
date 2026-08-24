@@ -39,6 +39,9 @@ public final class DragonFormManager {
     /** The canon figure, and the default. DragonConfig can move it. */
     public static final double SCALE_FACTOR = 8.0 / 1.8;
 
+    /** The one modifier DragonIntent rewrites, so both ends agree on its name. */
+    private static final ResourceLocation ATTACK_ID = id("dragon_attack");
+
     private record Mod(ResourceLocation id, Holder<Attribute> attribute, double amount,
                        AttributeModifier.Operation operation) {
     }
@@ -100,7 +103,7 @@ public final class DragonFormManager {
              * 34 puts a bare claw at 35, above the Warden, and a weapon still
              * stacks on top of it.
              */
-            new Mod(id("dragon_attack"), Attributes.ATTACK_DAMAGE, 34.0,
+            new Mod(ATTACK_ID, Attributes.ATTACK_DAMAGE, 34.0,
                     AttributeModifier.Operation.ADD_VALUE),
             // dragon hits launch people
             new Mod(id("dragon_attack_knockback"), Attributes.ATTACK_KNOCKBACK, 1.5,
@@ -278,9 +281,32 @@ public final class DragonFormManager {
             instance.addPermanentModifier(new AttributeModifier(
                     mod.id(), mod.amount(), mod.operation()));
         }
+        // The claw is not a constant: DragonIntent decides how much of it is
+        // out, and the list above only carries the value it starts at. Applied
+        // after, so the stop the player was on survives a re-dress.
+        com.enderdragonanthro.ability.DragonIntent.refresh(player);
         // Flight is elytra-style gliding (DragonFlight), not creative flight.
         player.onUpdateAbilities();
         player.setHealth(Math.min(health, player.getMaxHealth()));
+    }
+
+    /**
+     * Rewrite the claw alone, without disturbing the other nine modifiers.
+     *
+     * Damage comes off ATTACK_DAMAGE and the game reads that attribute rather
+     * than asking us, so a dial that changes how hard you hit has to change the
+     * attribute. Permanent rather than transient for the reason every modifier
+     * here is: AttributeInstance.save writes only the permanent ones, so a
+     * transient claw would be twenty again after a relog.
+     */
+    public static void setAttackBonus(ServerPlayer player, double bonus) {
+        AttributeInstance instance = player.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (instance == null) {
+            return;
+        }
+        instance.removeModifier(ATTACK_ID);
+        instance.addPermanentModifier(new AttributeModifier(
+                ATTACK_ID, bonus, AttributeModifier.Operation.ADD_VALUE));
     }
 
     private static void undress(ServerPlayer player) {

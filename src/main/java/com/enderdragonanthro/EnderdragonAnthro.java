@@ -47,6 +47,14 @@ public class EnderdragonAnthro implements ModInitializer {
 
         PayloadTypeRegistry.playC2S().register(AbilityActionPayload.TYPE, AbilityActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ShadeOrderPayload.TYPE, ShadeOrderPayload.CODEC);
+        // Both ways, deliberately the same record: up it is a request, down it
+        // is the answer, and a second type would say nothing the boolean does not.
+        PayloadTypeRegistry.playC2S().register(
+                com.enderdragonanthro.network.DragonPickupPayload.TYPE,
+                com.enderdragonanthro.network.DragonPickupPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                com.enderdragonanthro.network.DragonPickupPayload.TYPE,
+                com.enderdragonanthro.network.DragonPickupPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ShadeStatePayload.TYPE, ShadeStatePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(HomingCrystalPayload.TYPE, HomingCrystalPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(EndermanHappyPayload.TYPE, EndermanHappyPayload.CODEC);
@@ -63,13 +71,21 @@ public class EnderdragonAnthro implements ModInitializer {
             }
         });
 
+        ServerPlayNetworking.registerGlobalReceiver(
+                com.enderdragonanthro.network.DragonPickupPayload.TYPE, (payload, context) ->
+                        context.server().execute(() ->
+                                com.enderdragonanthro.ability.DragonPickup.set(
+                                        context.player(), payload.on())));
         ServerPlayNetworking.registerGlobalReceiver(ShadeOrderPayload.TYPE, (payload, context) ->
                 DragonMinions.applyOrder(context.player(), payload.slot(),
                         payload.order(), payload.quarry()));
 
         // Reapply the (transient) attribute modifiers and boss bar when a saved dragon logs in
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                DragonFormManager.onJoin(handler.getPlayer()));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            DragonFormManager.onJoin(handler.getPlayer());
+            // The button has to know which way round it is before it is drawn.
+            com.enderdragonanthro.ability.DragonPickup.tell(handler.getPlayer());
+        });
         // The far side of a portal is built by PortalForcer at the only size it
         // knows, so a dragon that fits through a wide gate arrives at a narrow
         // one. Widened on arrival rather than by rewriting the generator, which
@@ -92,6 +108,7 @@ public class EnderdragonAnthro implements ModInitializer {
                         com.enderdragonanthro.ability.NetherGate.widenArrival(player));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             DragonFormManager.onLeave(handler.getPlayer());
+            com.enderdragonanthro.ability.DragonIntent.forget(handler.getPlayer());
             DragonMinions.onLeave(handler.getPlayer());   // let the held chunks close
         });
 
@@ -120,7 +137,7 @@ public class EnderdragonAnthro implements ModInitializer {
             if (level.isClientSide || !(player instanceof net.minecraft.server.level.ServerPlayer sp)) {
                 return InteractionResult.PASS;
             }
-            if (!DragonFormManager.isDragon(sp) || !DragonAbilities.craterArmed(sp)) {
+            if (!DragonFormManager.isDragon(sp) || !DragonAbilities.cratersNow(sp)) {
                 return InteractionResult.PASS;
             }
             DragonAbilities.crater(sp, pos);

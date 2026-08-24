@@ -60,6 +60,10 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
 
         // The court screen is server-driven: the command key asks for the
         // roster, and every later change is pushed to keep an open screen live.
+        ClientPlayNetworking.registerGlobalReceiver(
+                com.enderdragonanthro.network.DragonPickupPayload.TYPE,
+                (payload, context) -> context.client().execute(() ->
+                        DragonPickupClient.set(payload.on())));
         ClientPlayNetworking.registerGlobalReceiver(ShadeStatePayload.TYPE,
                 (payload, context) -> ShadeCourtClient.accept(payload));
         ClientPlayNetworking.registerGlobalReceiver(HomingCrystalPayload.TYPE,

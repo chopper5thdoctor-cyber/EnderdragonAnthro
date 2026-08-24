@@ -1680,7 +1680,11 @@ public final class DragonMinions {
             return false;
         }
         for (Shade s : court) {
-            if (s.entity.equals(e.getUUID())) {
+            // Null while a shade is away on an errand -- there is no entity
+            // then. This never mattered while only the abilities asked, which
+            // ask about something standing in front of them; it matters now
+            // that every hurt() in the world comes through here.
+            if (s.entity != null && s.entity.equals(e.getUUID())) {
                 return true;
             }
         }

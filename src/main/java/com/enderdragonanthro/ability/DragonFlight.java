@@ -89,7 +89,7 @@ public final class DragonFlight {
         Vec3 look = player.getLookAngle();
         Vec3 delta = player.getDeltaMovement();
         double push = 0.2, pull = 0.75;
-        double target = DragonAbilities.craterArmed(player) ? ARMED_TARGET : TARGET;
+        double target = DragonIntent.tunnels(player) ? ARMED_TARGET : TARGET;
         player.setDeltaMovement(delta.add(
                 look.x * push + (look.x * target - delta.x) * pull,
                 look.y * push + (look.y * target - delta.y) * pull,
@@ -200,7 +200,7 @@ public final class DragonFlight {
      * that carpeted itself in falling stone would be its own kind of problem.
      */
     private static void tunnel(MinecraftServer server, ServerPlayer player) {
-        if (!DragonAbilities.craterArmed(player)) {
+        if (!DragonIntent.tunnels(player)) {
             return;
         }
         Vec3 delta = player.getDeltaMovement();

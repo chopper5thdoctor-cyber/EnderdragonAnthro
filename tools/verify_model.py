@@ -12,6 +12,7 @@ It exists because two conversion bugs shipped without it: per-cube rotations
 were dropped entirely (44 of 75 cubes flattened), and the group rotation
 mapping had the wrong sign on Y and Z.
 """
+import glob
 import json
 import math
 import os
@@ -166,7 +167,43 @@ def check_symbols():
                  "Add them to the template in tools/bbmodel_to_java.py, not to "
                  "the generated file.")
     print("PASS: every DragonFormModel symbol the mod references is declared")
+    check_mixins_registered()
     check_form_guards()
+
+
+def check_mixins_registered():
+    """Every mixin on disk has to be in the config, or it silently does nothing.
+
+    A mixin class that is not listed compiles, passes review, and never runs.
+    Nothing fails; the feature is simply absent. LivingEntityColdImmunityMixin
+    was written, reported as working and shipped in that state -- freezing was
+    never actually turned off, and there was no signal of any kind, because
+    from the compiler's point of view the file was fine.
+
+    Nothing else catches this. The build does not know what a mixin config is,
+    and a client that reaches the title screen with zero injection failures
+    proves only that the mixins which ARE listed applied.
+    """
+    config = os.path.join(HERE, "src/main/resources/enderdragonanthro.mixins.json")
+    listed = set()
+    with open(config) as fh:
+        data = json.load(fh)
+    for key in ("mixins", "client", "server"):
+        listed.update(data.get(key, []))
+
+    folder = os.path.join(HERE, "src/main/java/com/enderdragonanthro/mixin")
+    on_disk = {os.path.basename(p)[:-5] for p in glob.glob(os.path.join(folder, "*.java"))}
+
+    missing = sorted(on_disk - listed)
+    phantom = sorted(listed - on_disk)
+    if missing or phantom:
+        print("FAIL: the mixin config and the mixin package disagree")
+        for name in missing:
+            print(f"  {name} is on disk but not listed — it will never load")
+        for name in phantom:
+            print(f"  {name} is listed but has no class — the game will not start")
+        sys.exit(1)
+    print(f"PASS: all {len(on_disk)} mixins are registered")
 
 
 def check_form_guards():

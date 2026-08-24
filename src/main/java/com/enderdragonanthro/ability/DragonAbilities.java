@@ -43,7 +43,6 @@ import java.util.UUID;
 public final class DragonAbilities {
     private static final Map<UUID, Map<AbilityAction, Long>> COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Integer> ACTIVE_CHARGES = new HashMap<>();
-    private static final Set<UUID> CRATER_ARMED = new HashSet<>();
 
     /** How far the breath will look for ground before giving up. */
     private static final double BREATH_REACH = 100.0;
@@ -60,8 +59,25 @@ public final class DragonAbilities {
     private DragonAbilities() {
     }
 
-    public static boolean craterArmed(ServerPlayer player) {
-        return CRATER_ARMED.contains(player.getUUID());
+    /**
+     * Whether this left click should open the ground.
+     *
+     * Three conditions, and the empty hand is the one that makes the whole
+     * feature liveable: a punch is something you throw with a fist, so holding
+     * a pickaxe means you are mining and mining should mine. Without it every
+     * left click anywhere would be a seven-block sphere.
+     */
+    public static boolean cratersNow(ServerPlayer player) {
+        DragonIntent intent = DragonIntent.of(player);
+        if (!intent.craters() || !player.getMainHandItem().isEmpty()) {
+            return false;
+        }
+        if (!intent.detonates()) {
+            return true;                       // Boss: no blast, so no cooldown
+        }
+        Long last = LAST_CRATER.get(player.getUUID());
+        return last == null
+                || player.serverLevel().getGameTime() - last >= DETONATION_COOLDOWN;
     }
 
     public static void trigger(ServerPlayer player, AbilityAction action) {
@@ -83,7 +99,7 @@ public final class DragonAbilities {
             case FIREBALL -> fireball(player);
             case BUFFET -> wingBuffet(player);
             case CHARGE -> beginCharge(player);
-            case CRATER -> toggleCrater(player);
+            case CRATER -> DragonIntent.cycle(player);
             case EVADE -> evade(player);
             case WARP -> warpToPlayer(player);
             case RETURN -> HomingCrystals.returnHome(player);
@@ -256,11 +272,13 @@ public final class DragonAbilities {
     private static void wingBuffet(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
         AABB area = player.getBoundingBox().inflate(6.0, 3.0, 6.0);
-        // Was 3/5/7, which is a wooden sword swung in a circle. This is a
-        // six-block wing sweep off something eight blocks tall on a five second
-        // cooldown; the Warden's melee is 30 and this should be felt in the
-        // same conversation, discounted for hitting everything at once.
-        float damage = byDifficulty(level.getDifficulty(), 10.0F, 16.0F, 22.0F);
+        // Restrained is what it shipped with, a wooden sword swung in a circle.
+        // Boss is a six-block wing sweep off something eight blocks tall on a
+        // five second cooldown, felt in the same conversation as the Warden's
+        // 30 and discounted for hitting everything at once.
+        float damage = DragonIntent.heavy(player)
+                ? byDifficulty(level.getDifficulty(), 10.0F, 16.0F, 22.0F)
+                : byDifficulty(level.getDifficulty(), 3.0F, 5.0F, 7.0F);
         for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, area,
                 e -> e != player && e.isAlive() && !DragonMinions.isOwnedBy(player, e))) {
             target.hurt(level.damageSources().playerAttack(player), damage);
@@ -280,10 +298,12 @@ public final class DragonAbilities {
 
     private static void chargeContactDamage(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
-        // Was 6/10/15. A charge is the most committed thing in the kit -- you
-        // give up your position, it can miss outright, and it is over in twelve
-        // ticks -- so it is the one that should hurt most when it lands.
-        float damage = byDifficulty(level.getDifficulty(), 18.0F, 28.0F, 40.0F);
+        // A charge is the most committed thing in the kit -- you give up your
+        // position, it can miss outright, and it is over in twelve ticks -- so
+        // at boss weight it is the one that hurts most when it lands.
+        float damage = DragonIntent.heavy(player)
+                ? byDifficulty(level.getDifficulty(), 18.0F, 28.0F, 40.0F)
+                : byDifficulty(level.getDifficulty(), 6.0F, 10.0F, 15.0F);
         AABB path = player.getBoundingBox().expandTowards(player.getDeltaMovement()).inflate(1.0);
         for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, path,
                 e -> e != player && e.isAlive() && !DragonMinions.isOwnedBy(player, e))) {
@@ -295,15 +315,15 @@ public final class DragonAbilities {
         }
     }
 
-    private static void toggleCrater(ServerPlayer player) {
-        boolean on = !CRATER_ARMED.remove(player.getUUID());
-        if (on) {
-            CRATER_ARMED.add(player.getUUID());
-        }
-        player.displayClientMessage(Component.literal(
-                on ? "Explosive Intent ARMED" : "Explosive Intent off")
-                .withStyle(on ? ChatFormatting.LIGHT_PURPLE : ChatFormatting.GRAY), true);
-    }
+    /**
+     * How hard a punch has to land before the next one is allowed, in ticks.
+     *
+     * Only on Enderdragon, and only because that one detonates. Three seconds
+     * is long enough that a crater is a decision; without it the blast is a
+     * held mouse button and the world is a hole.
+     */
+    private static final int DETONATION_COOLDOWN = 60;
+    private static final Map<UUID, Long> LAST_CRATER = new HashMap<>();
 
     /**
      * Evasive jump: somewhere random, at least a thousand blocks out.
@@ -561,6 +581,46 @@ public final class DragonAbilities {
                     centre.getY() + 0.5, centre.getZ() + 0.5, 10,
                     CRATER_RADIUS * 0.7, CRATER_RADIUS * 0.7, CRATER_RADIUS * 0.7, 0.0);
         }
+        if (DragonIntent.of(player).detonates()) {
+            detonate(player, level, centre);
+            LAST_CRATER.put(player.getUUID(), level.getGameTime());
+        }
+    }
+
+    /** Weak at the centre and nothing at the rim; the crater is still the point. */
+    private static final float BLAST_DAMAGE = 8.0F;
+
+    /**
+     * The blast, on Enderdragon only.
+     *
+     * Deliberately small next to a claw at 35 — this is the shockwave off a
+     * punch that was aimed at the ground, not an attack in its own right, and
+     * anything standing where you punched has already lost the floor.
+     *
+     * Falls off with distance rather than landing flat, so the edge of the
+     * sphere is a shove and the middle is a hit. The court is exempt by the
+     * same rule as everything else; so is the dragon, who is standing at arm's
+     * length from it by definition.
+     */
+    private static void detonate(ServerPlayer player, ServerLevel level, BlockPos centre) {
+        Vec3 middle = Vec3.atCenterOf(centre);
+        double reach = CRATER_RADIUS + 1.5;
+        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class,
+                new AABB(middle, middle).inflate(reach),
+                e -> e != player && e.isAlive() && !DragonMinions.isOwnedBy(player, e))) {
+            double gap = Math.sqrt(target.distanceToSqr(middle));
+            float share = (float) Math.max(0.0, 1.0 - gap / reach);
+            if (share <= 0.0F) {
+                continue;
+            }
+            target.hurt(level.damageSources().explosion(player, player),
+                    BLAST_DAMAGE * share);
+            Vec3 away = target.position().subtract(middle).normalize();
+            target.setDeltaMovement(away.x * 1.2, 0.6, away.z * 1.2);
+            target.hurtMarked = true;
+        }
+        level.playSound(null, centre, SoundEvents.GENERIC_EXPLODE.value(),
+                SoundSource.PLAYERS, 1.4F, 0.7F);
     }
 
     /** Blocks a dragon cannot break, bedrock deliberately excluded. */

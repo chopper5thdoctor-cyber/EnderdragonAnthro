@@ -9,6 +9,8 @@
     "EndCrystalHomingMixin",
     "EndermanTeleportMixin",
     "EntityFireImmunityMixin",
+    "ItemPickupMixin",
+    "LivingEntityColdImmunityMixin",
     "LivingEntityEffectImmunityMixin",
     "LivingEntityGlideMixin",
     "LivingEntityTargetabilityMixin",
@@ -16,7 +18,8 @@
     "PlayerCrystalImmunityMixin",
     "PlayerDamageResilienceMixin",
     "PlayerEyeHeightMixin",
-    "PlayerTransformDataMixin"
+    "PlayerTransformDataMixin",
+    "ShadeLoyaltyMixin"
   ],
   "client": [
     "BossOverlayAccessor",
@@ -30,6 +33,7 @@
     "DragonSightTintMixin",
     "EndCrystalTextureMixin",
     "GameRendererBobMixin",
+    "InventoryPickupMixin",
     "PlayerBodyHideMixin",
     "PlayerHandMixin",
     "ShadeBodyHideMixin",
