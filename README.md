@@ -45,6 +45,11 @@ status effect, and — for fairness, since an anthro walks among its own crystal
 than circling them — End Crystal blasts. Flying into scenery costs nothing at all, and
 a glide banks no fall damage however far you dive.
 
+**A switch for picking things up.** Bottom right of the inventory panel. A dragon
+eight blocks across hoovers up every arrow shaft it steps over and cannot walk
+around the mess, which is why vanilla has never needed one. Per player, not per
+form, so it survives dropping out of dragon shape and back.
+
 **And to cold**, which is the same claim from the other end: a thing that shrugs off
 lava has no business shivering in powder snow. The freeze meter never fills, so the
 frost vignette never draws over your own violet.
@@ -187,6 +192,14 @@ there is no entity out there to give a duty to or to touch. A finished Collect
 hands the stack over and drops back to **Defend**, as does an Attack order with nothing
 left to hunt — standing with you is the default duty, not a fifth order you have to pick.
 
+**You cannot hurt them.** Each area ability already skipped the court, which
+covered the abilities and nothing else — the gaps were what actually killed
+shades: a stray left click while turning, the lingering cloud a Fireball leaves,
+the blast off a crater punch. Filtering at the point of damage closes all of them
+at once, including the indirect ones a per-ability filter cannot see, since a
+cloud hurts through `MobEffects.HARM` and only the damage source knows whose it
+was. Strictly one-way: a shade can still be killed by anything else in the world.
+
 **They keep their distance.** A shade walks to a ring two and a half blocks out
 and stops there, watching you. They used to path to your exact feet — a path
 only ends when it arrives, and arriving meant standing where you were standing,
@@ -315,9 +328,30 @@ powder that hides a pit, all three. Steam rather than meltwater, because water i
 slow thaw leaves and this is not one. A snowdrift standing in the middle of a fire that
 outlasts lava's was the one thing on screen arguing it was not hot.
 
-## Explosive Intent
+## Intent
 
-Toggle with `B`. It does two things, and both are what the real dragon does.
+`B` cycles it. It was a toggle called Explosive Intent, and a toggle was the
+wrong shape: the thing being switched welded three separate decisions together —
+how hard you hit, whether your fist takes the ground with it, and whether flight
+stops caring about walls. A dragon walking through a village wants the first off
+and none of the rest.
+
+| | Claw | Abilities | Crater punch | Flight |
+|---|---|---|---|---|
+| **Restrained** | 10 | as shipped | — | ordinary glide |
+| **Boss** *(default)* | 35 | boss weight | bare hand only | ordinary glide |
+| **Enderdragon** | 35 | boss weight | detonates, 3 s | tunnels |
+
+**The empty hand is what makes Boss liveable as the default.** A punch is
+something you throw with a fist, so holding a pickaxe means you are mining and
+mining mines. Without it every left click anywhere would be a seven-block
+sphere, and there would be no way to place a torch without redecorating. The
+Enderdragon punch is the one that bursts — eight damage at the centre falling to
+nothing at the rim, small next to a claw at 35 on purpose, since it is the
+shockwave off a punch aimed at the ground and anything standing there has
+already lost the floor.
+
+The two things the top stop does are both what the real dragon does.
 
 **You tunnel.** `EnderDragon` sets `noPhysics` and clears blocks inside its own hitbox
 every tick, which is why its flight looks unbothered by terrain rather than like
