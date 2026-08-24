@@ -1,6 +1,6 @@
 package com.enderdragonanthro.mixin;
 
-import com.enderdragonanthro.EnderdragonAnthro;
+import com.enderdragonanthro.client.DragonHearts;
 import com.enderdragonanthro.client.DragonHud;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -24,38 +24,24 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * nothing and buys something — the last path segment is matched, so every
  * variant vanilla asks for is handled by name, and any this mod does not ship
  * falls through to vanilla's rather than vanishing.
+ *
+ * Which name maps to which sprite lives in {@link DragonHearts} rather than
+ * here, because a mixin is dissolved into its target at load time and nothing
+ * outside the running game can call into one. This class keeps only the part
+ * that genuinely needs the game: whether the player looking at this HUD is
+ * currently a dragon.
  */
 @Mixin(Gui.class)
 public abstract class DragonHeartsMixin {
-    private static final String VANILLA = "hud/heart/";
-
     @Redirect(method = "renderHeart",
               at = @At(value = "INVOKE",
                        target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite"
                                 + "(Lnet/minecraft/resources/ResourceLocation;IIII)V"))
     private void enderdragonanthro$purpleHearts(GuiGraphics graphics, ResourceLocation sprite,
                                                 int x, int y, int width, int height) {
-        graphics.blitSprite(enderdragonanthro$swap(sprite), x, y, width, height);
-    }
-
-    private static ResourceLocation enderdragonanthro$swap(ResourceLocation sprite) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !DragonHud.isDragonForm(client.player)) {
-            return sprite;
-        }
-        String path = sprite.getPath();
-        if (!sprite.getNamespace().equals("minecraft") || !path.startsWith(VANILLA)) {
-            return sprite;
-        }
-        // Only the shapes this mod actually draws. Poisoned, withered, frozen
-        // and absorbing keep vanilla's, because a dragon being poisoned should
-        // still read as poisoned rather than as one more shade of purple.
-        String name = path.substring(VANILLA.length());
-        return switch (name) {
-            case "container", "container_blinking", "full", "full_blinking",
-                 "half", "half_blinking" ->
-                    EnderdragonAnthro.id(VANILLA + name);
-            default -> sprite;
-        };
+        ResourceLocation ours = client.player != null && DragonHud.isDragonForm(client.player)
+                ? DragonHearts.swap(sprite) : null;
+        graphics.blitSprite(ours != null ? ours : sprite, x, y, width, height);
     }
 }

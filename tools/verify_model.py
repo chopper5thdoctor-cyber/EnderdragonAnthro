@@ -458,6 +458,25 @@ def check_shade_stance(rig):
     head = min(GROUND - e["to"][1] for e in bb["elements"]) * scale + (24.0 - foot * scale)
     print(f"PASS: feet land at model y {feet:.2f} (ground is 24), "
           f"standing {(feet - head) / 16.0:.2f} blocks before the entity's own scale")
+    check_hearts()
+
+
+def check_hearts():
+    """The derived heart sprites still match the ones that were drawn.
+
+    Seven of the ten hearts are computed from three drawings by two rules that
+    make_hearts.py holds. Committing the output means the rules and the files
+    can drift -- somebody repaints a heart and the blinking one stays as it was,
+    which shows for two ticks at a time while you are being killed and is
+    therefore never seen. This re-derives and compares.
+    """
+    import subprocess
+    out = subprocess.run([sys.executable, os.path.join(HERE, "tools/make_hearts.py"),
+                          "--check"], capture_output=True, text=True)
+    if out.returncode != 0:
+        print(out.stdout + out.stderr)
+        sys.exit("FAIL: the heart sprites do not match their derivation rules")
+    print("PASS: every derived heart matches the sprite it comes from")
 
 
 if __name__ == "__main__":

@@ -82,6 +82,24 @@ Listed so nobody tidies them away on a later pass:
 - **Every comment explaining a bug that already shipped.** They are the reason
   those bugs have not shipped twice.
 
+## 6. Not a release item: gating the form
+
+Recorded here so it is not lost, and explicitly **not** built yet. The
+intention, in the author's words:
+
+> I will begin trying to limit access to the Enderdragon form but not right
+> now, MUCH later.
+
+Today the form is a command and a key away, which is right for a mod that is
+still being built and wrong for one being played. Nothing in the current code
+assumes it stays that way: `DragonFormManager.transform` is the single door
+everything else goes through, so whatever the eventual cost is — an item, a
+place, a fight — it attaches there rather than being threaded through the kit.
+
+Worth knowing before that work starts: `theFormIsIdempotent` in the gametests
+asserts that transforming twice is the same as transforming once, and it will
+need a companion asserting that transforming *without paying* does nothing.
+
 ---
 
 ## Before tagging

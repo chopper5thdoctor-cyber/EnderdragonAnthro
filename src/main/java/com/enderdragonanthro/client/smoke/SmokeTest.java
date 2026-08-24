@@ -2,6 +2,7 @@ package com.enderdragonanthro.client.smoke;
 
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.ability.AbilityAction;
+import com.enderdragonanthro.client.DragonHearts;
 import com.enderdragonanthro.client.DragonHud;
 import com.enderdragonanthro.ability.DragonIntent;
 import com.enderdragonanthro.client.DragonIntentClient;
@@ -216,6 +217,40 @@ public final class SmokeTest {
             check("texture " + path,
                     Minecraft.getInstance().getResourceManager().getResource(id).isPresent(),
                     "named by the code and not in the jar");
+        }
+        hearts();
+    }
+
+    /**
+     * The hearts vanilla will ask us for, present and stitched.
+     *
+     * Two questions rather than one, because a heart is not loaded the way the
+     * entity sheets above are. blitSprite does not read a file — it reads the
+     * GUI atlas, which is stitched once at startup from everything under
+     * textures/gui/sprites. A sprite can therefore be in the jar, be named
+     * correctly, and still come out of getSprite as vanilla's missingno, and
+     * the visible result of that is a heart bar full of black-and-magenta
+     * checks. So the file is checked, and then the atlas is asked whether it
+     * kept it.
+     *
+     * The twelve are every name Gui.HeartType hands to renderHeart for a player
+     * who is not poisoned, withered, frozen or absorbing — in both an ordinary
+     * world and a hardcore one. container_hardcore is in the list even though no
+     * file of that name is shipped: the point of the check is that the mapping's
+     * answer for it resolves, and its answer is the ordinary container.
+     */
+    private static void hearts() {
+        Minecraft client = Minecraft.getInstance();
+        for (String name : DragonHearts.REPLACED) {
+            ResourceLocation ours = DragonHearts.swap(DragonHearts.vanilla(name));
+            if (ours == null) {
+                check("heart " + name + " is ours", false,
+                        "the mapping does not answer for it, so vanilla's red one draws");
+                continue;
+            }
+            check("heart " + name + " is stitched into the GUI atlas",
+                    client.getGuiSprites().getSprite(ours).contents().name().equals(ours),
+                    "the atlas has no " + ours + ", so it would draw as missingno");
         }
     }
 
