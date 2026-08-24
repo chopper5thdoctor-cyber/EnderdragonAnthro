@@ -15,6 +15,27 @@ send your court to cut a portal wide enough to walk through.
 | **Design rationale** | **[DESIGN.md](DESIGN.md)** — canon reference data, the anthro translation, and the honest list of complications |
 | **Making the model** | **[MODELING_GUIDE.md](MODELING_GUIDE.md)** — the Blockbench rig contract |
 | **Build tooling** | **[tools/README.md](tools/README.md)** — the bbmodel → Java converter and its verifier |
+| **Before tagging** | **[RELEASE.md](RELEASE.md)** — what to strip when this stops being a work in progress |
+
+---
+
+## Checking it
+
+Four harnesses, each answering a question the one before it cannot.
+
+```bash
+./gradlew build                  # it compiles
+python3 tools/verify_model.py    # the rig matches the bbmodel, every mixin is registered
+./gradlew runGametest            # the WORLD behaves: mobs flee, snow steams, gates rise
+./gradlew runSmoke               # textures resolve, layers bake, clips have length
+./gradlew runSmokeWorld          # ...and a keypress survives the round trip
+python3 tools/audit_injections.py   # every injection actually attached
+```
+
+The last one needs a client run under `-Dmixin.debug.export=true` first. It is
+the answer to this project's quietest failure: a mixin that compiles, is listed,
+loads, and does not attach. Cold immunity shipped in exactly that state and ran
+never.
 
 ---
 
