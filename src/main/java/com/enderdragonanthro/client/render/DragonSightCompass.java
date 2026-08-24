@@ -56,6 +56,10 @@ public final class DragonSightCompass {
     /** Vanilla's first boss bar sits at 12 and each one steps 19 down. */
     private static final int BOSS_TOP = 12;
     private static final int BOSS_STEP = 19;
+    /** A bar is 5 rows tall and DragonHud draws a border round its own. */
+    private static final int BAR_HEIGHT = 6;
+    /** Clear air under the stack. Puts the label at y=24 with one bar up. */
+    private static final int LABEL_GAP = 6;
     private static final ResourceLocation END_MARK =
             EnderdragonAnthro.id("textures/gui/dragonsight/mark_end.png");
     private static final ResourceLocation GATE_MARK =
@@ -97,6 +101,12 @@ public final class DragonSightCompass {
      * y=12 vanilla starts at — it is not a BossEvent, so it is not in
      * BossHealthOverlay.events and the count came back zero while a bar was
      * plainly on screen. Ours takes a slot like any other.
+     *
+     * Measured off the BOTTOM of the last bar rather than off the top of the
+     * next slot, which is the same thing when the stack is full and a row and a
+     * half of empty screen when it is not — a slot is 19 tall and a bar is 6 of
+     * them, the rest being the space its name is written in. With one bar up
+     * this is y=24, six clear rows under it.
      */
     private static int belowBossBars() {
         Minecraft client = Minecraft.getInstance();
@@ -107,7 +117,10 @@ public final class DragonSightCompass {
                 && !client.options.hideGui) {
             bars++;
         }
-        return BOSS_TOP + bars * BOSS_STEP + 3;
+        if (bars == 0) {
+            return BOSS_TOP;
+        }
+        return BOSS_TOP + (bars - 1) * BOSS_STEP + BAR_HEIGHT + LABEL_GAP;
     }
 
     private static BlockPos nearest(LocalPlayer player, List<BlockPos> positions) {
