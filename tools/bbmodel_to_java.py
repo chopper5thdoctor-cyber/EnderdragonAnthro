@@ -74,6 +74,18 @@ def flap_table(bb):
         name = animator.get("name") or by_uuid.get(uid)
         if name not in FLAP_BONES:
             continue
+        # Anything that is not rotation is not baked, and a channel that
+        # vanishes without a word is the failure mode this project has been
+        # bitten by twice -- an arm ruler that quietly stopped measuring the
+        # hand, a texture that quietly came from the wrong file. Both looked
+        # fine and were wrong. So say so and stop.
+        others = {k.get("channel") for k in animator.get("keyframes", [])
+                  if k.get("channel") != "rotation"}
+        if others:
+            sys.exit(f"ERROR: {name} in {FLAP_NAME} animates "
+                     f"{', '.join(sorted(others))}, which flap() cannot bake — "
+                     f"it only writes rotations. Either drop the channel or "
+                     f"teach flap_table/flap_java to carry it.")
         keys = sorted((k for k in animator.get("keyframes", [])
                        if k.get("channel") == "rotation"),
                       key=lambda k: float(k["time"]))
