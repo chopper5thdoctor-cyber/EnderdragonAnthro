@@ -101,7 +101,7 @@ public class DragonFormModel {
     private final ModelPart wingLeft;
     private final ModelPart wingTipRight;
     private final ModelPart wingTipLeft;
-    /** The folded pose the beat is measured from: rx, rz, lx, lz, tipR, tipL. */
+    /** The folded pose the beat is measured from, x/y/z per wing bone. */
     private final float[] restWing;
 
     public DragonFormModel(ModelPart root) {
@@ -121,34 +121,72 @@ public class DragonFormModel {
         // again; a beat measured from a constant would drift away from the pose
         // the moment they do.
         this.restWing = new float[] {
-            this.wingRight.xRot, this.wingRight.zRot,
-            this.wingLeft.xRot, this.wingLeft.zRot,
-            this.wingTipRight.zRot, this.wingTipLeft.zRot};
+            this.wingRight.xRot, this.wingRight.yRot, this.wingRight.zRot,
+            this.wingLeft.xRot, this.wingLeft.yRot, this.wingLeft.zRot,
+            this.wingTipRight.xRot, this.wingTipRight.yRot, this.wingTipRight.zRot,
+            this.wingTipLeft.xRot, this.wingTipLeft.yRot, this.wingTipLeft.zRot};
     }
 
     /**
-     * The canon dragon's wingbeat, on this rig's wings.
+     * The wingbeat, baked from the rig's own wing_flap animation.
      *
-     * Same curves EnderDragonRenderer drives its wing and wing tip with, and
-     * the same reason they look right: the tip trails the wing by a couple of
-     * radians, so the membrane snaps rather than swinging as one board. Phase
-     * runs 0..1 over a single beat.
+     * GENERATED, like everything else here. The beat used to be three lines of
+     * trigonometry in this file, which is a fine way to write an animation and
+     * a terrible way to tweak one -- every adjustment was a number in a Java
+     * file, compiled and launched to be squinted at. It lives in the .bbmodel
+     * now, where it can be scrubbed, and tools/bbmodel_to_java.py bakes it back
+     * out to this table. Open the rig, drag a keyframe, re-run the converter.
      *
-     * The rig's wings are folded at rest, so these are added to whatever the
-     * artist posed rather than replacing it — a wing that flaps to zero would
-     * jump the moment the beat ended.
+     * One row per bone axis, 24 samples across the beat, in radians
+     * and already in Java's space. Rows nothing touches stay null and cost
+     * nothing. Interpolation was settled at conversion time, so this only has
+     * to walk the table -- it cannot drift from what Blockbench drew.
+     *
+     * The values are DELTAS on the folded pose the artist posed, not absolute
+     * angles. A wing that flapped to zero would jump the moment the beat ended.
      */
+    private static final int BEAT_SAMPLES = 24;
+
+    /** How long one beat runs, from the animation's own length. */
+    public static final int BEAT_TICKS = 12;
+
+    private static final float[][] BEAT = new float[12][];
+
+    static {
+        BEAT[0] = new float[] {-0.20000F, -0.19285F, -0.17320F, -0.14118F, -0.10000F, -0.05167F, -0.00000F, 0.05167F, 0.10000F, 0.14118F, 0.17320F, 0.19285F, 0.20000F, 0.19285F, 0.17320F, 0.14118F, 0.10000F, 0.05167F, -0.00000F, -0.05167F, -0.10000F, -0.14118F, -0.17320F, -0.19285F};
+        BEAT[2] = new float[] {0.10000F, 0.30670F, 0.50000F, 0.66471F, 0.79282F, 0.87141F, 0.90000F, 0.87141F, 0.79282F, 0.66471F, 0.50000F, 0.30670F, 0.10000F, -0.10670F, -0.30000F, -0.46471F, -0.59282F, -0.67141F, -0.70000F, -0.67141F, -0.59282F, -0.46471F, -0.30000F, -0.10670F};
+        BEAT[3] = new float[] {-0.20000F, -0.19285F, -0.17320F, -0.14118F, -0.10000F, -0.05167F, -0.00000F, 0.05167F, 0.10000F, 0.14118F, 0.17320F, 0.19285F, 0.20000F, 0.19285F, 0.17320F, 0.14118F, 0.10000F, 0.05167F, -0.00000F, -0.05167F, -0.10000F, -0.14118F, -0.17320F, -0.19285F};
+        BEAT[5] = new float[] {-0.10000F, -0.30670F, -0.50000F, -0.66471F, -0.79282F, -0.87141F, -0.90000F, -0.87141F, -0.79282F, -0.66471F, -0.50000F, -0.30670F, -0.10000F, 0.10670F, 0.30000F, 0.46471F, 0.59282F, 0.67141F, 0.70000F, 0.67141F, 0.59282F, 0.46471F, 0.30000F, 0.10670F};
+        BEAT[8] = new float[] {-1.05697F, -0.95196F, -0.80955F, -0.63608F, -0.44569F, -0.25025F, -0.06289F, 0.10216F, 0.23628F, 0.32671F, 0.37166F, 0.36324F, 0.30697F, 0.20196F, 0.05955F, -0.11392F, -0.30431F, -0.49975F, -0.68711F, -0.85216F, -0.98628F, -1.07671F, -1.12166F, -1.11324F};
+        BEAT[11] = new float[] {1.05697F, 0.95196F, 0.80955F, 0.63608F, 0.44569F, 0.25025F, 0.06289F, -0.10216F, -0.23628F, -0.32671F, -0.37166F, -0.36324F, -0.30697F, -0.20196F, -0.05955F, 0.11392F, 0.30431F, 0.49975F, 0.68711F, 0.85216F, 0.98628F, 1.07671F, 1.12166F, 1.11324F};
+    }
+
     public void flap(float phase) {
-        float t = phase * ((float) Math.PI * 2.0F);
-        float sweep = Mth.cos(t) * 0.2F;
-        float lift = (Mth.sin(t) + 0.125F) * 0.8F;
-        float trail = -(Mth.sin(t + 2.0F) + 0.5F) * 0.75F;
-        this.wingRight.xRot = this.restWing[0] - sweep;
-        this.wingRight.zRot = this.restWing[1] + lift;
-        this.wingLeft.xRot = this.restWing[2] - sweep;
-        this.wingLeft.zRot = this.restWing[3] - lift;
-        this.wingTipRight.zRot = this.restWing[4] + trail;
-        this.wingTipLeft.zRot = this.restWing[5] - trail;
+        float at = Mth.positiveModulo(phase, 1.0F) * BEAT_SAMPLES;
+        int lo = (int) at;
+        int hi = (lo + 1) % BEAT_SAMPLES;
+        float f = at - lo;
+        this.wingRight.setRotation(
+                this.restWing[0] + beat(0, lo, hi, f),
+                this.restWing[1] + beat(1, lo, hi, f),
+                this.restWing[2] + beat(2, lo, hi, f));
+        this.wingLeft.setRotation(
+                this.restWing[3] + beat(3, lo, hi, f),
+                this.restWing[4] + beat(4, lo, hi, f),
+                this.restWing[5] + beat(5, lo, hi, f));
+        this.wingTipRight.setRotation(
+                this.restWing[6] + beat(6, lo, hi, f),
+                this.restWing[7] + beat(7, lo, hi, f),
+                this.restWing[8] + beat(8, lo, hi, f));
+        this.wingTipLeft.setRotation(
+                this.restWing[9] + beat(9, lo, hi, f),
+                this.restWing[10] + beat(10, lo, hi, f),
+                this.restWing[11] + beat(11, lo, hi, f));
+    }
+
+    private static float beat(int row, int lo, int hi, float f) {
+        float[] track = BEAT[row];
+        return track == null ? 0.0F : Mth.lerp(f, track[lo], track[hi]);
     }
 
     public static LayerDefinition createLayer() {

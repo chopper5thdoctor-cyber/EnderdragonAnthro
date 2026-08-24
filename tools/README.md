@@ -74,6 +74,58 @@ rotate one cube inside a part. Any cube rotated in Blockbench therefore
 becomes its own single-cube child part, pivoted on that cube's origin.
 Two thirds of this model's cubes are rotated, so skipping this flattens it.
 
+## seed_flap.py
+
+```bash
+python3 tools/seed_flap.py
+```
+
+Writes the `wing_flap` animation into `art/dragon_form.bbmodel`, so the
+wingbeat can be scrubbed in Blockbench's Animate tab instead of edited as
+trigonometry.
+
+**Run this once, or never again.** It seeds the animation from the curves the
+beat was born with; after that the `.bbmodel` is the source of truth and
+re-running it throws away every tweak.
+
+The beat used to be three lines in `DragonFormModel.flap` — the same curves
+`EnderDragonRenderer` drives the canon dragon's wing and wing tip with, the tip
+lagging two radians so the membrane snaps rather than swinging as one board.
+That is a fine way to write an animation and a miserable way to tweak one:
+every adjustment was a number in a Java file, compiled, launched and squinted
+at.
+
+Now: open the rig, drag a keyframe, re-run `bbmodel_to_java.py`. The animation's
+**length** is the beat's duration too — it comes out as `BEAT_TICKS`, which
+`DragonWings` reads, so shortening the stroke on the timeline shortens it in
+game.
+
+### How it round-trips
+
+`bbmodel_to_java.py` bakes the animation into a table of 24 samples per beat,
+in radians and already in Java's space, and `flap()` walks that table. Baked
+rather than emitted as keyframes so the interpolation is settled once, at
+conversion time — the generated Java cannot drift from what Blockbench drew.
+Re-baking the seeded animation reproduces the original trigonometry to within
+**0.43°** at its worst point.
+
+Two things about the values:
+
+- They are **deltas** on the pose the artist posed, in both Blockbench and
+  Minecraft — Blockbench's animator offsets a bone from its rest rotation, and
+  `AnimationChannel.Targets.ROTATION` adds to the part's current rotation. The
+  rig's wings are folded at rest; a wing that flapped to zero would jump the
+  moment the beat ended.
+- They take the **same axis conversion as the geometry**, backwards:
+  `bb_x = -java_x`, `bb_y = +java_y`, `bb_z = -java_z`, degrees to radians.
+
+If the rig carries no `wing_flap` animation, `flap()` falls back to the
+trigonometry it was born with, so removing the animation is safe.
+
+Keyframe values are molang expressions in Blockbench, and only plain numbers
+can be baked. An expression fails the conversion loudly rather than being
+guessed at.
+
 ## verify_model.py
 
 ```bash

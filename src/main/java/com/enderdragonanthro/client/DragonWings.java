@@ -18,8 +18,17 @@ import java.util.UUID;
  * transformed players in view each keep their own.
  */
 public final class DragonWings {
-    /** Ticks a single beat takes. Roughly the canon dragon's own cadence. */
-    private static final int BEAT_TICKS = 12;
+    /**
+     * Ticks a single beat takes, from the rig rather than from here.
+     *
+     * It is the length of the wing_flap animation in the .bbmodel, baked into
+     * the generated model at conversion time. Dragging the animation's end
+     * marker in Blockbench therefore changes the cadence in game -- which is
+     * the point of the beat living in the rig at all. A number typed here would
+     * have gone stale the first time anyone shortened the stroke.
+     */
+    private static final int BEAT_TICKS =
+            com.enderdragonanthro.client.model.DragonFormModel.BEAT_TICKS;
 
     private static final Map<UUID, Long> STARTED = new HashMap<>();
     private static long ticks;
