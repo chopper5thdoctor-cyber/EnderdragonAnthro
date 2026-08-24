@@ -17,6 +17,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -180,6 +181,15 @@ public final class DragonMinions {
         int idleTicks;
         /** Last place we actually saw it, so an unloaded shade can be fetched. */
         BlockPos lastPos;
+        /**
+         * And which world that was in.
+         *
+         * A shade left behind in the Nether is not gone, it is elsewhere, and
+         * without this there was no way to tell those apart -- the court held a
+         * UUID and looked it up in whichever world the owner happened to be
+         * standing in, so a shade one dimension away reported as unreachable.
+         */
+        ResourceKey<Level> dimension;
         /** Set while it is away digging; the entity does not exist meanwhile. */
         Dig dig;
         /** The chunk we are currently holding open for it. */
@@ -373,9 +383,13 @@ public final class DragonMinions {
         if (court == null) {
             return;
         }
-        ServerLevel level = owner.serverLevel();
         for (Shade shade : court) {
-            releaseChunk(level, shade);
+            // Each in its own world: a shade left in the Nether holds a Nether
+            // chunk, and releasing it against the level the owner happens to be
+            // logging out of would free nothing.
+            ServerLevel held = shade.dimension == null
+                    ? owner.serverLevel() : owner.server.getLevel(shade.dimension);
+            releaseChunk(held == null ? owner.serverLevel() : held, shade);
         }
     }
 
@@ -401,21 +415,30 @@ public final class DragonMinions {
         if (court == null || court.isEmpty()) {
             return;
         }
-        ServerLevel level = owner.serverLevel();
+        MinecraftServer server = owner.server;
         for (Shade shade : court) {
             if (shade.dig != null) {
                 continue;                       // away digging; it comes back on its own
             }
-            EnderMan minion = resolve(level, shade);
-            if (minion == null) {
-                continue;
-            }
-            Vec3 look = owner.getLookAngle();
-            if (!blink(level, minion, owner.getX() - look.x * 3.0,
-                    owner.getY(), owner.getZ() - look.z * 3.0, 16)) {
-                minion.teleportTo(owner.getX(), owner.getY(), owner.getZ());
+            EnderMan minion = resolveAnywhere(server, shade);
+            if (minion != null) {
+                haul(owner, shade, minion);
             }
         }
+    }
+
+    /** "the Nether", not "minecraft:the_nether". */
+    private static String worldName(ResourceKey<Level> key) {
+        if (key.equals(Level.NETHER)) {
+            return "the Nether";
+        }
+        if (key.equals(Level.END)) {
+            return "the End";
+        }
+        if (key.equals(Level.OVERWORLD)) {
+            return "the Overworld";
+        }
+        return key.location().getPath().replace('_', ' ');
     }
 
     /** The shade's entity, loading the chunk it was last seen in if need be. */
@@ -433,6 +456,94 @@ public final class DragonMinions {
             }
         }
         return null;
+    }
+
+    /**
+     * The shade's entity, in whatever world it is standing in.
+     *
+     * resolve() looks in one level, which is right for everything that happens
+     * to a shade in front of you and wrong for the one thing that should not
+     * care: being called. A shade is sworn to the dragon, not to a dimension.
+     *
+     * The world it was last seen in is tried first, because that is almost
+     * always the answer and loading its chunk is the expensive part. The sweep
+     * afterwards is for the case the record is stale — it walked into a portal,
+     * or the court was restored from a save without one.
+     */
+    private static EnderMan resolveAnywhere(MinecraftServer server, Shade shade) {
+        if (shade.entity == null) {
+            return null;
+        }
+        if (shade.dimension != null) {
+            ServerLevel known = server.getLevel(shade.dimension);
+            if (known != null) {
+                EnderMan there = resolve(known, shade);
+                if (there != null) {
+                    return there;
+                }
+            }
+        }
+        for (ServerLevel level : server.getAllLevels()) {
+            EnderMan found = resolve(level, shade);
+            if (found != null) {
+                shade.dimension = level.dimension();
+                return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Bring one shade to the dragon, across a world if that is what it takes.
+     *
+     * The near case is a blink: an enderman's own way of covering ground, and
+     * it lands the shade behind you rather than inside you.
+     *
+     * The far case is the buff. A shade in another dimension used to answer
+     * "cannot be reached", which is a strange thing for a creature made of the
+     * End to say — an enderman is the one mob in the game whose whole idea is
+     * that distance is negotiable. So it tears through instead:
+     * changeDimension moves the entity for real, and the old entity is gone
+     * afterwards, which is why the returned one is what gets used from here on.
+     *
+     * A burst is thrown on both sides. The one at the far end is for nobody in
+     * particular — the dragon is not there to see it — but a shade vanishing
+     * out of the Nether should still leave a hole in the air for anything that
+     * was watching.
+     */
+    private static EnderMan haul(ServerPlayer owner, Shade shade, EnderMan minion) {
+        ServerLevel here = owner.serverLevel();
+        ServerLevel there = (ServerLevel) minion.level();
+        burst(there, minion);                      // where it left
+
+        Vec3 look = owner.getLookAngle();
+        double x = owner.getX() - look.x * 3.0;
+        double z = owner.getZ() - look.z * 3.0;
+
+        if (there != here) {
+            // The ticket is a ChunkPos in one level's chunk source, so a shade
+            // that crosses without letting go leaves a chunk of the world it
+            // came from force-loaded with nothing standing in it, for as long
+            // as the server runs.
+            releaseChunk(there, shade);
+            minion.setDeltaMovement(Vec3.ZERO);
+            Entity moved = minion.changeDimension(new DimensionTransition(
+                    here, new Vec3(x, owner.getY(), z), Vec3.ZERO,
+                    owner.getYRot(), 0.0F, DimensionTransition.DO_NOTHING));
+            if (!(moved instanceof EnderMan crossed)) {
+                return null;                       // it did not survive the trip
+            }
+            minion = crossed;
+            shade.entity = minion.getUUID();       // changeDimension makes a new one
+            shade.dimension = here.dimension();
+            here.playSound(null, minion.blockPosition(), SoundEvents.PORTAL_TRAVEL,
+                    SoundSource.PLAYERS, 0.4F, 1.4F);
+        } else if (!blink(here, minion, x, owner.getY(), z, 16)) {
+            minion.teleportTo(owner.getX(), owner.getY(), owner.getZ());
+        }
+        shade.lastPos = minion.blockPosition();
+        burst(here, minion);                       // and where it arrived
+        return minion;
     }
 
     /** Raise one, scaled and tagged, a few paces in front of the dragon. */
@@ -560,27 +671,35 @@ public final class DragonMinions {
                         + Math.max(1, left) + "s.", ChatFormatting.DARK_GRAY, true);
                 return;
             }
-            EnderMan target = resolve(level, shade);
+            // Recall reaches across worlds; everything else needs the shade
+            // in front of you, so only Recall gets the wider search.
+            EnderMan target = order == Order.RECALL
+                    ? resolveAnywhere(owner.server, shade) : resolve(level, shade);
             if (target == null) {
-                say(owner, NAMES[slot] + " cannot be reached — not in this world.",
+                say(owner, NAMES[slot] + (order == Order.RECALL
+                                ? " cannot be found at all."
+                                : " cannot be reached — not in this world."),
                         ChatFormatting.DARK_GRAY, true);
                 return;
             }
             if (order == Order.RECALL) {
-                burst(level, target);          // where it left
-                Vec3 look = owner.getLookAngle();
-                if (!blink(level, target, owner.getX() - look.x * 3.0, owner.getY(),
-                        owner.getZ() - look.z * 3.0, 16)) {
-                    target.teleportTo(owner.getX(), owner.getY(), owner.getZ());
+                ResourceKey<Level> from = target.level().dimension();
+                double was = from.equals(level.dimension())
+                        ? Math.sqrt(target.distanceToSqr(owner)) : -1.0;
+                target = haul(owner, shade, target);
+                if (target == null) {
+                    say(owner, NAMES[slot] + " could not force the crossing.",
+                            ChatFormatting.DARK_GRAY, true);
+                    return;
                 }
                 // Recall has to end the errand, not just interrupt it: a shade
                 // that arrives and is told nothing has changed goes straight
                 // back out, which looks exactly like never having come.
-                burst(level, target);          // and where it arrived
-                int moved = (int) Math.sqrt(target.distanceToSqr(owner));
+                String how = was >= 0.0
+                        ? " (" + (int) was + "m away)"
+                        : " (tore through from " + worldName(from) + ")";
                 standDown(owner, target, shade,
-                        ShadeVoice.duty(Order.RECALL, level.random, "")
-                                + " (" + moved + "m away)");
+                        ShadeVoice.duty(Order.RECALL, level.random, "") + how);
             } else if (order == Order.PORTAL) {
                 BlockPos cut = raiseGate(owner, level, target);
                 if (cut == null) {
@@ -767,6 +886,7 @@ public final class DragonMinions {
                     minion.setTarget(null);      // never turn on the summoner
                 }
                 shade.lastPos = minion.blockPosition();
+                shade.dimension = level.dimension();
                 holdChunk(level, shade, minion);
 
                 // Walled into stone, or fallen through the floor. Dig it out
