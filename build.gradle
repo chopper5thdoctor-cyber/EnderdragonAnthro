@@ -59,3 +59,41 @@ loom {
         }
     }
 }
+
+// ------------------------------------------------------------- smoke harness
+//
+// A real client that creates a flat world, plays through a checklist and exits
+// with a status code. Reaches the things GameTest cannot: textures resolving,
+// model layers baking, a keypress surviving the round trip to the server, and
+// a widget actually appearing on a screen.
+//
+//   ./gradlew runSmoke
+//
+loom {
+    runs {
+        smoke {
+            client()
+            name = 'Smoke Test'
+            vmArg '-Denderdragonanthro.smoke=true'
+            // Offline, and fast about it. A dev client still asks Mojang for a
+            // chat-signing key on join, and with no route out that call sits
+            // there for five minutes before giving up -- which looks exactly
+            // like the harness having hung. Pointing the API hosts at a dead
+            // address makes it fail immediately instead.
+            vmArg '-Dminecraft.api.auth.host=http://0.0.0.0'
+            vmArg '-Dminecraft.api.account.host=http://0.0.0.0'
+            vmArg '-Dminecraft.api.session.host=http://0.0.0.0'
+            vmArg '-Dminecraft.api.services.host=http://0.0.0.0'
+            runDir 'build/smoke'
+        }
+        // The same harness, allowed to load a world and do the round trips.
+        // Needs a machine that can complete a login; see WORLD_FLAG.
+        smokeWorld {
+            client()
+            name = 'Smoke Test (world)'
+            vmArg '-Denderdragonanthro.smoke=true'
+            vmArg '-Denderdragonanthro.smoke.world=true'
+            runDir 'build/smoke'
+        }
+    }
+}

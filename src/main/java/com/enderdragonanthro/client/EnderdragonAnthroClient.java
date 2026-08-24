@@ -105,6 +105,13 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                 ModParticles.DRAGON_SMOKE,
                 com.enderdragonanthro.client.particle.DragonSmokeParticle.Provider::new);
 
+        // The smoke harness, off unless -Denderdragonanthro.smoke=true. Driven
+        // from the tick because everything it touches needs the game thread.
+        if (com.enderdragonanthro.client.smoke.SmokeTest.enabled()) {
+            ClientTickEvents.END_CLIENT_TICK
+                    .register(com.enderdragonanthro.client.smoke.SmokeTest::tick);
+        }
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             DragonHud.tick();
             DragonWings.tick();
