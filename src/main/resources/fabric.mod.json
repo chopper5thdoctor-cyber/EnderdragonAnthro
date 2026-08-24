@@ -3,7 +3,7 @@
   "id": "enderdragonanthro",
   "version": "${version}",
   "name": "Enderdragon Anthro",
-  "description": "Become an anthropomorphic Ender Dragon: canon height, palette, abilities on keybinds, boss bar, 200 HP — while keeping every player mechanic.",
+  "description": "Become an anthropomorphic Ender Dragon: canon height, palette, abilities on keybinds, boss bar, 200 HP \u2014 while keeping every player mechanic.",
   "authors": [],
   "license": "MIT",
   "environment": "*",
@@ -13,6 +13,9 @@
     ],
     "client": [
       "com.enderdragonanthro.client.EnderdragonAnthroClient"
+    ],
+    "fabric-gametest": [
+      "com.enderdragonanthro.gametest.DragonGameTests"
     ]
   },
   "mixins": [

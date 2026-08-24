@@ -19,6 +19,7 @@
     "PlayerDamageResilienceMixin",
     "PlayerEyeHeightMixin",
     "PlayerTransformDataMixin",
+    "ServerPlayerSpawnGraceAccessor",
     "ShadeLoyaltyMixin"
   ],
   "client": [

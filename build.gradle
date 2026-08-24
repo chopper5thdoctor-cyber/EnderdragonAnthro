@@ -37,3 +37,25 @@ java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
 }
+
+// ---------------------------------------------------------------- game tests
+//
+// A headless server that builds a scratch world, runs every @GameTest against
+// it and exits non-zero if one fails. This is the only harness in the project
+// that observes the WORLD rather than the code: the build proves it compiles,
+// audit_injections.py proves the hooks attached, and this proves that a zombie
+// standing next to a dragon actually ends up further away.
+//
+//   ./gradlew runGametest
+//
+loom {
+    runs {
+        gametest {
+            server()
+            name = 'Game Test'
+            vmArg '-Dfabric-api.gametest'
+            vmArg "-Dfabric-api.gametest.report-file=${project.layout.buildDirectory.get()}/junit.xml"
+            runDir 'build/gametest'
+        }
+    }
+}
