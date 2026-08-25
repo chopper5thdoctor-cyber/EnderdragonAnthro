@@ -146,18 +146,30 @@ public class DragonGameTests implements FabricGameTest {
         floor(helper, 6);
         FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(1, 1, 1));
 
-        double alert = dragon.getAttributeValue(Attributes.ATTACK_DAMAGE);
-        DragonIntent.cycle(dragon);                       // Alert -> Hostile
-        DragonIntent.cycle(dragon);                       // -> Passive
+        // Cycled to rather than assumed. These used to be written as "two
+        // cycles from Alert lands on Passive", which was true of the default at
+        // the time and quietly false the moment the default moved -- a test
+        // failing because a tuning decision changed teaches nobody anything.
+        cycleTo(helper, dragon, DragonIntent.PASSIVE);
         double passive = dragon.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        cycleTo(helper, dragon, DragonIntent.ALERT);
+        double alert = dragon.getAttributeValue(Attributes.ATTACK_DAMAGE);
 
-        if (DragonIntent.of(dragon) != DragonIntent.PASSIVE) {
-            helper.fail("two cycles from Alert should land on Passive, got "
-                    + DragonIntent.of(dragon));
-        }
         if (passive >= alert) {
             helper.fail("Passive hits for " + passive
                     + ", which is not less than Alert's " + alert);
+        }
+        helper.succeed();
+    }
+
+    /** A dragon starts on the gentlest stop; nothing breaks that you did not mean to. */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void aDragonWakesUpPassive(GameTestHelper helper) {
+        floor(helper, 6);
+        FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(1, 1, 1));
+        if (DragonIntent.of(dragon).craters()) {
+            helper.fail("a freshly transformed dragon is on " + DragonIntent.of(dragon)
+                    + ", which takes the ground out with a bare-handed left click");
         }
         helper.succeed();
     }
@@ -167,6 +179,7 @@ public class DragonGameTests implements FabricGameTest {
     public void craterNeedsABareHand(GameTestHelper helper) {
         floor(helper, 6);
         FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(1, 1, 1));
+        cycleTo(helper, dragon, DragonIntent.ALERT);
 
         if (!DragonAbilities.cratersNow(dragon)) {
             helper.fail("a bare-handed dragon on Alert should crater");
@@ -311,6 +324,23 @@ public class DragonGameTests implements FabricGameTest {
                     + " standing here when it is not");
         }
         helper.succeed();
+    }
+
+    /**
+     * Turn the dial until it reads what the test needs, whatever it started on.
+     *
+     * Bounded by the number of stops, so a cycle that stopped cycling fails here
+     * instead of hanging the test out to its timeout with nothing to say.
+     */
+    private static void cycleTo(GameTestHelper helper, FakeDragon dragon, DragonIntent want) {
+        for (int turn = 0; turn < DragonIntent.values().length; turn++) {
+            if (DragonIntent.of(dragon) == want) {
+                return;
+            }
+            DragonIntent.cycle(dragon);
+        }
+        helper.fail("the dial never reached " + want + "; it is stuck on "
+                + DragonIntent.of(dragon));
     }
 
     /** A floor to stand on; the empty structure is air all the way down. */

@@ -190,9 +190,12 @@ public final class SmokeTest {
                 ClientPlayNetworking.send(new AbilityActionPayload(AbilityAction.CRATER));
                 waited = ROUND_TRIP;
             }
+            // One stop up from wherever a dragon starts, rather than a stop
+            // named outright -- the check is that the keypress made the round
+            // trip and moved the chip, not which stop it happens to land on.
             case 8 -> check("the Intent dial reaches the client",
-                    DragonIntentClient.get() == DragonIntent.HOSTILE,
-                    "cycled once from Alert and the HUD still says "
+                    DragonIntentClient.get() != DragonIntent.defaultStop(),
+                    "cycled once and the HUD still says "
                             + DragonIntentClient.get().label());
             case 9 -> inventoryButton(client);
             case 10 -> check("the pick-up switch starts on", DragonPickupClient.picksUp(),

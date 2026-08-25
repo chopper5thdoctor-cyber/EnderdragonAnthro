@@ -41,10 +41,11 @@ import java.util.UUID;
  * is also the only bold word on the screen. It should not be possible to glance
  * at the HUD and not know which of these you are in.
  *
- * The empty-hand rule is what makes Boss liveable as the default. A punch is
- * something you throw with a fist; holding a pickaxe means you are mining, and
- * mining should mine. Without it, every left click anywhere in the world would
- * be a crater, and there would be no way to place a torch without redecorating.
+ * The empty-hand rule is what makes the upper two stops liveable at all. A
+ * punch is something you throw with a fist; holding a pickaxe means you are
+ * mining, and mining should mine. Without it, every left click anywhere in the
+ * world would be a crater, and there would be no way to place a torch without
+ * redecorating.
  */
 public enum DragonIntent {
     /** As the form shipped: canon head-hit, 1 -> 10. Nothing breaks by accident. */
@@ -130,13 +131,34 @@ public enum DragonIntent {
     // ------------------------------------------------------------------ state
 
     /**
-     * Alert by default, which is only safe because of the empty-hand rule.
+     * Passive by default. You turn it up; it does not start turned up.
      *
-     * It is what the form is — the powerscale is written against these numbers
-     * — and starting a dragon at Passive would mean the answer to "why am I
-     * hitting for ten" is a keypress nobody was told about.
+     * This was Alert, on the argument that Alert is what the form is and that
+     * starting at Passive makes "why am I only hitting for ten" a keypress
+     * nobody was told about. The chip answers that now — it names the stop on
+     * screen, in the stop's own colour, from the moment you transform — so the
+     * question the old default was guarding against no longer has to be
+     * guessed at.
+     *
+     * What is left is the cost of being wrong in each direction, and it is not
+     * symmetrical. Waking up at Passive and wanting more costs one keypress.
+     * Waking up at Alert costs whatever you happened to be standing next to,
+     * and the empty-hand rule does not help when your hands are empty, which
+     * they are most of the time you are walking around.
      */
-    private static final DragonIntent DEFAULT = ALERT;
+    private static final DragonIntent DEFAULT = PASSIVE;
+
+    /**
+     * The stop a dragon starts on.
+     *
+     * Exposed so the client's copy starts on the same one. Those were two
+     * separate literals naming the same stop, which is fine right up until one
+     * of them changes — and then the HUD opens claiming a stop the server is
+     * not on, for exactly as long as it takes you to press the key once.
+     */
+    public static DragonIntent defaultStop() {
+        return DEFAULT;
+    }
 
     private static final Map<UUID, DragonIntent> HELD = new HashMap<>();
 

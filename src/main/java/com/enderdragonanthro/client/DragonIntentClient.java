@@ -11,7 +11,7 @@ import com.enderdragonanthro.ability.DragonIntent;
  * strings to keep in step.
  */
 public final class DragonIntentClient {
-    private static DragonIntent held = DragonIntent.ALERT;
+    private static DragonIntent held = DragonIntent.defaultStop();
 
     private DragonIntentClient() {
     }

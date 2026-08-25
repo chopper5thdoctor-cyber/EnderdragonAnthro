@@ -359,15 +359,23 @@ and none of the rest.
 
 | | Claw | Abilities | Crater punch | Flight |
 |---|---|---|---|---|
-| 🟢 **Passive** | 10 | as shipped | — | ordinary glide |
-| 🟠 **Alert** *(default)* | 35 | boss weight | bare hand only | ordinary glide |
+| 🟢 **Passive** *(default)* | 10 | as shipped | — | ordinary glide |
+| 🟠 **Alert** | 35 | boss weight | bare hand only | ordinary glide |
 | 🟣 **Hostile** | 35 | boss weight | detonates, 3 s | tunnels |
 
 Named as a ladder rather than as three settings, and coloured like one — green,
-amber, then the dragon's own violet. The chip on the HUD reads **Intent: Alert**
-and repaints as you cycle, and Hostile is the only bold word on the screen.
+amber, then the dragon's own violet. The chip on the HUD reads **Intent: Passive**
+on a fresh transform and repaints as you cycle, and Hostile is the only bold word
+on the screen.
 
-**The empty hand is what makes Alert liveable as the default.** A punch is
+You start at the bottom of the ladder and turn it up. That was the other way
+round once, on the argument that Alert is what the form actually is and that
+starting quiet makes "why am I only hitting for ten" a keypress nobody was told
+about — but the chip answers that from the moment you transform, and the costs
+are not symmetrical. Waking up Passive and wanting more costs one keypress;
+waking up Alert costs whatever you were standing next to.
+
+**The empty hand is what makes the upper two stops liveable at all.** A punch is
 something you throw with a fist, so holding a pickaxe means you are mining and
 mining mines. Without it every left click anywhere would be a seven-block
 sphere, and there would be no way to place a torch without redecorating. The
