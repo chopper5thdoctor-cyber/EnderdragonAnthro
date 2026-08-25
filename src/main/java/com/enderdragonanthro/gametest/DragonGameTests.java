@@ -3,6 +3,7 @@ package com.enderdragonanthro.gametest;
 import com.enderdragonanthro.ability.DragonAbilities;
 import com.enderdragonanthro.ability.DragonFire;
 import com.enderdragonanthro.ability.DragonIntent;
+import com.enderdragonanthro.ability.DragonMinions;
 import com.enderdragonanthro.ability.DragonPresence;
 import com.enderdragonanthro.ability.NetherGate;
 import com.enderdragonanthro.transform.DragonFormManager;
@@ -15,6 +16,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -265,6 +267,48 @@ public class DragonGameTests implements FabricGameTest {
         if (lit != DragonFire.BURN_TICKS) {
             helper.fail("the breath lit it for " + lit + " ticks, but the mark sent to"
                     + " every client says " + DragonFire.BURN_TICKS);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * SHIPPED BUG: a shade you walked away from vanished off the court screen.
+     *
+     * The roster was built by looking each shade up in the world the OWNER was
+     * standing in, so stepping through a portal deleted the retinue from the
+     * screen. The shade was alive on the far side and its slot was still spoken
+     * for -- which is why the next summon produced the NEXT name rather than the
+     * same one again -- but with no row there was no Recall button, and Recall
+     * was the one thing that would have fixed it.
+     *
+     * A discarded entity reproduces it exactly: prune keeps a shade it cannot
+     * find (not-found is not dead), so the court still holds it and the roster
+     * has to still show it.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void aShadeYouLeftBehindKeepsItsRow(GameTestHelper helper) {
+        floor(helper, 8);
+        FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(1, 1, 1));
+        DragonMinions.summon(dragon);
+
+        if (DragonMinions.roster(dragon).size() != 1) {
+            helper.fail("a summoned shade should have a row: got "
+                    + DragonMinions.roster(dragon).size());
+        }
+        // Out of this level's reach without being dead -- what a portal does.
+        for (EnderMan shade : helper.getLevel().getEntitiesOfClass(EnderMan.class,
+                dragon.getBoundingBox().inflate(32.0))) {
+            shade.discard();
+        }
+
+        var rows = DragonMinions.roster(dragon);
+        if (rows.size() != 1) {
+            helper.fail("a shade out of reach lost its row entirely; the court still"
+                    + " holds its slot, so there is nothing to press Recall on");
+        }
+        if (rows.get(0).where().isEmpty()) {
+            helper.fail("the row does not say the shade is away, so it reads as"
+                    + " standing here when it is not");
         }
         helper.succeed();
     }

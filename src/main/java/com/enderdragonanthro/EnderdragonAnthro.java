@@ -110,8 +110,12 @@ public class EnderdragonAnthro implements ModInitializer {
                     }
                 });
         net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
-                .AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) ->
-                        com.enderdragonanthro.ability.NetherGate.widenArrival(player));
+                .AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> {
+                    com.enderdragonanthro.ability.NetherGate.widenArrival(player);
+                    // An enderman does not use a portal, so without this the
+                    // retinue simply stays on the far side of one.
+                    DragonMinions.onChangeWorld(player);
+                });
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             DragonFormManager.onLeave(handler.getPlayer());
             com.enderdragonanthro.ability.DragonIntent.forget(handler.getPlayer());

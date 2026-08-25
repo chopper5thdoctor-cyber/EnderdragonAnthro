@@ -21,9 +21,14 @@ public record ShadeStatePayload(boolean open, List<Entry> shades) implements Cus
      * {@code awaySeconds} counts down while it is off fetching one, and
      * {@code carrying} climbs from 0 to the full haul over that same span.
      * Both are zero whenever it is standing in front of you.
+     *
+     * {@code where} is empty when the shade is in the world you are in, and
+     * otherwise names the world it is in — "the Overworld" while you are down
+     * the Nether. A shade left on the far side of a portal used to have no row
+     * here at all, which meant no name and, worse, no Recall button to press.
      */
     public record Entry(int slot, String name, int order, String quarry,
-                        int awaySeconds, int carrying) {
+                        int awaySeconds, int carrying, String where) {
     }
 
     public static final CustomPacketPayload.Type<ShadeStatePayload> TYPE =
@@ -40,6 +45,7 @@ public record ShadeStatePayload(boolean open, List<Entry> shades) implements Cus
                     buf.writeUtf(entry.quarry(), 128);
                     buf.writeVarInt(entry.awaySeconds());
                     buf.writeVarInt(entry.carrying());
+                    buf.writeUtf(entry.where(), 32);
                 }
             },
             buf -> {
@@ -49,7 +55,7 @@ public record ShadeStatePayload(boolean open, List<Entry> shades) implements Cus
                 for (int i = 0; i < count; i++) {
                     shades.add(new Entry(buf.readVarInt(), buf.readUtf(64),
                             buf.readVarInt(), buf.readUtf(128), buf.readVarInt(),
-                            buf.readVarInt()));
+                            buf.readVarInt(), buf.readUtf(32)));
                 }
                 return new ShadeStatePayload(open, List.copyOf(shades));
             });

@@ -42,6 +42,8 @@ public class ShadeCommandScreen extends Screen {
     private static final int QUARRY_W = 130;
     private static final int ACT_W = 50;
     private static final int ACT_GAP = 53;
+    /** The one control that is not a shade's: wide enough to read as a way out. */
+    private static final int RECALL_W = 100;
 
     /** Kept across rebuilds so a refresh does not lose an unsent choice. */
     private final Map<Integer, String> quarry = new HashMap<>();
@@ -115,6 +117,22 @@ public class ShadeCommandScreen extends Screen {
                 slot++;
             }
         }
+
+        // Outside the loop, and drawn whether or not the loop ran at all.
+        //
+        // Every other control on this screen belongs to a row, which was fine
+        // until the roster could come up empty while shades were still out
+        // there -- and then the one thing that would have fixed it was the one
+        // thing with nowhere to live. A way to call the court back should not
+        // be conditional on the court already being on screen.
+        int y = this.state.shades().isEmpty()
+                ? this.height / 2 + 14 : this.top + this.state.shades().size() * ROW_H + 4;
+        this.addRenderableWidget(Button.builder(
+                        Component.literal("Recall All").withStyle(ChatFormatting.YELLOW),
+                        b -> ClientPlayNetworking.send(new ShadeOrderPayload(
+                                DragonMinions.ALL_SLOTS,
+                                DragonMinions.Order.RECALL.ordinal(), "")))
+                .bounds(this.left + (PANEL_W - RECALL_W) / 2, y, RECALL_W, 20).build());
     }
 
     /** A block id shown the way a person reads it, not the way it is stored. */
@@ -152,16 +170,29 @@ public class ShadeCommandScreen extends Screen {
 
         List<ShadeStatePayload.Entry> shades = this.state.shades();
         if (shades.isEmpty()) {
+            // "summon one first" was the only advice here, and it was wrong
+            // advice for the case that actually happens: a court that is all
+            // out in another world reads as no court at all.
             graphics.drawCenteredString(this.font,
-                    Component.literal("No shade answers yet — summon one first."),
-                    this.width / 2, this.height / 2 - 4, 0xFF9A93A5);
+                    Component.literal("Nobody is standing with you."),
+                    this.width / 2, this.height / 2 - 18, 0xFF9A93A5);
+            graphics.drawCenteredString(this.font,
+                    Component.literal("Summon a shade, or call back any that are away."),
+                    this.width / 2, this.height / 2 - 6, 0xFF6E6878);
             return;
         }
         for (int i = 0; i < shades.size(); i++) {
             ShadeStatePayload.Entry shade = shades.get(i);
             int y = this.top + i * ROW_H;
-            graphics.drawString(this.font, Component.literal(shade.name()),
+            int after = graphics.drawString(this.font, Component.literal(shade.name()),
                     this.left, y, 0xFFE079FA, true);
+            if (!shade.where().isEmpty()) {
+                // Said plainly and next to the name, because the question this
+                // answers is "where did she go" and the answer used to be an
+                // absent row.
+                graphics.drawString(this.font, Component.literal(" — " + shade.where()),
+                        after, y, 0xFF9A93A5, true);
+            }
             if (shade.awaySeconds() > 0) {
                 // The count is the point: Recall now takes whatever this says,
                 // so it has to be visible while you decide whether to wait.

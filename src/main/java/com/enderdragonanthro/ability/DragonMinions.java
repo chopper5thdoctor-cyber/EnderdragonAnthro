@@ -427,6 +427,79 @@ public final class DragonMinions {
         }
     }
 
+    /**
+     * The slot the command screen sends for "all of you, here, now".
+     *
+     * Not a real slot, and deliberately outside the range of one. The screen's
+     * Recall All button is drawn whether or not there is a single row under it,
+     * because the state that most needs it is the state where the roster looks
+     * empty — and a button that appears only once you no longer need it is not
+     * a way out of anything.
+     */
+    public static final int ALL_SLOTS = -1;
+
+    /**
+     * Every shade, from wherever it is, without needing a row to click.
+     *
+     * The same reach as Recall on a single shade — it crosses worlds and loads
+     * the chunk a shade was last seen in — applied to the whole court at once,
+     * and it reports what it found so an empty court reads as an empty court
+     * rather than as a button that did nothing.
+     */
+    private static void recallEverything(ServerPlayer owner) {
+        List<Shade> court = COURT.get(owner.getUUID());
+        if (court == null || court.isEmpty()) {
+            say(owner, "No shade answers — there is nobody to call.",
+                    ChatFormatting.DARK_GRAY, true);
+            pushState(owner);
+            return;
+        }
+        int came = 0;
+        int digging = 0;
+        for (Shade shade : List.copyOf(court)) {
+            if (shade.dig != null) {
+                digging++;
+                continue;               // away on an errand; it comes back on its own
+            }
+            EnderMan minion = resolveAnywhere(owner.server, shade);
+            if (minion != null && haul(owner, shade, minion) != null) {
+                came++;
+            }
+        }
+        if (came > 0) {
+            say(owner, came == 1 ? "One shade steps out of the dark beside you."
+                            : came + " shades step out of the dark beside you.",
+                    ChatFormatting.LIGHT_PURPLE, true);
+        } else if (digging > 0) {
+            say(owner, "The court is away digging.", ChatFormatting.DARK_GRAY, true);
+        } else {
+            say(owner, "Nothing answers the call.", ChatFormatting.DARK_GRAY, true);
+        }
+        pushState(owner);
+    }
+
+    /**
+     * The court comes through the portal with you.
+     *
+     * A shade is an enderman and an enderman does not use a portal, so crossing
+     * one used to simply leave the retinue standing on the far side — alive, still
+     * holding its slot, and invisible to a roster that only looked in the world
+     * the owner was in. Recall already reaches across worlds; this is that,
+     * fired by the crossing rather than by remembering to ask.
+     *
+     * The alternative was dismissing them at the threshold. Bringing them is the
+     * better reading of what they are: they attend, and a door is not a reason
+     * to stop attending.
+     */
+    public static void onChangeWorld(ServerPlayer owner) {
+        List<Shade> court = COURT.get(owner.getUUID());
+        if (court == null || court.isEmpty()) {
+            return;
+        }
+        recall(owner);
+        pushState(owner);
+    }
+
     /** "the Nether", not "minecraft:the_nether". */
     private static String worldName(ResourceKey<Level> key) {
         if (key.equals(Level.NETHER)) {
@@ -610,21 +683,55 @@ public final class DragonMinions {
      * pulling the rug out from under the iteration.
      */
     private static void sendState(ServerPlayer owner, boolean open) {
+        ServerPlayNetworking.send(owner, new ShadeStatePayload(open, roster(owner)));
+    }
+
+    /**
+     * The roster, as the screen will see it.
+     *
+     * Separated from the send so it can be asserted on. What went wrong here
+     * was a filter, and a filter is invisible from outside a packet — the court
+     * screen simply had fewer rows than the court had shades, and nothing
+     * anywhere said which ones it had dropped or why.
+     */
+    public static List<ShadeStatePayload.Entry> roster(ServerPlayer owner) {
         List<ShadeStatePayload.Entry> entries = new ArrayList<>();
         ServerLevel level = owner.serverLevel();
         for (Shade s : List.copyOf(COURT.getOrDefault(owner.getUUID(), List.of()))) {
             boolean away = s.dig != null;
-            if (!away && (s.entity == null
-                    || !(level.getEntity(s.entity) instanceof EnderMan e) || !e.isAlive())) {
-                continue;
+            // Every shade the court still holds gets a row, wherever it is.
+            //
+            // This used to skip any shade that level.getEntity could not find,
+            // and level is the world the OWNER is standing in -- so walking
+            // through a portal deleted your retinue from the screen. The shade
+            // was alive and well on the other side and the slot was still spoken
+            // for, which is why the next summon produced Keshanne rather than
+            // another Vaelle; there was simply nothing on screen saying so, and
+            // no row meant no Recall button to press to fix it.
+            //
+            // Absence is now something the row REPORTS rather than a reason to
+            // withhold the row. Recall already crosses worlds, so a shade that
+            // is elsewhere is one click from being here.
+            String where = "";
+            if (!away) {
+                boolean here = s.entity != null
+                        && level.getEntity(s.entity) instanceof EnderMan e && e.isAlive();
+                if (!here) {
+                    // Named if we know the world, vague if we do not -- a shade
+                    // whose chunk has unloaded is findable but not locatable
+                    // without loading it, and a roster refresh is no place to
+                    // be forcing chunk loads.
+                    where = s.dimension == null || s.dimension.equals(level.dimension())
+                            ? "elsewhere" : "in " + worldName(s.dimension);
+                }
             }
             entries.add(new ShadeStatePayload.Entry(s.slot, NAMES[s.slot], s.order.ordinal(),
                     s.wanted == null ? "" : BuiltInRegistries.BLOCK.getKey(s.wanted).toString(),
                     away ? (int) Math.max(1, (s.dig.returnAt - level.getGameTime() + 19) / 20) : 0,
-                    away ? carrying(s.dig, level.getGameTime()) : 0));
+                    away ? carrying(s.dig, level.getGameTime()) : 0, where));
         }
         entries.sort(Comparator.comparingInt(ShadeStatePayload.Entry::slot));
-        ServerPlayNetworking.send(owner, new ShadeStatePayload(open, List.copyOf(entries)));
+        return List.copyOf(entries);
     }
 
     /**
@@ -634,6 +741,10 @@ public final class DragonMinions {
      * the order reverts to Defend when it walks back in.
      */
     public static void applyOrder(ServerPlayer owner, int slot, int ordinal, String quarry) {
+        if (slot == ALL_SLOTS) {
+            recallEverything(owner);
+            return;
+        }
         Shade shade = null;
         for (Shade s : living(owner)) {
             if (s.slot == slot) {
