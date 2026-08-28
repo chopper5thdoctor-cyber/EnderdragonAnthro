@@ -275,6 +275,21 @@ public final class SmokeTest {
                 "BEAT_TICKS is " + DragonFormModel.BEAT_TICKS);
         check("the tail wag has a length", DragonFormModel.WAG_TICKS > 0,
                 "WAG_TICKS is " + DragonFormModel.WAG_TICKS);
+        // A shade's clips are allowed to be absent -- one nobody has drawn bakes
+        // to an empty table and plays as nothing, which is correct. What is not
+        // correct is a clip with keyframes and no length, or a length and no
+        // keyframes: either means the bake half-happened, and both draw as a
+        // shade that stands rigid with no error anywhere.
+        for (ShadeModel.Clip clip : ShadeModel.Clip.values()) {
+            boolean timed = ShadeModel.ticks(clip) > 0;
+            boolean keyed = false;
+            for (float[] track : ShadeModel.clip(clip)) {
+                keyed |= track != null;
+            }
+            check("the shade's " + clip + " clip is whole", timed == keyed,
+                    timed ? "it has a length and no keyframes"
+                          : "it has keyframes and no length");
+        }
     }
 
     /**

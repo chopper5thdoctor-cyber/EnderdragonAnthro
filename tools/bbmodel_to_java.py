@@ -58,7 +58,7 @@ def catmullrom(points, u):
                   + (-p0 + 3 * p1 - 3 * p2 + p3) * f * f * f)
 
 
-def bake(bb, clip, bones):
+def bake(bb, clip, bones, require_all=True):
     """Bake one of the rig's animations into per-axis sample tables.
 
     Baked rather than emitted as keyframes because the interpolation is then
@@ -126,7 +126,12 @@ def bake(bb, clip, bones):
                 tracks[(name, channel, axis)] = [v * sign * scale for v in row]
 
     missing = [b for b in bones if b not in seen]
-    if missing:
+    if missing and require_all:
+        # For the dragon this is right: a wingbeat that keys one wing is a bug,
+        # and a silent one. The shade's clips are the other case -- a walk cycle
+        # has no business keying the head, and a bone nobody keyed keeps the
+        # pose the enderman underneath is already in. Callers say which they
+        # are rather than this guessing.
         sys.exit(f"ERROR: {clip!r} has no keyframes for {missing}")
     return int(round(length * 20.0)), tracks
 

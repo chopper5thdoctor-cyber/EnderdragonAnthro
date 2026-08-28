@@ -12,6 +12,7 @@ import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 
 /**
@@ -129,6 +130,140 @@ public class ShadeModel {
         target.xRot = source.xRot;
         target.yRot = source.yRot;
         target.zRot = source.zRot;
+    }
+
+    // ------------------------------------------------------------- animation
+
+    /** Samples each baked clip holds across one cycle. */
+    private static final int CLIP_SAMPLES = 32;
+
+    public static final int IDLE_TICKS = 70;
+    public static final int WALK_TICKS = 20;
+    public static final int CARRY_TICKS = 60;
+    public static final int ANGRY_TICKS = 20;
+    public static final int PET_TICKS = 40;
+
+    private static final float[][] IDLE = new float[36][];
+
+    static {
+        IDLE[18] = new float[] {-0.00000F, 0.00889F, 0.02105F, 0.02087F, 0.00398F, -0.01405F, -0.01954F, -0.01710F, -0.01034F, 0.00383F, 0.02030F, 0.02395F, 0.01123F, -0.00471F, -0.01370F, -0.01965F, -0.01884F, -0.00452F, 0.01507F, 0.02273F, 0.01647F, 0.00547F, -0.00540F, -0.01866F, -0.02395F, -0.01207F, 0.00715F, 0.01727F, 0.01721F, 0.01349F, 0.00908F, 0.00243F};   // left_arm.rotation.x
+        IDLE[20] = new float[] {-0.10000F, -0.09898F, -0.09611F, -0.09162F, -0.08529F, -0.07769F, -0.06922F, -0.05967F, -0.05000F, -0.04033F, -0.03078F, -0.02231F, -0.01471F, -0.00838F, -0.00389F, -0.00102F, -0.00000F, -0.00102F, -0.00389F, -0.00838F, -0.01471F, -0.02231F, -0.03078F, -0.04033F, -0.05000F, -0.05967F, -0.06922F, -0.07769F, -0.08529F, -0.09162F, -0.09611F, -0.09898F};   // left_arm.rotation.z
+        IDLE[12] = new float[] {-0.00000F, -0.00889F, -0.02105F, -0.02087F, -0.00398F, 0.01405F, 0.01954F, 0.01710F, 0.01034F, -0.00383F, -0.02030F, -0.02395F, -0.01123F, 0.00471F, 0.01370F, 0.01965F, 0.01884F, 0.00452F, -0.01507F, -0.02273F, -0.01647F, -0.00547F, 0.00540F, 0.01866F, 0.02395F, 0.01207F, -0.00715F, -0.01727F, -0.01721F, -0.01349F, -0.00908F, -0.00243F};   // right_arm.rotation.x
+        IDLE[14] = new float[] {0.10000F, 0.09898F, 0.09611F, 0.09162F, 0.08529F, 0.07769F, 0.06922F, 0.05967F, 0.05000F, 0.04033F, 0.03078F, 0.02231F, 0.01471F, 0.00838F, 0.00389F, 0.00102F, -0.00000F, 0.00102F, 0.00389F, 0.00838F, 0.01471F, 0.02231F, 0.03078F, 0.04033F, 0.05000F, 0.05967F, 0.06922F, 0.07769F, 0.08529F, 0.09162F, 0.09611F, 0.09898F};   // right_arm.rotation.z
+    }
+
+    private static final float[][] WALK = new float[36][];
+
+    static {
+        WALK[18] = new float[] {0.40000F, 0.40660F, 0.41054F, 0.38908F, 0.34062F, 0.27462F, 0.19460F, 0.09818F, -0.00000F, -0.09818F, -0.19460F, -0.27462F, -0.34062F, -0.38908F, -0.41054F, -0.40660F, -0.40000F, -0.40660F, -0.41054F, -0.38908F, -0.34062F, -0.27462F, -0.19460F, -0.09818F, -0.00000F, 0.09818F, 0.19460F, 0.27462F, 0.34062F, 0.38908F, 0.41054F, 0.40660F};   // left_arm.rotation.x
+        WALK[30] = new float[] {-0.70000F, -0.68570F, -0.64544F, -0.58254F, -0.49412F, -0.38771F, -0.26920F, -0.13543F, -0.00000F, 0.13543F, 0.26920F, 0.38771F, 0.49412F, 0.58254F, 0.64544F, 0.68570F, 0.70000F, 0.68570F, 0.64544F, 0.58254F, 0.49412F, 0.38771F, 0.26920F, 0.13543F, -0.00000F, -0.13543F, -0.26920F, -0.38771F, -0.49412F, -0.58254F, -0.64544F, -0.68570F};   // left_leg.rotation.x
+        WALK[12] = new float[] {-0.40000F, -0.40660F, -0.41054F, -0.38908F, -0.34062F, -0.27462F, -0.19460F, -0.09818F, -0.00000F, 0.09818F, 0.19460F, 0.27462F, 0.34062F, 0.38908F, 0.41054F, 0.40660F, 0.40000F, 0.40660F, 0.41054F, 0.38908F, 0.34062F, 0.27462F, 0.19460F, 0.09818F, -0.00000F, -0.09818F, -0.19460F, -0.27462F, -0.34062F, -0.38908F, -0.41054F, -0.40660F};   // right_arm.rotation.x
+        WALK[24] = new float[] {0.70000F, 0.68570F, 0.64544F, 0.58254F, 0.49412F, 0.38771F, 0.26920F, 0.13543F, -0.00000F, -0.13543F, -0.26920F, -0.38771F, -0.49412F, -0.58254F, -0.64544F, -0.68570F, -0.70000F, -0.68570F, -0.64544F, -0.58254F, -0.49412F, -0.38771F, -0.26920F, -0.13543F, -0.00000F, 0.13543F, 0.26920F, 0.38771F, 0.49412F, 0.58254F, 0.64544F, 0.68570F};   // right_leg.rotation.x
+    }
+
+    private static final float[][] CARRY = new float[36][];
+
+    static {
+        CARRY[18] = new float[] {-0.31416F, -0.30642F, -0.29878F, -0.29201F, -0.28592F, -0.28087F, -0.27727F, -0.27498F, -0.27416F, -0.27498F, -0.27727F, -0.28087F, -0.28592F, -0.29201F, -0.29878F, -0.30642F, -0.31416F, -0.32189F, -0.32954F, -0.33631F, -0.34239F, -0.34745F, -0.35104F, -0.35334F, -0.35416F, -0.35334F, -0.35104F, -0.34745F, -0.34239F, -0.33631F, -0.32954F, -0.32189F};   // left_arm.rotation.x
+        CARRY[20] = new float[] {-0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F};   // left_arm.rotation.z
+        CARRY[12] = new float[] {-0.31416F, -0.30642F, -0.29878F, -0.29201F, -0.28592F, -0.28087F, -0.27727F, -0.27498F, -0.27416F, -0.27498F, -0.27727F, -0.28087F, -0.28592F, -0.29201F, -0.29878F, -0.30642F, -0.31416F, -0.32189F, -0.32954F, -0.33631F, -0.34239F, -0.34745F, -0.35104F, -0.35334F, -0.35416F, -0.35334F, -0.35104F, -0.34745F, -0.34239F, -0.33631F, -0.32954F, -0.32189F};   // right_arm.rotation.x
+        CARRY[14] = new float[] {0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F};   // right_arm.rotation.z
+    }
+
+    private static final float[][] ANGRY = new float[36][];
+
+    static {
+        ANGRY[0] = new float[] {-0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F};   // head.rotation.x
+        ANGRY[18] = new float[] {-0.40000F, -0.42779F, -0.45345F, -0.45823F, -0.43750F, -0.40834F, -0.38221F, -0.35372F, -0.34000F, -0.35372F, -0.38221F, -0.40834F, -0.43750F, -0.45823F, -0.45345F, -0.42779F, -0.40000F, -0.37221F, -0.34655F, -0.34177F, -0.36250F, -0.39166F, -0.41779F, -0.44628F, -0.46000F, -0.44628F, -0.41779F, -0.39166F, -0.36250F, -0.34177F, -0.34655F, -0.37221F};   // left_arm.rotation.x
+        ANGRY[20] = new float[] {-0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F};   // left_arm.rotation.z
+        ANGRY[12] = new float[] {-0.40000F, -0.37221F, -0.34655F, -0.34177F, -0.36250F, -0.39166F, -0.41779F, -0.44628F, -0.46000F, -0.44628F, -0.41779F, -0.39166F, -0.36250F, -0.34177F, -0.34655F, -0.37221F, -0.40000F, -0.42779F, -0.45345F, -0.45823F, -0.43750F, -0.40834F, -0.38221F, -0.35372F, -0.34000F, -0.35372F, -0.38221F, -0.40834F, -0.43750F, -0.45823F, -0.45345F, -0.42779F};   // right_arm.rotation.x
+        ANGRY[14] = new float[] {0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F};   // right_arm.rotation.z
+    }
+
+    private static final float[][] PET = new float[36][];
+
+    static {
+        PET[6] = new float[] {-0.00000F, 0.00102F, 0.00389F, 0.00838F, 0.01471F, 0.02232F, 0.03078F, 0.04033F, 0.05000F, 0.05967F, 0.06922F, 0.07768F, 0.08529F, 0.09162F, 0.09611F, 0.09898F, 0.10000F, 0.09898F, 0.09611F, 0.09162F, 0.08529F, 0.07768F, 0.06922F, 0.05967F, 0.05000F, 0.04033F, 0.03078F, 0.02232F, 0.01471F, 0.00838F, 0.00389F, 0.00102F};   // body.rotation.x
+        PET[0] = new float[] {-0.00000F, 0.00459F, 0.01752F, 0.03772F, 0.06617F, 0.10042F, 0.13852F, 0.18150F, 0.22500F, 0.26850F, 0.31148F, 0.34958F, 0.38383F, 0.41228F, 0.43248F, 0.44541F, 0.45000F, 0.44541F, 0.43248F, 0.41228F, 0.38383F, 0.34958F, 0.31148F, 0.26850F, 0.22500F, 0.18150F, 0.13852F, 0.10042F, 0.06617F, 0.03772F, 0.01752F, 0.00459F};   // head.rotation.x
+        PET[1] = new float[] {0.00000F, 0.00204F, 0.00779F, 0.01677F, 0.02941F, 0.04463F, 0.06157F, 0.08067F, 0.10000F, 0.11934F, 0.13844F, 0.15537F, 0.17059F, 0.18323F, 0.19221F, 0.19796F, 0.20000F, 0.19796F, 0.19221F, 0.18323F, 0.17059F, 0.15537F, 0.13844F, 0.11934F, 0.10000F, 0.08067F, 0.06157F, 0.04463F, 0.02941F, 0.01677F, 0.00779F, 0.00204F};   // head.rotation.y
+        PET[18] = new float[] {-0.00000F, -0.00255F, -0.00973F, -0.02096F, -0.03676F, -0.05579F, -0.07696F, -0.10083F, -0.12500F, -0.14917F, -0.17304F, -0.19421F, -0.21324F, -0.22904F, -0.24027F, -0.24745F, -0.25000F, -0.24745F, -0.24027F, -0.22904F, -0.21324F, -0.19421F, -0.17304F, -0.14917F, -0.12500F, -0.10083F, -0.07696F, -0.05579F, -0.03676F, -0.02096F, -0.00973F, -0.00255F};   // left_arm.rotation.x
+        PET[20] = new float[] {-0.00000F, -0.00306F, -0.01168F, -0.02515F, -0.04412F, -0.06695F, -0.09235F, -0.12100F, -0.15000F, -0.17900F, -0.20765F, -0.23305F, -0.25588F, -0.27485F, -0.28832F, -0.29694F, -0.30000F, -0.29694F, -0.28832F, -0.27485F, -0.25588F, -0.23305F, -0.20765F, -0.17900F, -0.15000F, -0.12100F, -0.09235F, -0.06695F, -0.04412F, -0.02515F, -0.01168F, -0.00306F};   // left_arm.rotation.z
+        PET[12] = new float[] {-0.00000F, -0.00255F, -0.00973F, -0.02096F, -0.03676F, -0.05579F, -0.07696F, -0.10083F, -0.12500F, -0.14917F, -0.17304F, -0.19421F, -0.21324F, -0.22904F, -0.24027F, -0.24745F, -0.25000F, -0.24745F, -0.24027F, -0.22904F, -0.21324F, -0.19421F, -0.17304F, -0.14917F, -0.12500F, -0.10083F, -0.07696F, -0.05579F, -0.03676F, -0.02096F, -0.00973F, -0.00255F};   // right_arm.rotation.x
+        PET[14] = new float[] {-0.00000F, 0.00306F, 0.01168F, 0.02515F, 0.04412F, 0.06695F, 0.09235F, 0.12100F, 0.15000F, 0.17900F, 0.20765F, 0.23305F, 0.25588F, 0.27485F, 0.28832F, 0.29694F, 0.30000F, 0.29694F, 0.28832F, 0.27485F, 0.25588F, 0.23305F, 0.20765F, 0.17900F, 0.15000F, 0.12100F, 0.09235F, 0.06695F, 0.04412F, 0.02515F, 0.01168F, 0.00306F};   // right_arm.rotation.z
+    }
+
+    /** The bones a clip can move, in the order the tables are laid out. */
+    private ModelPart[] bones() {
+        return new ModelPart[] {this.head, this.body, this.rightArm,
+                                this.leftArm, this.rightLeg, this.leftLeg};
+    }
+
+    /**
+     * Play one clip over whatever copyPose left behind.
+     *
+     * Blended from the current rotation rather than written over it, so a
+     * weight below one is a crossfade between the enderman's pose and the
+     * artist's -- which is what lets a shade ease into a stride instead of
+     * snapping into one. At weight 0 nothing is touched at all.
+     *
+     * A channel the clip does not key is LEFT ALONE rather than driven to rest.
+     * That is the difference between "the artist did not animate the head" and
+     * "the artist wants the head at zero", and getting it the other way round
+     * would throw away vanilla's head tracking the moment anyone drew a walk
+     * cycle. Every bone in this rig rests at zero, so a keyed value is both a
+     * delta and an absolute angle and the animator shows exactly what plays.
+     */
+    public void play(float[][] clip, float phase, float weight) {
+        if (weight <= 0.0F || clip.length == 0) {
+            return;
+        }
+        float at = Mth.positiveModulo(phase, 1.0F) * CLIP_SAMPLES;
+        int lo = (int) at;
+        int hi = (lo + 1) % CLIP_SAMPLES;
+        float f = at - lo;
+        ModelPart[] bones = bones();
+        for (int b = 0; b < bones.length; b++) {
+            ModelPart bone = bones[b];
+            float[] x = clip[b * 6];
+            float[] y = clip[b * 6 + 1];
+            float[] z = clip[b * 6 + 2];
+            if (x != null) {
+                bone.xRot = Mth.lerp(weight, bone.xRot, Mth.lerp(f, x[lo], x[hi]));
+            }
+            if (y != null) {
+                bone.yRot = Mth.lerp(weight, bone.yRot, Mth.lerp(f, y[lo], y[hi]));
+            }
+            if (z != null) {
+                bone.zRot = Mth.lerp(weight, bone.zRot, Mth.lerp(f, z[lo], z[hi]));
+            }
+        }
+    }
+
+    /** The clips, by the name the rig calls them. Empty means nobody drew one. */
+    public static float[][] clip(Clip which) {
+        return switch (which) {
+            case IDLE -> IDLE;
+            case WALK -> WALK;
+            case CARRY -> CARRY;
+            case ANGRY -> ANGRY;
+            case PET -> PET;
+        };
+    }
+
+    /** How long each runs, in ticks. Zero means the rig carries no such clip. */
+    public static int ticks(Clip which) {
+        return switch (which) {
+            case IDLE -> IDLE_TICKS;
+            case WALK -> WALK_TICKS;
+            case CARRY -> CARRY_TICKS;
+            case ANGRY -> ANGRY_TICKS;
+            case PET -> PET_TICKS;
+        };
+    }
+
+    /** What a shade can be doing, as far as the rig is concerned. */
+    public enum Clip {
+        IDLE, WALK, CARRY, ANGRY, PET
     }
 
     /**

@@ -4,6 +4,7 @@ import com.enderdragonanthro.network.ShadeStatePayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -199,6 +200,31 @@ public final class DragonMinions {
         BlockPos bedrock;
         /** Where it has gone off to build. Null when it is not on a job. */
         BlockPos work;
+        /** The gate it is currently putting up, a block at a time. */
+        Build build;
+    }
+
+    /**
+     * A gate going up, rather than a gate appearing.
+     *
+     * The frame used to be written into the world in a single tick, which is
+     * the cheapest thing to do and reads as a cheat: you ask for a way through
+     * and a way through simply is, with the shade standing beside it having
+     * visibly done nothing. So the plan is kept and worked through, one block
+     * per {@link #BUILD_PERIOD} ticks, with the shade teleporting to each and
+     * swinging for it.
+     */
+    private static final class Build {
+        /** Every frame block, in the order they go in: bottom course first. */
+        final List<BlockPos> plan = new ArrayList<>();
+        int cursor;
+        /** The interior, cleared once the frame is closed. */
+        BlockPos foot;
+        Direction across;
+        int inner;
+        int tall;
+        /** So gravity and fall damage can be given back exactly as they were. */
+        boolean hadGravity = true;
     }
 
     /**
@@ -425,6 +451,34 @@ public final class DragonMinions {
                 haul(owner, shade, minion);
             }
         }
+    }
+
+    /**
+     * Health a pet returns, per pet.
+     *
+     * Deliberately not a full heal. A shade with 80 to give back takes several
+     * goes, which makes tending the court something you do between fights
+     * rather than a button that undoes one.
+     */
+    private static final float PET_HEAL = 10.0F;
+
+    /** The state of her afterwards, so a pet that mended something says so. */
+    private static String healed(EnderMan shade) {
+        return " (" + (int) Math.ceil(shade.getHealth()) + "/"
+                + (int) shade.getMaxHealth() + ")";
+    }
+
+    /**
+     * Hearts over the mended shade, for everyone rather than for the owner.
+     *
+     * The court has an audience — the whole point of them is standing where
+     * they can be seen — so the feedback belongs in the world and not only in
+     * the owner's chat line.
+     */
+    private static void healingParticles(ServerLevel level, EnderMan shade) {
+        level.sendParticles(com.enderdragonanthro.particle.ModParticles.PURPLE_HEART,
+                shade.getX(), shade.getY() + shade.getBbHeight() * 0.8, shade.getZ(),
+                6, 0.4, 0.4, 0.4, 0.02);
     }
 
     /**
@@ -817,6 +871,7 @@ public final class DragonMinions {
                     say(owner, NAMES[slot] + " has no room to raise a gate here.",
                             ChatFormatting.DARK_GRAY, true);
                 } else {
+                    // She says she is starting; finish() says it is open.
                     say(owner, NAMES[slot] + ": \"A way through, majesty.\" ("
                             + cut.getX() + ", " + cut.getY() + ", " + cut.getZ() + ")",
                             TINTS[slot], false);
@@ -824,8 +879,18 @@ public final class DragonMinions {
             } else {
                 target.getLookControl().setLookAt(owner, 60.0F, 60.0F);
                 EndermanAffection.adore(level, target);
+                // Petting mends. A shade that has been standing between you and
+                // something had no way back to full short of dying and being
+                // summoned again, which is a poor thing to ask of the only four
+                // people who ever do as they are told.
+                float hurt = target.getMaxHealth() - target.getHealth();
+                if (hurt > 0.0F) {
+                    target.heal(Math.min(hurt, PET_HEAL));
+                    healingParticles(level, target);
+                }
                 say(owner, NAMES[slot] + ": "
-                        + ShadeVoice.duty(Order.PET, level.random, ""),
+                        + ShadeVoice.duty(Order.PET, level.random, "")
+                        + (hurt > 0.0F ? healed(target) : ""),
                         TINTS[slot], false);
             }
             pushState(owner);
@@ -989,6 +1054,14 @@ public final class DragonMinions {
                     digTick(owner, level, shade);
                     continue;                  // away; there is no entity to drive
                 }
+                if (shade.build != null
+                        && level.getEntity(shade.entity) instanceof EnderMan mason) {
+                    // Working, and not to be interrupted by follow/defend below:
+                    // a shade that gets pulled back to heel mid-course leaves a
+                    // half-built frame nobody can walk through.
+                    buildTick(owner, level, shade, mason);
+                    continue;
+                }
                 if (shade.entity == null
                         || !(level.getEntity(shade.entity) instanceof EnderMan minion)) {
                     continue;
@@ -1115,11 +1188,127 @@ public final class DragonMinions {
         }
 
         burst(level, shade);
-        // carve = false: a shade refuses rather than burying a gate in
-        // somebody's hillside, and the clearance check above is that refusal.
-        NetherGate.raise(level, foot, across, inner, tall, false);
-        level.playSound(null, foot, SoundEvents.PORTAL_TRIGGER, SoundSource.BLOCKS, 0.8F, 1.4F);
+        begin(owner, level, shade, foot, across, inner, tall);
         return foot;
+    }
+
+    /** One block of the frame per this many ticks. Quick work, but work. */
+    private static final int BUILD_PERIOD = 2;
+
+    /**
+     * Lay out the frame and set the shade to work on it.
+     *
+     * Bottom course first, then each course upward — the order a person builds
+     * a wall in, which is the whole point of doing it over time at all. Within
+     * a course it runs across, so the sill is laid end to end before anything
+     * stands on it.
+     */
+    private static void begin(ServerPlayer owner, ServerLevel level, EnderMan minion,
+                              BlockPos foot, Direction across, int inner, int tall) {
+        Shade shade = null;
+        for (Shade s : COURT.getOrDefault(owner.getUUID(), List.of())) {
+            if (minion.getUUID().equals(s.entity)) {
+                shade = s;
+                break;
+            }
+        }
+        if (shade == null) {
+            // No court entry to hang the job on; put it up the old way rather
+            // than silently doing nothing.
+            NetherGate.raise(level, foot, across, inner, tall, false);
+            return;
+        }
+        Build build = new Build();
+        build.foot = foot;
+        build.across = across;
+        build.inner = inner;
+        build.tall = tall;
+        for (int h = -1; h <= tall; h++) {
+            for (int w = -1; w <= inner; w++) {
+                if (w == -1 || w == inner || h == -1 || h == tall) {
+                    build.plan.add(foot.relative(across, w).above(h));
+                }
+            }
+        }
+        // She works in the air for most of this, and a four-block enderman
+        // dropped from the top of a twelve-block frame takes the fall like
+        // anything else. Gravity goes off for the duration and is handed back
+        // exactly as it was found.
+        build.hadGravity = !minion.isNoGravity();
+        minion.setNoGravity(true);
+        shade.build = build;
+    }
+
+    /**
+     * One block, and the shade standing where it could have put it there.
+     *
+     * The teleport is not decoration: the frame is up to twelve blocks tall and
+     * an enderman that walked to the top of it would have to climb something
+     * that does not exist yet. Blinking to each course is what an enderman would
+     * do anyway, and it is the only way the reach makes sense.
+     */
+    private static void buildTick(ServerPlayer owner, ServerLevel level, Shade shade,
+                                  EnderMan minion) {
+        Build build = shade.build;
+        if (level.getGameTime() % BUILD_PERIOD != 0) {
+            return;
+        }
+        if (build.cursor >= build.plan.size()) {
+            finish(owner, level, shade, minion);
+            return;
+        }
+        BlockPos at = build.plan.get(build.cursor++);
+
+        // Beside the block and facing it, on the owner's side of the frame, so
+        // the work happens where it can be watched rather than behind the wall.
+        Direction facing = build.across.getClockWise();
+        BlockPos stand = at.relative(facing);
+        minion.teleportTo(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
+        minion.fallDistance = 0.0F;
+        minion.getLookControl().setLookAt(at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5);
+        // The swing is the whole reason this reads as building. LivingEntity
+        // drives the same arm animation a player's does.
+        minion.swing(net.minecraft.world.InteractionHand.MAIN_HAND, true);
+
+        if (!level.getBlockState(at).is(Blocks.OBSIDIAN)) {
+            level.setBlockAndUpdate(at, Blocks.OBSIDIAN.defaultBlockState());
+            level.playSound(null, at, SoundEvents.STONE_PLACE, SoundSource.BLOCKS, 0.7F, 0.6F);
+        }
+    }
+
+    /**
+     * Close the frame: clear what is standing inside it, then light it.
+     *
+     * The interior is cleared at the end rather than at the start because a
+     * builder frames a doorway and then opens it; clearing first would be
+     * digging a hole and then building a wall round it. Replaceable blocks
+     * only, which is the same rule the clearance check let through.
+     */
+    private static void finish(ServerPlayer owner, ServerLevel level, Shade shade,
+                               EnderMan minion) {
+        Build build = shade.build;
+        for (int h = 0; h < build.tall; h++) {
+            for (int w = 0; w < build.inner; w++) {
+                BlockPos at = build.foot.relative(build.across, w).above(h);
+                if (level.getBlockState(at).canBeReplaced()) {
+                    level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+        BlockPos heart = build.foot.relative(build.across, build.inner / 2);
+        level.setBlockAndUpdate(heart, Blocks.FIRE.defaultBlockState());
+        GateMemory.of(level).remember(heart);
+        level.playSound(null, heart, SoundEvents.PORTAL_TRIGGER, SoundSource.BLOCKS, 0.8F, 1.4F);
+
+        minion.setNoGravity(!build.hadGravity);
+        minion.fallDistance = 0.0F;
+        shade.build = null;
+        // Back beside the dragon rather than left standing at the top of what
+        // she just built.
+        blink(level, minion, owner.getX(), owner.getY(), owner.getZ(), 8);
+        say(owner, NAMES[shade.slot] + ": \"It is open, majesty.\"",
+                TINTS[shade.slot], false);
+        pushState(owner);
     }
 
     /**

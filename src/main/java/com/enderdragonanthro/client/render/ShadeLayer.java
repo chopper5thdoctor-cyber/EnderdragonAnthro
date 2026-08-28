@@ -39,32 +39,25 @@ import net.minecraft.world.entity.monster.EnderMan;
  */
 public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
     /**
-     * One sheet per slot.
+     * One sheet per slot, if there is one, and the shared one otherwise.
      *
-     * All four point at the same painting today — the court is four of the same
-     * people until there is art that says otherwise, and the tint on their names
-     * is what tells them apart. Giving one of them her own hide is a file and
-     * one entry here, which is the whole reason this is an array.
+     * The court used to be four of the same person wearing four name colours.
+     * Giving one of them her own hide was "a file and one entry here", which is
+     * a small enough job to be worth removing entirely: a slot wears
+     * {@code shade_<name>.png} when that file is in the pack and
+     * {@code shade.png} when it is not, so painting an outfit is painting a
+     * file. Nothing to register, nothing to recompile.
+     *
+     * <p>Resolved on resource reload rather than per frame — a texture lookup
+     * is cheap and doing it sixty times a second per shade is not — and
+     * resolved rather than assumed, because a ResourceLocation naming a file
+     * that is not there does not fall back to anything. It draws the black and
+     * magenta checks, which would be a strange reward for not having painted
+     * something yet.
      */
-    private static final ResourceLocation[] SKINS = new ResourceLocation[4];
-
-    static {
-        ResourceLocation base = EnderdragonAnthro.id("textures/entity/shade.png");
-        for (int slot = 0; slot < SKINS.length; slot++) {
-            SKINS[slot] = base;
-        }
-    }
-
-    /** Her expressions, at the resolution a 16-unit head samples. */
-    public static final ModelLayerLocation FACE_LAYER =
-            new ModelLayerLocation(EnderdragonAnthro.id("shade_face"), "main");
-    private static final ResourceLocation PET =
-            EnderdragonAnthro.id("textures/entity/shade_pet.png");
-    private static final ResourceLocation ANGRY =
-            EnderdragonAnthro.id("textures/entity/shade_angry.png");
-    private static final ResourceLocation DIZZY =
-            EnderdragonAnthro.id("textures/entity/shade_dizzy.png");
-
+    private static final String[] SLOT_FILES = {"vaelle", "keshanne", "nyrelle", "orrinne"};
+    private static final ResourceLocation SHARED =
+            EnderdragonAnthro.id("textures/entity/shade.png");
     /**
      * The paint alone, off each face, to be burned on top of it.
      *
@@ -85,8 +78,40 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
      * palette there: six lit pixels in two shades. The darker #450052 is the
      * artist's own, and additive it reads as the socket around the blaze.
      */
-    private static final ResourceLocation RESTING_GLOW =
+    private static final ResourceLocation SHARED_GLOW =
             EnderdragonAnthro.id("textures/entity/shade_glow.png");
+    private static final ResourceLocation[] SKINS = new ResourceLocation[4];
+    private static final ResourceLocation[] GLOWS = new ResourceLocation[4];
+
+    static {
+        java.util.Arrays.fill(SKINS, SHARED);
+        java.util.Arrays.fill(GLOWS, SHARED_GLOW);
+    }
+
+    /** Look again for per-shade art. Called on every resource reload. */
+    public static void resolveSkins(net.minecraft.server.packs.resources.ResourceManager packs) {
+        for (int slot = 0; slot < SLOT_FILES.length; slot++) {
+            SKINS[slot] = pick(packs, "shade_" + SLOT_FILES[slot] + ".png", SHARED);
+            GLOWS[slot] = pick(packs, "shade_" + SLOT_FILES[slot] + "_glow.png", SHARED_GLOW);
+        }
+    }
+
+    private static ResourceLocation pick(net.minecraft.server.packs.resources.ResourceManager packs,
+                                         String file, ResourceLocation fallback) {
+        ResourceLocation own = EnderdragonAnthro.id("textures/entity/" + file);
+        return packs.getResource(own).isPresent() ? own : fallback;
+    }
+
+    /** Her expressions, at the resolution a 16-unit head samples. */
+    public static final ModelLayerLocation FACE_LAYER =
+            new ModelLayerLocation(EnderdragonAnthro.id("shade_face"), "main");
+    private static final ResourceLocation PET =
+            EnderdragonAnthro.id("textures/entity/shade_pet.png");
+    private static final ResourceLocation ANGRY =
+            EnderdragonAnthro.id("textures/entity/shade_angry.png");
+    private static final ResourceLocation DIZZY =
+            EnderdragonAnthro.id("textures/entity/shade_dizzy.png");
+
     private static final ResourceLocation PET_GLOW =
             EnderdragonAnthro.id("textures/entity/shade_pet_glow.png");
     private static final ResourceLocation ANGRY_GLOW =
@@ -132,6 +157,57 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
         return EndermanHappyClient.isHappy(enderman) ? PET : null;
     }
 
+    /**
+     * Her own animation, over the enderman's.
+     *
+     * copyPose has just handed the rig vanilla's pose, which is still the right
+     * thing to start from — it carries the head tracking, the attack swing and
+     * everything else the mob is doing that nobody wants to redraw. The clips
+     * in the rig then move whichever bones they key and leave the rest of it
+     * alone, so an artist can replace the walk without losing the head.
+     *
+     * Clips that have not been drawn bake to an empty table and play as
+     * nothing, so the shade falls back to exactly the borrowed pose it had
+     * before any of this existed.
+     *
+     * <p>The two phases come from different clocks on purpose. A walk driven by
+     * time slides its feet, because the ground goes past at whatever speed the
+     * mob is moving and the stride does not; limbSwing IS that distance, so a
+     * stride keyed against it plants. Everything else is ambient and belongs on
+     * the world clock.
+     */
+    private void animate(EnderMan enderman, float limbSwing, float limbSwingAmount,
+                         float ageInTicks) {
+        // Standing still is not "not walking": limbSwingAmount eases in and out,
+        // so the two crossfade rather than swapping at a threshold.
+        float stride = Math.min(1.0F, limbSwingAmount);
+        play(ShadeModel.Clip.IDLE, ageInTicks, 1.0F - stride);
+        // limbSwing is distance travelled, and a stride is two paces, so the
+        // 0.6662 here is vanilla's own — matching it is what keeps a shade's
+        // feet landing where the enderman underneath thinks they are.
+        play(ShadeModel.Clip.WALK, limbSwing * 0.6662F / (2.0F * (float) Math.PI)
+                * ShadeModel.ticks(ShadeModel.Clip.WALK), stride);
+
+        // The states that take over the arms entirely, most specific last.
+        if (enderman.getCarriedBlock() != null) {
+            play(ShadeModel.Clip.CARRY, ageInTicks, 1.0F);
+        }
+        if (enderman.isCreepy()) {
+            play(ShadeModel.Clip.ANGRY, ageInTicks, 1.0F);
+        } else if (EndermanHappyClient.isHappy(enderman)) {
+            play(ShadeModel.Clip.PET, ageInTicks, 1.0F);
+        }
+    }
+
+    /** One clip, at whatever phase its own length puts that tick at. */
+    private void play(ShadeModel.Clip which, float ticks, float weight) {
+        int length = ShadeModel.ticks(which);
+        if (length <= 0 || weight <= 0.0F) {
+            return;                    // nobody has drawn this one
+        }
+        this.model.play(ShadeModel.clip(which), ticks / length, weight);
+    }
+
     /** The lit half of a face, paired with the face it belongs to. */
     private static ResourceLocation glowFor(ResourceLocation mood) {
         if (mood == ANGRY) {
@@ -166,6 +242,7 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
             return;
         }
         this.model.copyPose(getParentModel());
+        animate(enderman, limbSwing, limbSwingAmount, ageInTicks);
 
         poseStack.pushPose();
         // Lift first, then shrink: groundOffset is already measured in the
@@ -181,7 +258,7 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
             // goes on the body too -- same model, same UVs, nothing to line up
             // by hand. Only the eye texels are opaque on that sheet, so only
             // they light, which is exactly how vanilla's own eyes layer works.
-            this.model.render(poseStack, buffers.getBuffer(RenderType.eyes(RESTING_GLOW)),
+            this.model.render(poseStack, buffers.getBuffer(RenderType.eyes(GLOWS[slot])),
                     BURNING);
         } else {
             // She narrows her eyes or closes them rather than wearing the

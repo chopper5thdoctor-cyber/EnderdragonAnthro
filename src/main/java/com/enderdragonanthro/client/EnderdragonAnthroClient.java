@@ -212,6 +212,24 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                 ShadeModel::createBodyLayer);
         EntityModelLayerRegistry.registerModelLayer(ShadeLayer.FACE_LAYER,
                 ShadeLayer::createFaceLayer);
+
+        // Which of the court have their own hide, asked once per reload rather
+        // than once per frame. A resource pack that adds one takes effect on
+        // F3+T like everything else.
+        net.fabricmc.fabric.api.resource.ResourceManagerHelper
+                .get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
+                .registerReloadListener(new net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener() {
+                    @Override
+                    public net.minecraft.resources.ResourceLocation getFabricId() {
+                        return com.enderdragonanthro.EnderdragonAnthro.id("shade_skins");
+                    }
+
+                    @Override
+                    public void onResourceManagerReload(
+                            net.minecraft.server.packs.resources.ResourceManager packs) {
+                        ShadeLayer.resolveSkins(packs);
+                    }
+                });
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register(
                 (type, renderer, helper, context) -> {
                     if (renderer instanceof PlayerRenderer playerRenderer) {

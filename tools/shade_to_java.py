@@ -21,7 +21,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from bbmodel_to_java import jbox, jpivot, jrot, jy   # noqa: E402
+from bbmodel_to_java import jbox, jpivot, jrot, jy, bake, CLIP_SAMPLES   # noqa: E402
 from pack_shade_rig import AUTHOR_SCALE              # noqa: E402
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,6 +32,38 @@ OUT = os.path.join(HERE,
 BONES = ("head", "body", "right_arm", "left_arm", "right_leg", "left_leg")
 FIELD = {"head": "head", "body": "body", "right_arm": "rightArm",
          "left_arm": "leftArm", "right_leg": "rightLeg", "left_leg": "leftLeg"}
+
+#: The clips the rig may carry, and the field each is baked into. A clip the
+#: rig does not have comes out as an empty table and plays as nothing, which is
+#: what should happen to an animation nobody has drawn yet.
+CLIPS = (("idle", "IDLE"), ("walk", "WALK"), ("carry", "CARRY"),
+         ("angry", "ANGRY"), ("pet", "PET"))
+
+
+def clips(bb):
+    """Every animation in the rig, baked to sample tables and Java source."""
+    out, ticks = [], []
+    for clip, field in CLIPS:
+        baked = bake(bb, clip, BONES, require_all=False)
+        rows = len(BONES) * 6
+        if baked is None:
+            ticks.append(f"    public static final int {field}_TICKS = 0;")
+            out.append(f"    private static final float[][] {field} = new float[{rows}][];")
+            continue
+        length, tracks = baked
+        ticks.append(f"    public static final int {field}_TICKS = {length};")
+        out.append(f"    private static final float[][] {field} = new float[{rows}][];")
+        out.append("")
+        out.append("    static {")
+        for (bone, channel, axis), samples in sorted(tracks.items()):
+            row = BONES.index(bone) * 6 + (0 if channel == "rotation" else 3) + "xyz".index(axis)
+            body = ", ".join(f"{v:.5f}F" for v in samples)
+            out.append(f"        {field}[{row}] = new float[] {{{body}}};"
+                       f"   // {bone}.{channel}.{axis}")
+        out.append("    }")
+        out.append("")
+    return "\n".join(ticks) + "\n\n" + "\n".join(out)
+
 
 TEMPLATE = '''package com.enderdragonanthro.client.model;
 
@@ -47,6 +79,7 @@ import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 
 /**
@@ -126,6 +159,86 @@ public class ShadeModel {{
         target.zRot = source.zRot;
     }}
 
+    // ------------------------------------------------------------- animation
+
+    /** Samples each baked clip holds across one cycle. */
+    private static final int CLIP_SAMPLES = {samples};
+
+{clips}
+    /** The bones a clip can move, in the order the tables are laid out. */
+    private ModelPart[] bones() {{
+        return new ModelPart[] {{this.head, this.body, this.rightArm,
+                                this.leftArm, this.rightLeg, this.leftLeg}};
+    }}
+
+    /**
+     * Play one clip over whatever copyPose left behind.
+     *
+     * Blended from the current rotation rather than written over it, so a
+     * weight below one is a crossfade between the enderman's pose and the
+     * artist's -- which is what lets a shade ease into a stride instead of
+     * snapping into one. At weight 0 nothing is touched at all.
+     *
+     * A channel the clip does not key is LEFT ALONE rather than driven to rest.
+     * That is the difference between "the artist did not animate the head" and
+     * "the artist wants the head at zero", and getting it the other way round
+     * would throw away vanilla's head tracking the moment anyone drew a walk
+     * cycle. Every bone in this rig rests at zero, so a keyed value is both a
+     * delta and an absolute angle and the animator shows exactly what plays.
+     */
+    public void play(float[][] clip, float phase, float weight) {{
+        if (weight <= 0.0F || clip.length == 0) {{
+            return;
+        }}
+        float at = Mth.positiveModulo(phase, 1.0F) * CLIP_SAMPLES;
+        int lo = (int) at;
+        int hi = (lo + 1) % CLIP_SAMPLES;
+        float f = at - lo;
+        ModelPart[] bones = bones();
+        for (int b = 0; b < bones.length; b++) {{
+            ModelPart bone = bones[b];
+            float[] x = clip[b * 6];
+            float[] y = clip[b * 6 + 1];
+            float[] z = clip[b * 6 + 2];
+            if (x != null) {{
+                bone.xRot = Mth.lerp(weight, bone.xRot, Mth.lerp(f, x[lo], x[hi]));
+            }}
+            if (y != null) {{
+                bone.yRot = Mth.lerp(weight, bone.yRot, Mth.lerp(f, y[lo], y[hi]));
+            }}
+            if (z != null) {{
+                bone.zRot = Mth.lerp(weight, bone.zRot, Mth.lerp(f, z[lo], z[hi]));
+            }}
+        }}
+    }}
+
+    /** The clips, by the name the rig calls them. Empty means nobody drew one. */
+    public static float[][] clip(Clip which) {{
+        return switch (which) {{
+            case IDLE -> IDLE;
+            case WALK -> WALK;
+            case CARRY -> CARRY;
+            case ANGRY -> ANGRY;
+            case PET -> PET;
+        }};
+    }}
+
+    /** How long each runs, in ticks. Zero means the rig carries no such clip. */
+    public static int ticks(Clip which) {{
+        return switch (which) {{
+            case IDLE -> IDLE_TICKS;
+            case WALK -> WALK_TICKS;
+            case CARRY -> CARRY_TICKS;
+            case ANGRY -> ANGRY_TICKS;
+            case PET -> PET_TICKS;
+        }};
+    }}
+
+    /** What a shade can be doing, as far as the rig is concerned. */
+    public enum Clip {{
+        IDLE, WALK, CARRY, ANGRY, PET
+    }}
+
     /**
      * The rig puts its feet at FOOT_PLANE, which only lands on the ground at a
      * scale of exactly one over AUTHOR_SCALE. Any other scale lifts the whole
@@ -195,7 +308,8 @@ def main():
     foot = max(jy(c) for e in bb["elements"] for c in (e["from"][1], e["to"][1]))
     res = bb["resolution"]
     out = TEMPLATE.format(parts="\n".join(lines), tw=res["width"], th=res["height"],
-                          author=int(AUTHOR_SCALE), foot=f"{foot:.3f}")
+                          author=int(AUTHOR_SCALE), foot=f"{foot:.3f}",
+                          clips=clips(bb), samples=CLIP_SAMPLES)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w") as f:
         f.write(out)
