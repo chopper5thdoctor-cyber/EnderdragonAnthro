@@ -46,6 +46,10 @@ def field(bone):
 
 FIELD = {b: field(b) for b in BONES}
 
+#: The clothing layer's name suffix. It hangs outside the body on purpose, so
+#: anything measuring the body has to leave it out -- see FOOT_PLANE below.
+COVERING = "Covering"
+
 #: The clips the rig may carry, and the field each is baked into. A clip the
 #: rig does not have comes out as an empty table and plays as nothing, which is
 #: what should happen to an animation nobody has drawn yet.
@@ -325,7 +329,17 @@ def main():
     for node in bb["outliner"]:
         emit(node, "root", (0.0, 0.0, 0.0))
 
-    foot = max(jy(c) for e in bb["elements"] for c in (e["from"][1], e["to"][1]))
+    # The SKIN's lowest point, not the clothing's.
+    #
+    # FOOT_PLANE is what ShadeLayer stands her on, and a covering is inflated
+    # half a unit past the cube it covers -- so counting the coverings would
+    # measure the hem of her trousers and set her feet floating that far above
+    # the floor. This is the same shape of mistake as the dragon's arm ruler,
+    # which quietly started measuring a spun sub-part instead of the hand: a
+    # ruler is only right while it is still measuring the thing it was aimed at,
+    # and adding geometry is exactly when that stops being true.
+    skin = [e for e in bb["elements"] if not e["name"].endswith(COVERING)]
+    foot = max(jy(c) for e in skin for c in (e["from"][1], e["to"][1]))
     res = bb["resolution"]
     # Declared and looked up in the order they were emitted, so a child bone is
     # always fetched from a parent that already exists.

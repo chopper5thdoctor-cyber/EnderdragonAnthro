@@ -64,11 +64,13 @@ public class ShadeModel {
         PartDefinition root = mesh.getRoot();
 
         PartDefinition head = root.addOrReplaceChild("head", CubeListBuilder.create()
-                        .texOffs(0, 63).addBox(-8.000F, -17.000F, -8.000F, 16.000F, 16.000F, 16.000F),
+                        .texOffs(0, 63).addBox(-8.000F, -17.000F, -8.000F, 16.000F, 16.000F, 16.000F)
+                        .texOffs(0, 128).addBox(-8.500F, -17.500F, -8.500F, 17.000F, 17.000F, 17.000F),
                 PartPose.offset(0.000F, 18.000F, 0.000F));
 
         PartDefinition body = root.addOrReplaceChild("body", CubeListBuilder.create()
-                        .texOffs(0, 96).addBox(-3.000F, -30.000F, -3.000F, 6.000F, 8.000F, 6.000F),
+                        .texOffs(0, 96).addBox(-3.000F, -30.000F, -3.000F, 6.000F, 8.000F, 6.000F)
+                        .texOffs(108, 128).addBox(-3.500F, -30.500F, -3.500F, 7.000F, 9.000F, 7.000F),
                 PartPose.offset(0.000F, 44.000F, 0.000F));
         body.addOrReplaceChild("body_0", CubeListBuilder.create()
                         .texOffs(91, 0).addBox(-4.000F, -13.000F, -4.000F, 10.000F, 26.000F, 8.000F),
@@ -79,11 +81,23 @@ public class ShadeModel {
         body.addOrReplaceChild("body_2", CubeListBuilder.create()
                         .texOffs(65, 63).addBox(-9.000F, -4.000F, -2.000F, 16.000F, 8.000F, 8.000F),
                 PartPose.offsetAndRotation(1.000F, -19.800F, -6.400F, -1.0472F, 0.0000F, -0.0000F));
+        body.addOrReplaceChild("body_3", CubeListBuilder.create()
+                        .texOffs(68, 128).addBox(-4.500F, -13.500F, -4.500F, 11.000F, 27.000F, 9.000F),
+                PartPose.offsetAndRotation(-1.000F, -13.000F, 0.000F, -0.0000F, 0.0000F, 0.3665F));
+        body.addOrReplaceChild("body_4", CubeListBuilder.create()
+                        .mirror(true).texOffs(136, 128).addBox(-6.500F, -13.500F, -4.500F, 11.000F, 27.000F, 9.000F),
+                PartPose.offsetAndRotation(1.000F, -13.000F, 0.000F, -0.0000F, 0.0000F, -0.3665F));
+        body.addOrReplaceChild("body_5", CubeListBuilder.create()
+                        .texOffs(176, 128).addBox(-9.500F, -4.500F, -2.500F, 17.000F, 9.000F, 9.000F),
+                PartPose.offsetAndRotation(1.000F, -19.800F, -6.400F, -1.0472F, 0.0000F, -0.0000F));
 
         PartDefinition right_arm = root.addOrReplaceChild("right_arm", CubeListBuilder.create(),
                 PartPose.offset(-8.000F, 20.000F, 0.000F));
         right_arm.addOrReplaceChild("right_arm_0", CubeListBuilder.create()
                         .texOffs(66, 0).addBox(-5.000F, 0.000F, -2.000F, 5.000F, 18.000F, 6.000F),
+                PartPose.offsetAndRotation(4.000F, 2.000F, -1.000F, -0.0000F, 0.0000F, 0.2793F));
+        right_arm.addOrReplaceChild("right_arm_1", CubeListBuilder.create()
+                        .texOffs(228, 128).addBox(-5.500F, -0.500F, -2.500F, 6.000F, 19.000F, 7.000F),
                 PartPose.offsetAndRotation(4.000F, 2.000F, -1.000F, -0.0000F, 0.0000F, 0.2793F));
 
         PartDefinition right_forearm = right_arm.addOrReplaceChild("right_forearm", CubeListBuilder.create(),
@@ -91,11 +105,17 @@ public class ShadeModel {
         right_forearm.addOrReplaceChild("right_forearm_0", CubeListBuilder.create()
                         .texOffs(88, 34).addBox(-2.500F, 0.000F, -3.000F, 5.000F, 18.000F, 6.000F),
                 PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, 0.2793F));
+        right_forearm.addOrReplaceChild("right_forearm_1", CubeListBuilder.create()
+                        .texOffs(108, 144).addBox(-3.000F, -0.500F, -3.500F, 6.000F, 19.000F, 7.000F),
+                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, 0.2793F));
 
         PartDefinition left_arm = root.addOrReplaceChild("left_arm", CubeListBuilder.create(),
                 PartPose.offset(8.000F, 20.000F, 0.000F));
         left_arm.addOrReplaceChild("left_arm_0", CubeListBuilder.create()
                         .mirror(true).texOffs(66, 0).addBox(0.000F, 0.000F, -2.000F, 5.000F, 18.000F, 6.000F),
+                PartPose.offsetAndRotation(-4.000F, 2.000F, -1.000F, -0.0000F, 0.0000F, -0.2793F));
+        left_arm.addOrReplaceChild("left_arm_1", CubeListBuilder.create()
+                        .mirror(true).texOffs(176, 146).addBox(-0.500F, -0.500F, -2.500F, 6.000F, 19.000F, 7.000F),
                 PartPose.offsetAndRotation(-4.000F, 2.000F, -1.000F, -0.0000F, 0.0000F, -0.2793F));
 
         PartDefinition left_forearm = left_arm.addOrReplaceChild("left_forearm", CubeListBuilder.create(),
@@ -103,11 +123,17 @@ public class ShadeModel {
         left_forearm.addOrReplaceChild("left_forearm_0", CubeListBuilder.create()
                         .mirror(true).texOffs(88, 34).addBox(-2.500F, 0.000F, -3.000F, 5.000F, 18.000F, 6.000F),
                 PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, -0.2793F));
+        left_forearm.addOrReplaceChild("left_forearm_1", CubeListBuilder.create()
+                        .mirror(true).texOffs(202, 146).addBox(-3.000F, -0.500F, -3.500F, 6.000F, 19.000F, 7.000F),
+                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, -0.2793F));
 
         PartDefinition right_leg = root.addOrReplaceChild("right_leg", CubeListBuilder.create(),
                 PartPose.offset(-4.000F, 44.000F, 0.000F));
         right_leg.addOrReplaceChild("right_leg_0", CubeListBuilder.create()
                         .texOffs(33, 0).addBox(-4.000F, -2.000F, -4.000F, 8.000F, 27.000F, 8.000F),
+                PartPose.offsetAndRotation(-1.300F, -0.400F, 0.000F, -0.0000F, 0.0000F, -0.0175F));
+        right_leg.addOrReplaceChild("right_leg_1", CubeListBuilder.create()
+                        .texOffs(0, 162).addBox(-4.500F, -2.500F, -4.500F, 9.000F, 28.000F, 9.000F),
                 PartPose.offsetAndRotation(-1.300F, -0.400F, 0.000F, -0.0000F, 0.0000F, -0.0175F));
 
         PartDefinition right_shin = right_leg.addOrReplaceChild("right_shin", CubeListBuilder.create(),
@@ -115,11 +141,17 @@ public class ShadeModel {
         right_shin.addOrReplaceChild("right_shin_0", CubeListBuilder.create()
                         .texOffs(64, 79).addBox(-4.000F, 0.000F, -4.000F, 8.000F, 27.000F, 8.000F),
                 PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, -0.0175F));
+        right_shin.addOrReplaceChild("right_shin_1", CubeListBuilder.create()
+                        .texOffs(36, 164).addBox(-4.500F, -0.500F, -4.500F, 9.000F, 28.000F, 9.000F),
+                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, -0.0175F));
 
         PartDefinition left_leg = root.addOrReplaceChild("left_leg", CubeListBuilder.create(),
                 PartPose.offset(4.000F, 44.000F, 0.000F));
         left_leg.addOrReplaceChild("left_leg_0", CubeListBuilder.create()
                         .texOffs(0, 0).addBox(-4.000F, -2.000F, -4.000F, 8.000F, 27.000F, 8.000F),
+                PartPose.offsetAndRotation(1.300F, -0.400F, 0.000F, -0.0000F, 0.0000F, 0.0175F));
+        left_leg.addOrReplaceChild("left_leg_1", CubeListBuilder.create()
+                        .texOffs(72, 164).addBox(-4.500F, -2.500F, -4.500F, 9.000F, 28.000F, 9.000F),
                 PartPose.offsetAndRotation(1.300F, -0.400F, 0.000F, -0.0000F, 0.0000F, 0.0175F));
 
         PartDefinition left_shin = left_leg.addOrReplaceChild("left_shin", CubeListBuilder.create(),
@@ -127,8 +159,11 @@ public class ShadeModel {
         left_shin.addOrReplaceChild("left_shin_0", CubeListBuilder.create()
                         .texOffs(96, 79).addBox(-4.000F, 0.000F, -4.000F, 8.000F, 27.000F, 8.000F),
                 PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, 0.0175F));
+        left_shin.addOrReplaceChild("left_shin_1", CubeListBuilder.create()
+                        .texOffs(134, 164).addBox(-4.500F, -0.500F, -4.500F, 9.000F, 28.000F, 9.000F),
+                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, 0.0175F));
 
-        return LayerDefinition.create(mesh, 128, 128);
+        return LayerDefinition.create(mesh, 256, 256);
     }
 
     /**

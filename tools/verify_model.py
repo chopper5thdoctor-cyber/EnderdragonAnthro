@@ -450,12 +450,18 @@ def check_shade_stance(rig):
     scale = 1.0 / author
 
     bb = json.load(open(rig))
-    lowest = max(GROUND - e["from"][1] for e in bb["elements"])
+    # The skin's lowest point, not the clothing's -- the same rule the converter
+    # applies, and it has to be the same rule or this check disagrees with the
+    # thing it is checking. A covering is inflated half a unit past the cube it
+    # covers, so counting them here would demand she stand on the hem of her
+    # trousers with her feet in the air.
+    skin = [e for e in bb["elements"] if not e["name"].endswith("Covering")]
+    lowest = max(GROUND - e["from"][1] for e in skin)
     if abs(lowest - foot) > TOLERANCE:
         sys.exit(f"FAIL: FOOT_PLANE is {foot} but the rig's lowest cube is at {lowest:.2f}")
 
     feet = foot * scale + (24.0 - foot * scale)
-    head = min(GROUND - e["to"][1] for e in bb["elements"]) * scale + (24.0 - foot * scale)
+    head = min(GROUND - e["to"][1] for e in skin) * scale + (24.0 - foot * scale)
     print(f"PASS: feet land at model y {feet:.2f} (ground is 24), "
           f"standing {(feet - head) / 16.0:.2f} blocks before the entity's own scale")
     check_hearts()
