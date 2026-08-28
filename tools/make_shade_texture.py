@@ -24,7 +24,7 @@ import sys
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from pack_shade_rig import bb_slots, dims, AUTHOR_SCALE   # noqa: E402
+from pack_shade_rig import bb_slots, dims, source_offset, AUTHOR_SCALE   # noqa: E402
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(HERE, "art")
@@ -57,12 +57,18 @@ def rig():
     res = model["resolution"]
     parts = []
     for e in model["elements"]:
+        # PACKED dimensions, from an offset stored in source units. Not both in
+        # the same units, which is peculiar and is nonetheless what the sheet
+        # measurably IS: computing islands at source scale accounts for 1986 of
+        # the 8717 painted texels, and at packed scale for 8068 of them.
+        #
+        # This used to divide by AUTHOR_SCALE, so every island it drew was half
+        # the size of the one the game reads. The guide was therefore wrong
+        # everywhere, which is a poor thing for a guide to be, and wrong quietly,
+        # which is worse -- it looks like a UV map either way.
         w, h, d = dims(e)
-        u, v = e["uv_offset"]
-        # Back to source units: the sheet is laid out in those, and the
-        # geometry was inflated around it afterwards.
-        parts.append((e["name"], u, v,
-                      w / AUTHOR_SCALE, h / AUTHOR_SCALE, d / AUTHOR_SCALE))
+        u, v = e["uv_offset"] if "uv_offset" in e else source_offset(e)
+        parts.append((e["name"], u, v, w, h, d))
     return res["width"], res["height"], parts
 
 
@@ -129,10 +135,16 @@ def eyes(size, parts, accent):
     return sheet
 
 
-def guide(size, parts):
-    """Every island outlined and named, for painting against."""
+def guide(size, parts, over=None):
+    """Every island outlined and named, for painting against.
+
+    Transparent where it says nothing, so it can be dropped straight on top of
+    the skin as a layer in whatever you paint in -- which is the whole point of
+    it. `over` composites it onto a copy of the real sheet as well, for a
+    single file you can open and see both at once.
+    """
     w_sheet, h_sheet = size
-    sheet = Image.new("RGBA", (w_sheet, h_sheet), (0x18, 0x18, 0x1E, 255))
+    sheet = Image.new("RGBA", (w_sheet, h_sheet), (0, 0, 0, 0))
     draw = ImageDraw.Draw(sheet)
     tints = [(0xE0, 0x2B, 0x2B), (0x2B, 0x6B, 0xE0), (0x2B, 0xC4, 0x5A),
              (0xE0, 0x8A, 0x1E), (0xC0, 0x60, 0xE0), (0x30, 0xC0, 0xC0)]
@@ -147,6 +159,10 @@ def guide(size, parts):
         draw.rectangle([u, v, u + iw - 1, v + ih - 1],
                        outline=tints[i % len(tints)] + (255,))
         draw.text((u + 2, v + 1), name, fill=tints[i % len(tints)] + (255,))
+    if over is not None:
+        stacked = over.convert("RGBA").copy()
+        stacked.alpha_composite(sheet)
+        return sheet, stacked
     return sheet
 
 
@@ -160,8 +176,14 @@ def main():
             path = os.path.join(OUT, f"shade_{name}{suffix}.png")
             image.save(path)
             written.append(path)
+    shipped = os.path.join(HERE, "src/main/resources/assets/enderdragonanthro"
+                                 "/textures/entity/shade.png")
+    overlay, stacked = guide(size, parts, over=Image.open(shipped))
     path = os.path.join(OUT, "shade_guide.png")
-    guide(size, parts).save(path)
+    overlay.save(path)
+    written.append(path)
+    path = os.path.join(OUT, "shade_guide_over_skin.png")
+    stacked.save(path)
     written.append(path)
 
     for path in written:
