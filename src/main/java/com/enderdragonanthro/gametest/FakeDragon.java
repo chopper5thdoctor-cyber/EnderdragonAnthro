@@ -98,6 +98,20 @@ public class FakeDragon extends ServerPlayer {
         return this.told;
     }
 
+    /**
+     * The same lines with their styling intact.
+     *
+     * told() flattens to a String, which is the right thing for asserting what
+     * was said and useless for asserting how it was said -- and the colour of a
+     * shade's name is now load-bearing, since it is what tells four of them
+     * apart at a glance.
+     */
+    public List<Component> toldRich() {
+        return this.rich;
+    }
+
+    private final List<Component> rich = new java.util.ArrayList<>();
+
     public boolean wasTold(String fragment) {
         return this.told.stream().anyMatch(line -> line.contains(fragment));
     }
@@ -105,11 +119,13 @@ public class FakeDragon extends ServerPlayer {
     @Override
     public void displayClientMessage(Component message, boolean actionBar) {
         this.told.add(message.getString());
+        this.rich.add(message);
     }
 
     @Override
     public void sendSystemMessage(Component message) {
         this.told.add(message.getString());
+        this.rich.add(message);
     }
 
     @Override

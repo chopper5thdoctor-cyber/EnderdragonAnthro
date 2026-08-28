@@ -459,6 +459,50 @@ def check_shade_stance(rig):
     print(f"PASS: feet land at model y {feet:.2f} (ground is 24), "
           f"standing {(feet - head) / 16.0:.2f} blocks before the entity's own scale")
     check_hearts()
+    check_shade_colours()
+
+
+def check_shade_colours():
+    """A shade's name is written in the colour she is painted in.
+
+    Two files, two languages, four numbers: make_shade_texture.py puts an accent
+    on each shade's cloth and ShadeIdentity writes her name in a colour. They
+    are the same four colours and nothing made them stay that way -- the chat
+    tints used to be RED/BLUE/GREEN/GOLD, which are near the accents and not
+    them, and near is exactly the kind of wrong nobody reports.
+
+    Matched by ORDER rather than by name, deliberately: the tool still calls
+    slot 1 "keshaire" and the mod calls her "Keshanne". That rename is real and
+    is flagged below rather than worked around silently.
+    """
+    import re
+    tool = open(os.path.join(HERE, "tools/make_shade_texture.py")).read()
+    block = re.search(r"COURT\s*=\s*\{(.*?)\}", tool, re.S).group(1)
+    paint = [(m.group(1), (int(m.group(2), 16) << 16) | (int(m.group(3), 16) << 8)
+              | int(m.group(4), 16))
+             for m in re.finditer(r'"(\w+)":\s*\(0x([0-9A-Fa-f]{2}),\s*0x([0-9A-Fa-f]{2}),'
+                                  r'\s*0x([0-9A-Fa-f]{2})\)', block)]
+
+    java = open(os.path.join(
+        HERE, "src/main/java/com/enderdragonanthro/ability/ShadeIdentity.java")).read()
+    tints = [int(v, 16) for v in re.search(
+        r"TINT_RGB\s*=\s*\{([^}]*)\}", java).group(1).replace("0x", " ").split(",")]
+    names = re.findall(r'"([^"]+)"', re.search(r"NAMES\s*=\s*\{([^}]*)\}", java).group(1))
+
+    if len(paint) != len(tints):
+        sys.exit(f"FAIL: {len(paint)} painted accents but {len(tints)} chat tints")
+    bad = [f"  {names[i]} speaks in #{tints[i]:06X} and is painted #{paint[i][1]:06X}"
+           for i in range(len(tints)) if tints[i] != paint[i][1]]
+    if bad:
+        print("FAIL: a shade's colour on screen is not the colour she is wearing")
+        print("\n".join(bad))
+        sys.exit(1)
+    print(f"PASS: all {len(tints)} shades speak in the colour they are painted")
+    drifted = [f"{paint[i][0]} / {names[i]}" for i in range(len(names))
+               if paint[i][0] != names[i].lower().replace("\u00eb", "e")]
+    if drifted:
+        print(f"  note: the tool and the mod disagree on {len(drifted)} name(s): "
+              + ", ".join(drifted))
 
 
 def check_hearts():

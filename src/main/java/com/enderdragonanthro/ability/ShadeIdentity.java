@@ -30,19 +30,51 @@ public final class ShadeIdentity {
      */
     public static final String[] NAMES = {"Vaëlle", "Keshanne", "Nyrelle", "Orrinne"};
 
-    /** One colour each, and everything they say is spoken in it. */
-    public static final ChatFormatting[] TINTS = {
-            ChatFormatting.RED, ChatFormatting.BLUE,
-            ChatFormatting.GREEN, ChatFormatting.GOLD};
+    /**
+     * One colour each, and everything they say is spoken in it.
+     *
+     * These are the exact accents their outfits are painted with — the same
+     * four values make_shade_texture.py puts on the cloth — rather than the
+     * nearest of Minecraft's sixteen. That matters now the court are four
+     * different people to look at: a name in #E02B2B beside a shade wearing
+     * #E02B2B reads as the same person, and RED at #FF5555 beside her does not
+     * quite. Chat takes an RGB colour perfectly well; there was never a reason
+     * to round.
+     *
+     * Change one and change the paint, or they drift apart with nothing to say
+     * so — which is why the four numbers appear once and everything else asks.
+     */
+    public static final int[] TINT_RGB = {0xE02B2B, 0x2B6BE0, 0x2BC45A, 0xE08A1E};
 
-    /** TINTS as packed RGB, resolved once — slotOf runs per entity per frame. */
-    private static final int[] TINT_RGB = new int[TINTS.length];
+    /**
+     * What they used to be.
+     *
+     * A shade is recognised by the colour of her name — see {@link #slotOf} —
+     * so sharpening the palette would have made every shade already standing in
+     * a saved world unrecognisable: not a shade any more, just an enderman with
+     * an odd name, no rig and no face. They are still accepted, so the court
+     * you already have survives the change and drifts to the new colour the
+     * next time anything renames them.
+     */
+    private static final int[] LEGACY_RGB = new int[4];
 
     static {
-        for (int slot = 0; slot < TINTS.length; slot++) {
-            Integer rgb = TINTS[slot].getColor();
-            TINT_RGB[slot] = rgb == null ? -1 : rgb;
+        ChatFormatting[] was = {ChatFormatting.RED, ChatFormatting.BLUE,
+                                ChatFormatting.GREEN, ChatFormatting.GOLD};
+        for (int slot = 0; slot < was.length; slot++) {
+            Integer rgb = was[slot].getColor();
+            LEGACY_RGB[slot] = rgb == null ? -1 : rgb;
         }
+    }
+
+    /** Her colour, for anything that draws or writes in it. */
+    public static TextColor tint(int slot) {
+        return TextColor.fromRgb(TINT_RGB[slot]);
+    }
+
+    /** Her name, in her colour. */
+    public static Component named(int slot) {
+        return Component.literal(NAMES[slot]).withStyle(s -> s.withColor(tint(slot)));
     }
 
     /**
@@ -63,7 +95,10 @@ public final class ShadeIdentity {
         }
         String text = name.getString();
         for (int slot = 0; slot < NAMES.length; slot++) {
-            if (colour.getValue() == TINT_RGB[slot] && text.startsWith(NAMES[slot])) {
+            if (!text.startsWith(NAMES[slot])) {
+                continue;
+            }
+            if (colour.getValue() == TINT_RGB[slot] || colour.getValue() == LEGACY_RGB[slot]) {
                 return slot;
             }
         }

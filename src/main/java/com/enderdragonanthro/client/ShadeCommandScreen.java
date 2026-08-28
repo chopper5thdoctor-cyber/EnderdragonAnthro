@@ -1,6 +1,7 @@
 package com.enderdragonanthro.client;
 
 import com.enderdragonanthro.ability.DragonMinions;
+import com.enderdragonanthro.ability.ShadeIdentity;
 import com.enderdragonanthro.network.ShadeOrderPayload;
 import com.enderdragonanthro.network.ShadeStatePayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -184,8 +185,12 @@ public class ShadeCommandScreen extends Screen {
         for (int i = 0; i < shades.size(); i++) {
             ShadeStatePayload.Entry shade = shades.get(i);
             int y = this.top + i * ROW_H;
+            // Her own colour, not the dragon's violet. Four identical violet
+            // names down a screen told you nothing about which row was whose;
+            // now the roster reads at a glance and matches what she is wearing.
             int after = graphics.drawString(this.font, Component.literal(shade.name()),
-                    this.left, y, 0xFFE079FA, true);
+                    this.left, y, 0xFF000000 | ShadeIdentity.TINT_RGB[
+                            Math.floorMod(shade.slot(), ShadeIdentity.TINT_RGB.length)], true);
             if (!shade.where().isEmpty()) {
                 // Said plainly and next to the name, because the question this
                 // answers is "where did she go" and the answer used to be an

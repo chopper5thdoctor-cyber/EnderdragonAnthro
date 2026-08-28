@@ -8,6 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -94,7 +95,6 @@ public final class DragonMinions {
     // Names and colours live in ShadeIdentity, because the renderer needs them
     // too and this class is not somewhere the client should be dragged into.
     private static final String[] NAMES = ShadeIdentity.NAMES;
-    private static final ChatFormatting[] TINTS = ShadeIdentity.TINTS;
 
     public static final int MAX_PER_PLAYER = 4;
     private static final double SCALE = 4.0 / 2.9;      // enderman is 2.9 blocks tall
@@ -291,7 +291,7 @@ public final class DragonMinions {
 
         level.playSound(null, minion.blockPosition(), SoundEvents.ENDERMAN_TELEPORT,
                 SoundSource.HOSTILE, 1.0F, 0.6F);
-        say(owner, NAMES[slot] + " rises and waits on you.", TINTS[slot], false);
+        say(owner, NAMES[slot] + " rises and waits on you.", tint(slot), false);
         pushState(owner);
     }
 
@@ -364,7 +364,7 @@ public final class DragonMinions {
             shade.slot = slot;
             court.add(shade);
             rename(stray, shade);
-            say(owner, NAMES[slot] + " rejoins you.", TINTS[slot], true);
+            say(owner, NAMES[slot] + " rejoins you.", tint(slot), true);
         }
     }
 
@@ -827,7 +827,7 @@ public final class DragonMinions {
                             VeinScan.veins(shade.dig.found, shade.dig.origin, hand);
                     say(owner, NAMES[slot] + ": "
                             + ShadeVoice.duty(Order.RECALL, level.random, ""),
-                            TINTS[slot], false);
+                            tint(slot), false);
                     returnHome(owner, level, shade, haul);
                     return;
                 }
@@ -874,7 +874,7 @@ public final class DragonMinions {
                     // She says she is starting; finish() says it is open.
                     say(owner, NAMES[slot] + ": \"A way through, majesty.\" ("
                             + cut.getX() + ", " + cut.getY() + ", " + cut.getZ() + ")",
-                            TINTS[slot], false);
+                            tint(slot), false);
                 }
             } else {
                 target.getLookControl().setLookAt(owner, 60.0F, 60.0F);
@@ -891,7 +891,7 @@ public final class DragonMinions {
                 say(owner, NAMES[slot] + ": "
                         + ShadeVoice.duty(Order.PET, level.random, "")
                         + (hurt > 0.0F ? healed(target) : ""),
-                        TINTS[slot], false);
+                        tint(slot), false);
             }
             pushState(owner);
             return;
@@ -935,7 +935,7 @@ public final class DragonMinions {
             rename(minion, shade);
             minion.setTarget(null);
         }
-        say(owner, NAMES[slot] + ": " + line(shade, level.random), TINTS[slot], false);
+        say(owner, NAMES[slot] + ": " + line(shade, level.random), tint(slot), false);
         pushState(owner);
     }
 
@@ -1307,7 +1307,7 @@ public final class DragonMinions {
         // she just built.
         blink(level, minion, owner.getX(), owner.getY(), owner.getZ(), 8);
         say(owner, NAMES[shade.slot] + ": \"It is open, majesty.\"",
-                TINTS[shade.slot], false);
+                tint(shade.slot), false);
         pushState(owner);
     }
 
@@ -1385,7 +1385,9 @@ public final class DragonMinions {
         shade.idleTicks = 0;
         minion.setTarget(null);
         rename(minion, shade);
-        say(owner, NAMES[shade.slot] + ": " + line, Order.DEFEND.colour, false);
+        // Hers, not the duty's. She is speaking, and who is speaking is the
+        // thing the colour is for now that the four of them dress differently.
+        say(owner, NAMES[shade.slot] + ": " + line, tint(shade.slot), false);
         pushState(owner);
     }
 
@@ -1458,7 +1460,7 @@ public final class DragonMinions {
 
         say(owner, NAMES[shade.slot] + ": "
                 + ShadeVoice.duty(Order.COLLECT, level.random, quarry.getName().getString()),
-                TINTS[shade.slot], false);
+                tint(shade.slot), false);
     }
 
     /**
@@ -1554,14 +1556,14 @@ public final class DragonMinions {
             hand(owner, quarry, taken);
             say(owner, NAMES[shade.slot] + ": "
                     + ShadeVoice.haul(level.random, taken, quarry.getName().getString()),
-                    TINTS[shade.slot], false);
+                    tint(shade.slot), false);
         } else if (early) {
             say(owner, NAMES[shade.slot] + ": " + ShadeVoice.early(level.random),
-                    TINTS[shade.slot], false);
+                    tint(shade.slot), false);
         } else {
             say(owner, NAMES[shade.slot] + ": "
                     + ShadeVoice.barren(level.random, quarry.getName().getString()),
-                    TINTS[shade.slot], false);
+                    tint(shade.slot), false);
         }
         pushState(owner);
     }
@@ -1616,7 +1618,7 @@ public final class DragonMinions {
             minion.setCarriedBlock(Blocks.BEDROCK.defaultBlockState());
             say(owner, NAMES[shade.slot] + ": "
                     + ShadeVoice.duty(Order.CRYSTAL, level.random, ""),
-                    TINTS[shade.slot], false);
+                    tint(shade.slot), false);
         }
         BlockPos spot = shade.work;
         if (!minion.blockPosition().closerThan(spot, 3.0)) {
@@ -1649,7 +1651,7 @@ public final class DragonMinions {
                 SoundSource.HOSTILE, 1.0F, 1.4F);
         say(owner, NAMES[shade.slot] + " raises a crystal at "
                 + spot.getX() + ", " + (spot.getY() + 1) + ", " + spot.getZ() + ".",
-                TINTS[shade.slot], false);
+                tint(shade.slot), false);
     }
 
     /**
@@ -1744,7 +1746,7 @@ public final class DragonMinions {
         level.playSound(null, target, SoundEvents.STONE_BREAK, SoundSource.HOSTILE, 1.0F, 0.6F);
         say(owner, NAMES[shade.slot] + " pulls down the bedrock at "
                 + target.getX() + ", " + target.getY() + ", " + target.getZ() + ".",
-                TINTS[shade.slot], false);
+                tint(shade.slot), false);
     }
 
     /** The court's own platforms first, then whatever bedrock is lying about. */
@@ -1963,15 +1965,52 @@ public final class DragonMinions {
     }
 
     private static void rename(EnderMan minion, Shade shade) {
-        minion.setCustomName(Component.literal(NAMES[shade.slot])
-                .withStyle(TINTS[shade.slot], ChatFormatting.BOLD)
+        minion.setCustomName(ShadeIdentity.named(shade.slot).copy()
+                .withStyle(ChatFormatting.BOLD)
                 .append(Component.literal("  ·  " + shade.order.label)
                         .withStyle(shade.order.colour)));
         minion.setCustomNameVisible(true);
     }
 
-    private static void say(ServerPlayer owner, String line, ChatFormatting colour, boolean actionBar) {
-        owner.displayClientMessage(Component.literal(line).withStyle(colour), actionBar);
+    /** Her colour, as the paint uses it. */
+    private static TextColor tint(int slot) {
+        return ShadeIdentity.tint(slot);
+    }
+
+    private static void say(ServerPlayer owner, String line, TextColor colour,
+                            boolean actionBar) {
+        owner.displayClientMessage(dressed(line, colour), actionBar);
+    }
+
+    private static void say(ServerPlayer owner, String line, ChatFormatting colour,
+                            boolean actionBar) {
+        owner.displayClientMessage(dressed(line, TextColor.fromLegacyFormat(colour)),
+                actionBar);
+    }
+
+    /**
+     * A line, with whoever said it wearing her own colour.
+     *
+     * Every line about a shade opens with her name, so the name is coloured
+     * here rather than at thirty call sites -- and, more to the point, so it
+     * cannot be forgotten at the thirty-first. The rest of the sentence keeps
+     * the tone the caller chose, which is the distinction worth preserving: a
+     * shade SPEAKING is entirely in her colour, and the game reporting that she
+     * could not reach you is grey with her name on the front. Losing that would
+     * make a failure read like something she said.
+     *
+     * Now that the four of them dress differently, the name colour is the
+     * fastest way to know which one is talking -- faster than reading the name.
+     */
+    private static Component dressed(String line, TextColor tone) {
+        for (int slot = 0; slot < NAMES.length; slot++) {
+            if (line.startsWith(NAMES[slot])) {
+                String rest = line.substring(NAMES[slot].length());
+                return ShadeIdentity.named(slot).copy().append(
+                        Component.literal(rest).withStyle(s -> s.withColor(tone)));
+            }
+        }
+        return Component.literal(line).withStyle(s -> s.withColor(tone));
     }
 
     public static boolean isOwnedBy(Player owner, LivingEntity e) {

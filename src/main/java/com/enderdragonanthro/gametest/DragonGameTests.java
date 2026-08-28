@@ -5,11 +5,14 @@ import com.enderdragonanthro.ability.DragonFire;
 import com.enderdragonanthro.ability.DragonIntent;
 import com.enderdragonanthro.ability.DragonMinions;
 import com.enderdragonanthro.ability.DragonPresence;
+import com.enderdragonanthro.ability.ShadeIdentity;
 import com.enderdragonanthro.ability.NetherGate;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
@@ -322,6 +325,39 @@ public class DragonGameTests implements FabricGameTest {
         if (rows.get(0).where().isEmpty()) {
             helper.fail("the row does not say the shade is away, so it reads as"
                     + " standing here when it is not");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A shade says her own name in her own colour.
+     *
+     * The four of them are about to dress differently, and the name colour is
+     * what ties a line of chat to the person who said it. It was RED/BLUE/
+     * GREEN/GOLD -- near the accents on the cloth and not equal to them, which
+     * is the kind of wrong nobody ever reports. verify_model.py pins the two
+     * palettes to each other; this pins the message actually carrying one.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void aShadeSpeaksInHerOwnColour(GameTestHelper helper) {
+        floor(helper, 8);
+        FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(1, 1, 1));
+        DragonMinions.summon(dragon);
+
+        Component said = dragon.toldRich().stream()
+                .filter(c -> c.getString().startsWith(ShadeIdentity.NAMES[0]))
+                .reduce((first, last) -> last).orElse(null);
+        if (said == null) {
+            helper.fail("summoning said nothing that began with "
+                    + ShadeIdentity.NAMES[0] + "; told " + dragon.told());
+        }
+        // The name is the first run of the line, styled on its own.
+        Component name = said.getSiblings().isEmpty() ? said : said;
+        TextColor colour = name.getStyle().getColor();
+        if (colour == null || colour.getValue() != ShadeIdentity.TINT_RGB[0]) {
+            helper.fail("her name is drawn in " + colour + ", not #"
+                    + String.format("%06X", ShadeIdentity.TINT_RGB[0])
+                    + " which is what she is painted");
         }
         helper.succeed();
     }
