@@ -31,24 +31,32 @@ public class ShadeModel {
     public static final float AUTHOR_SCALE = 2.0F;
     public static final float TRUE_SCALE = 1.0F / AUTHOR_SCALE;
     /** Java y of the foot plane, before that scale. */
-    public static final float FOOT_PLANE = 95.600F;
+    public static final float FOOT_PLANE = 95.596F;
 
     private final ModelPart root;
     private final ModelPart head;
     private final ModelPart body;
     private final ModelPart rightArm;
+    private final ModelPart rightForearm;
     private final ModelPart leftArm;
+    private final ModelPart leftForearm;
     private final ModelPart rightLeg;
+    private final ModelPart rightShin;
     private final ModelPart leftLeg;
+    private final ModelPart leftShin;
 
     public ShadeModel(ModelPart root) {
         this.root = root;
         this.head = root.getChild("head");
         this.body = root.getChild("body");
         this.rightArm = root.getChild("right_arm");
+        this.rightForearm = this.rightArm.getChild("right_forearm");
         this.leftArm = root.getChild("left_arm");
+        this.leftForearm = this.leftArm.getChild("left_forearm");
         this.rightLeg = root.getChild("right_leg");
+        this.rightShin = this.rightLeg.getChild("right_shin");
         this.leftLeg = root.getChild("left_leg");
+        this.leftShin = this.leftLeg.getChild("left_shin");
     }
 
     public static LayerDefinition createBodyLayer() {
@@ -75,26 +83,50 @@ public class ShadeModel {
         PartDefinition right_arm = root.addOrReplaceChild("right_arm", CubeListBuilder.create(),
                 PartPose.offset(-8.000F, 20.000F, 0.000F));
         right_arm.addOrReplaceChild("right_arm_0", CubeListBuilder.create()
-                        .texOffs(66, 0).addBox(-5.000F, 0.000F, -2.000F, 5.000F, 36.000F, 6.000F),
+                        .texOffs(66, 0).addBox(-5.000F, 0.000F, -2.000F, 5.000F, 18.000F, 6.000F),
                 PartPose.offsetAndRotation(4.000F, 2.000F, -1.000F, -0.0000F, 0.0000F, 0.2793F));
+
+        PartDefinition right_forearm = right_arm.addOrReplaceChild("right_forearm", CubeListBuilder.create(),
+                PartPose.offset(-3.365F, 18.614F, 0.000F));
+        right_forearm.addOrReplaceChild("right_forearm_0", CubeListBuilder.create()
+                        .texOffs(88, 34).addBox(-2.500F, 0.000F, -3.000F, 5.000F, 18.000F, 6.000F),
+                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, 0.2793F));
 
         PartDefinition left_arm = root.addOrReplaceChild("left_arm", CubeListBuilder.create(),
                 PartPose.offset(8.000F, 20.000F, 0.000F));
         left_arm.addOrReplaceChild("left_arm_0", CubeListBuilder.create()
-                        .mirror(true).texOffs(66, 0).addBox(0.000F, 0.000F, -2.000F, 5.000F, 36.000F, 6.000F),
+                        .mirror(true).texOffs(66, 0).addBox(0.000F, 0.000F, -2.000F, 5.000F, 18.000F, 6.000F),
                 PartPose.offsetAndRotation(-4.000F, 2.000F, -1.000F, -0.0000F, 0.0000F, -0.2793F));
+
+        PartDefinition left_forearm = left_arm.addOrReplaceChild("left_forearm", CubeListBuilder.create(),
+                PartPose.offset(3.365F, 18.614F, 0.000F));
+        left_forearm.addOrReplaceChild("left_forearm_0", CubeListBuilder.create()
+                        .mirror(true).texOffs(88, 34).addBox(-2.500F, 0.000F, -3.000F, 5.000F, 18.000F, 6.000F),
+                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, -0.2793F));
 
         PartDefinition right_leg = root.addOrReplaceChild("right_leg", CubeListBuilder.create(),
                 PartPose.offset(-4.000F, 44.000F, 0.000F));
         right_leg.addOrReplaceChild("right_leg_0", CubeListBuilder.create()
-                        .texOffs(33, 0).addBox(-4.000F, -2.000F, -4.000F, 8.000F, 54.000F, 8.000F),
+                        .texOffs(33, 0).addBox(-4.000F, -2.000F, -4.000F, 8.000F, 27.000F, 8.000F),
                 PartPose.offsetAndRotation(-1.300F, -0.400F, 0.000F, -0.0000F, 0.0000F, -0.0175F));
+
+        PartDefinition right_shin = right_leg.addOrReplaceChild("right_shin", CubeListBuilder.create(),
+                PartPose.offset(-0.864F, 24.596F, 0.000F));
+        right_shin.addOrReplaceChild("right_shin_0", CubeListBuilder.create()
+                        .texOffs(64, 79).addBox(-4.000F, 0.000F, -4.000F, 8.000F, 27.000F, 8.000F),
+                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, -0.0175F));
 
         PartDefinition left_leg = root.addOrReplaceChild("left_leg", CubeListBuilder.create(),
                 PartPose.offset(4.000F, 44.000F, 0.000F));
         left_leg.addOrReplaceChild("left_leg_0", CubeListBuilder.create()
-                        .texOffs(0, 0).addBox(-4.000F, -2.000F, -4.000F, 8.000F, 54.000F, 8.000F),
+                        .texOffs(0, 0).addBox(-4.000F, -2.000F, -4.000F, 8.000F, 27.000F, 8.000F),
                 PartPose.offsetAndRotation(1.300F, -0.400F, 0.000F, -0.0000F, 0.0000F, 0.0175F));
+
+        PartDefinition left_shin = left_leg.addOrReplaceChild("left_shin", CubeListBuilder.create(),
+                PartPose.offset(0.864F, 24.596F, 0.000F));
+        left_shin.addOrReplaceChild("left_shin_0", CubeListBuilder.create()
+                        .texOffs(96, 79).addBox(-4.000F, 0.000F, -4.000F, 8.000F, 27.000F, 8.000F),
+                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, 0.0175F));
 
         return LayerDefinition.create(mesh, 128, 128);
     }
@@ -143,7 +175,7 @@ public class ShadeModel {
     public static final int ANGRY_TICKS = 20;
     public static final int PET_TICKS = 40;
 
-    private static final float[][] IDLE = new float[36][];
+    private static final float[][] IDLE = new float[60][];
 
     static {
         IDLE[18] = new float[] {-0.00000F, 0.00889F, 0.02105F, 0.02087F, 0.00398F, -0.01405F, -0.01954F, -0.01710F, -0.01034F, 0.00383F, 0.02030F, 0.02395F, 0.01123F, -0.00471F, -0.01370F, -0.01965F, -0.01884F, -0.00452F, 0.01507F, 0.02273F, 0.01647F, 0.00547F, -0.00540F, -0.01866F, -0.02395F, -0.01207F, 0.00715F, 0.01727F, 0.01721F, 0.01349F, 0.00908F, 0.00243F};   // left_arm.rotation.x
@@ -152,7 +184,7 @@ public class ShadeModel {
         IDLE[14] = new float[] {0.10000F, 0.09898F, 0.09611F, 0.09162F, 0.08529F, 0.07769F, 0.06922F, 0.05967F, 0.05000F, 0.04033F, 0.03078F, 0.02231F, 0.01471F, 0.00838F, 0.00389F, 0.00102F, -0.00000F, 0.00102F, 0.00389F, 0.00838F, 0.01471F, 0.02231F, 0.03078F, 0.04033F, 0.05000F, 0.05967F, 0.06922F, 0.07769F, 0.08529F, 0.09162F, 0.09611F, 0.09898F};   // right_arm.rotation.z
     }
 
-    private static final float[][] WALK = new float[36][];
+    private static final float[][] WALK = new float[60][];
 
     static {
         WALK[18] = new float[] {0.40000F, 0.40660F, 0.41054F, 0.38908F, 0.34062F, 0.27462F, 0.19460F, 0.09818F, -0.00000F, -0.09818F, -0.19460F, -0.27462F, -0.34062F, -0.38908F, -0.41054F, -0.40660F, -0.40000F, -0.40660F, -0.41054F, -0.38908F, -0.34062F, -0.27462F, -0.19460F, -0.09818F, -0.00000F, 0.09818F, 0.19460F, 0.27462F, 0.34062F, 0.38908F, 0.41054F, 0.40660F};   // left_arm.rotation.x
@@ -161,7 +193,7 @@ public class ShadeModel {
         WALK[24] = new float[] {0.70000F, 0.68570F, 0.64544F, 0.58254F, 0.49412F, 0.38771F, 0.26920F, 0.13543F, -0.00000F, -0.13543F, -0.26920F, -0.38771F, -0.49412F, -0.58254F, -0.64544F, -0.68570F, -0.70000F, -0.68570F, -0.64544F, -0.58254F, -0.49412F, -0.38771F, -0.26920F, -0.13543F, -0.00000F, 0.13543F, 0.26920F, 0.38771F, 0.49412F, 0.58254F, 0.64544F, 0.68570F};   // right_leg.rotation.x
     }
 
-    private static final float[][] CARRY = new float[36][];
+    private static final float[][] CARRY = new float[60][];
 
     static {
         CARRY[18] = new float[] {-0.31416F, -0.30642F, -0.29878F, -0.29201F, -0.28592F, -0.28087F, -0.27727F, -0.27498F, -0.27416F, -0.27498F, -0.27727F, -0.28087F, -0.28592F, -0.29201F, -0.29878F, -0.30642F, -0.31416F, -0.32189F, -0.32954F, -0.33631F, -0.34239F, -0.34745F, -0.35104F, -0.35334F, -0.35416F, -0.35334F, -0.35104F, -0.34745F, -0.34239F, -0.33631F, -0.32954F, -0.32189F};   // left_arm.rotation.x
@@ -170,7 +202,7 @@ public class ShadeModel {
         CARRY[14] = new float[] {0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F};   // right_arm.rotation.z
     }
 
-    private static final float[][] ANGRY = new float[36][];
+    private static final float[][] ANGRY = new float[60][];
 
     static {
         ANGRY[0] = new float[] {-0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F};   // head.rotation.x
@@ -180,7 +212,7 @@ public class ShadeModel {
         ANGRY[14] = new float[] {0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F};   // right_arm.rotation.z
     }
 
-    private static final float[][] PET = new float[36][];
+    private static final float[][] PET = new float[60][];
 
     static {
         PET[6] = new float[] {-0.00000F, 0.00102F, 0.00389F, 0.00838F, 0.01471F, 0.02232F, 0.03078F, 0.04033F, 0.05000F, 0.05967F, 0.06922F, 0.07768F, 0.08529F, 0.09162F, 0.09611F, 0.09898F, 0.10000F, 0.09898F, 0.09611F, 0.09162F, 0.08529F, 0.07768F, 0.06922F, 0.05967F, 0.05000F, 0.04033F, 0.03078F, 0.02232F, 0.01471F, 0.00838F, 0.00389F, 0.00102F};   // body.rotation.x
@@ -194,8 +226,7 @@ public class ShadeModel {
 
     /** The bones a clip can move, in the order the tables are laid out. */
     private ModelPart[] bones() {
-        return new ModelPart[] {this.head, this.body, this.rightArm,
-                                this.leftArm, this.rightLeg, this.leftLeg};
+        return new ModelPart[] {this.head, this.body, this.rightArm, this.leftArm, this.rightLeg, this.leftLeg, this.rightForearm, this.leftForearm, this.rightShin, this.leftShin};
     }
 
     /**

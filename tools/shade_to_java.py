@@ -29,9 +29,22 @@ RIG = os.path.join(HERE, "art/shade_base.bbmodel")
 OUT = os.path.join(HERE,
                    "src/main/java/com/enderdragonanthro/client/model/ShadeModel.java")
 
-BONES = ("head", "body", "right_arm", "left_arm", "right_leg", "left_leg")
-FIELD = {"head": "head", "body": "body", "right_arm": "rightArm",
-         "left_arm": "leftArm", "right_leg": "rightLeg", "left_leg": "leftLeg"}
+#: Appended rather than inserted: a clip's table row is BONES.index(bone) * 6,
+#: so putting the new segments at the end leaves every already-baked row where
+#: it was. The six originals also keep their names -- the upper arm is still
+#: `right_arm` -- so copyPose and every drawn clip carry on untouched, and the
+#: segments are an addition rather than a rename.
+BONES = ("head", "body", "right_arm", "left_arm", "right_leg", "left_leg",
+         "right_forearm", "left_forearm", "right_shin", "left_shin")
+
+
+def field(bone):
+    """right_forearm -> rightForearm."""
+    head, *rest = bone.split("_")
+    return head + "".join(w.capitalize() for w in rest)
+
+
+FIELD = {b: field(b) for b in BONES}
 
 #: The clips the rig may carry, and the field each is baked into. A clip the
 #: rig does not have comes out as an empty table and plays as nothing, which is
@@ -101,22 +114,10 @@ public class ShadeModel {{
     public static final float FOOT_PLANE = {foot}F;
 
     private final ModelPart root;
-    private final ModelPart head;
-    private final ModelPart body;
-    private final ModelPart rightArm;
-    private final ModelPart leftArm;
-    private final ModelPart rightLeg;
-    private final ModelPart leftLeg;
-
+{fields}
     public ShadeModel(ModelPart root) {{
         this.root = root;
-        this.head = root.getChild("head");
-        this.body = root.getChild("body");
-        this.rightArm = root.getChild("right_arm");
-        this.leftArm = root.getChild("left_arm");
-        this.rightLeg = root.getChild("right_leg");
-        this.leftLeg = root.getChild("left_leg");
-    }}
+{lookups}    }}
 
     public static LayerDefinition createBodyLayer() {{
         MeshDefinition mesh = new MeshDefinition();
@@ -167,8 +168,7 @@ public class ShadeModel {{
 {clips}
     /** The bones a clip can move, in the order the tables are laid out. */
     private ModelPart[] bones() {{
-        return new ModelPart[] {{this.head, this.body, this.rightArm,
-                                this.leftArm, this.rightLeg, this.leftLeg}};
+        return new ModelPart[] {{{bonelist}}};
     }}
 
     /**
@@ -263,15 +263,26 @@ def main():
     els = {e["uuid"]: e for e in bb["elements"]}
 
     lines = []
-    for node in bb["outliner"]:
+    lookups = []
+
+    def emit(node, parent, parent_pivot):
+        """One bone and everything under it.
+
+        Recursive because the limbs are segmented now: a forearm is a bone
+        inside a bone, and Java wants its offset relative to the elbow's parent
+        rather than in model space, which is how Blockbench stores it.
+        """
         g = groups.get(node["uuid"], {})
         name = g.get("name")
         if name not in BONES:
-            continue
+            return
         piv = jpivot(g.get("origin", [0, 0, 0]))
-        boxes, spun = [], []
+        boxes, spun, nested = [], [], []
         for cid in node.get("children", []):
-            e = els.get(cid) if isinstance(cid, str) else None
+            if not isinstance(cid, str):
+                nested.append(cid)                  # a bone, handled after
+                continue
+            e = els.get(cid)
             if not e:
                 continue
             (x, y, z), (w, h, d) = jbox(e)
@@ -283,7 +294,9 @@ def main():
             rot = e.get("rotation") or [0, 0, 0]
             if any(abs(t) > 1e-9 for t in rot):
                 # Minecraft cannot rotate one cube inside a part, so it becomes
-                # its own child pivoted on the cube's own origin.
+                # its own child pivoted on the cube's own origin. This is also
+                # what keeps the artist's lean alive: copyPose writes the six
+                # named bones every frame, and anything one level down survives.
                 cpiv = jpivot(e.get("origin", [0, 0, 0]))
                 crot = jrot(rot)
                 spun.append((e.get("name", "spun"), cpiv, crot, mirror, tex,
@@ -291,25 +304,44 @@ def main():
             else:
                 boxes.append(box)
 
-        cl = "CubeListBuilder.create()" + ("\n                        " .join([""] + boxes)
+        cl = "CubeListBuilder.create()" + ("\n                        ".join([""] + boxes)
                                            if boxes else "")
-        lines.append(f'        PartDefinition {name} = root.addOrReplaceChild("{name}", {cl},')
-        lines.append(f'                PartPose.offset({piv[0]:.3f}F, {piv[1]:.3f}F, {piv[2]:.3f}F));')
-        for i, (cname, cpiv, crot, mirror, tex, off, size) in enumerate(spun):
+        off = [piv[i] - parent_pivot[i] for i in range(3)]
+        lines.append(f'        PartDefinition {name} = {parent}.addOrReplaceChild("{name}", {cl},')
+        lines.append(f'                PartPose.offset({off[0]:.3f}F, {off[1]:.3f}F, {off[2]:.3f}F));')
+        for i, (cname, cpiv, crot, mirror, tex, o, size) in enumerate(spun):
             child = f"{name}_{i}"
             lines.append(f'        {name}.addOrReplaceChild("{child}", CubeListBuilder.create()')
-            lines.append(f'                        {mirror}{tex}.addBox({off[0]:.3f}F, {off[1]:.3f}F, '
-                         f'{off[2]:.3f}F, {size[0]:.3f}F, {size[1]:.3f}F, {size[2]:.3f}F),')
+            lines.append(f'                        {mirror}{tex}.addBox({o[0]:.3f}F, {o[1]:.3f}F, '
+                         f'{o[2]:.3f}F, {size[0]:.3f}F, {size[1]:.3f}F, {size[2]:.3f}F),')
             lines.append(f'                PartPose.offsetAndRotation({cpiv[0] - piv[0]:.3f}F, '
                          f'{cpiv[1] - piv[1]:.3f}F, {cpiv[2] - piv[2]:.3f}F, '
                          f'{crot[0]:.4f}F, {crot[1]:.4f}F, {crot[2]:.4f}F));')
         lines.append("")
+        lookups.append((name, parent))
+        for child in nested:
+            emit(child, name, piv)
+
+    for node in bb["outliner"]:
+        emit(node, "root", (0.0, 0.0, 0.0))
 
     foot = max(jy(c) for e in bb["elements"] for c in (e["from"][1], e["to"][1]))
     res = bb["resolution"]
+    # Declared and looked up in the order they were emitted, so a child bone is
+    # always fetched from a parent that already exists.
+    fields = "".join(f"    private final ModelPart {FIELD[n]};\n" for n, _ in lookups)
+    gets = "".join(
+        f'        this.{FIELD[n]} = '
+        + (f'root.getChild("{n}");\n' if p == "root"
+           else f'this.{FIELD[p]}.getChild("{n}");\n')
+        for n, p in lookups)
+    order = [n for n in BONES if n in {x for x, _ in lookups}]
+    bonelist = ", ".join("this." + FIELD[n] for n in order)
+
     out = TEMPLATE.format(parts="\n".join(lines), tw=res["width"], th=res["height"],
                           author=int(AUTHOR_SCALE), foot=f"{foot:.3f}",
-                          clips=clips(bb), samples=CLIP_SAMPLES)
+                          clips=clips(bb), samples=CLIP_SAMPLES,
+                          fields=fields, lookups=gets, bonelist=bonelist)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w") as f:
         f.write(out)
