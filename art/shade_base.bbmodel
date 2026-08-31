@@ -4324,13 +4324,73 @@
           "name": "right_forearm",
           "type": "bone",
           "rotation_global": false,
-          "quaternion_interpolation": false
+          "quaternion_interpolation": false,
+          "keyframes": [
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "walk-right_forearm-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "linear"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "walk-right_forearm-1",
+              "time": 1.0,
+              "color": -1,
+              "interpolation": "linear"
+            }
+          ]
         },
         "4cf45a4d-e734-41c8-a968-7814434d6565": {
           "name": "left_forearm",
           "type": "bone",
           "rotation_global": false,
-          "quaternion_interpolation": false
+          "quaternion_interpolation": false,
+          "keyframes": [
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "walk-left_forearm-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "linear"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "walk-left_forearm-1",
+              "time": 1.0,
+              "color": -1,
+              "interpolation": "linear"
+            }
+          ]
         },
         "08be84e7-2a05-4433-b6f6-fbc688d20da0": {
           "name": "right_shin",
@@ -4881,13 +4941,73 @@
           "name": "right_forearm",
           "type": "bone",
           "rotation_global": false,
-          "quaternion_interpolation": false
+          "quaternion_interpolation": false,
+          "keyframes": [
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "carry-right_forearm-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "linear"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "carry-right_forearm-1",
+              "time": 3.0,
+              "color": -1,
+              "interpolation": "linear"
+            }
+          ]
         },
         "4cf45a4d-e734-41c8-a968-7814434d6565": {
           "name": "left_forearm",
           "type": "bone",
           "rotation_global": false,
-          "quaternion_interpolation": false
+          "quaternion_interpolation": false,
+          "keyframes": [
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "carry-left_forearm-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "linear"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "carry-left_forearm-1",
+              "time": 3.0,
+              "color": -1,
+              "interpolation": "linear"
+            }
+          ]
         },
         "08be84e7-2a05-4433-b6f6-fbc688d20da0": {
           "name": "right_shin",
@@ -5352,13 +5472,73 @@
           "name": "right_forearm",
           "type": "bone",
           "rotation_global": false,
-          "quaternion_interpolation": false
+          "quaternion_interpolation": false,
+          "keyframes": [
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "angry-right_forearm-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "linear"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "angry-right_forearm-1",
+              "time": 1.0,
+              "color": -1,
+              "interpolation": "linear"
+            }
+          ]
         },
         "4cf45a4d-e734-41c8-a968-7814434d6565": {
           "name": "left_forearm",
           "type": "bone",
           "rotation_global": false,
-          "quaternion_interpolation": false
+          "quaternion_interpolation": false,
+          "keyframes": [
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "angry-left_forearm-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "linear"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "angry-left_forearm-1",
+              "time": 1.0,
+              "color": -1,
+              "interpolation": "linear"
+            }
+          ]
         },
         "08be84e7-2a05-4433-b6f6-fbc688d20da0": {
           "name": "right_shin",
@@ -6133,13 +6313,73 @@
           "name": "right_forearm",
           "type": "bone",
           "rotation_global": false,
-          "quaternion_interpolation": false
+          "quaternion_interpolation": false,
+          "keyframes": [
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "pet-right_forearm-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "linear"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "pet-right_forearm-1",
+              "time": 2.0,
+              "color": -1,
+              "interpolation": "linear"
+            }
+          ]
         },
         "4cf45a4d-e734-41c8-a968-7814434d6565": {
           "name": "left_forearm",
           "type": "bone",
           "rotation_global": false,
-          "quaternion_interpolation": false
+          "quaternion_interpolation": false,
+          "keyframes": [
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "pet-left_forearm-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "linear"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "pet-left_forearm-1",
+              "time": 2.0,
+              "color": -1,
+              "interpolation": "linear"
+            }
+          ]
         },
         "08be84e7-2a05-4433-b6f6-fbc688d20da0": {
           "name": "right_shin",

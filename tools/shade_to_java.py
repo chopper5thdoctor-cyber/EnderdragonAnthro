@@ -93,6 +93,19 @@ def field(bone):
 #: anything measuring the body has to leave it out -- see FOOT_PLANE below.
 COVERING = "Covering"
 
+#: The least depth a cube may be drawn with.
+#:
+#: A zero-thickness cube is a reasonable thing to build in Blockbench and cannot
+#: be rendered here: ShadeLayer draws with entityCutoutNoCull, so a box with
+#: depth 0 has its north and south faces in the SAME plane and both get drawn,
+#: which is z-fighting by construction. Blockbench's own viewport hides it.
+#:
+#: 0.1 drawn is 0.05 after AUTHOR_SCALE -- a three-hundredth of a block, far
+#: below anything visible and far above the depth buffer's resolution. It is
+#: also inside verify_model's 0.15 tolerance, so the rig and the generated
+#: model still agree.
+MIN_DEPTH = 0.1
+
 #: The clips the rig may carry, and the field each is baked into. A clip the
 #: rig does not have comes out as an empty table and plays as nothing, which is
 #: what should happen to an animation nobody has drawn yet.
@@ -110,7 +123,7 @@ def clips(bb, bones):
     """
     out, ticks = [], []
     for clip, field in CLIPS:
-        baked = bake(bb, clip, bones, require_all=False)
+        baked = bake(bb, clip, bones, require_all=False, drop_zero=False)
         rows = len(bones) * 6
         if baked is None:
             ticks.append(f"    public static final int {field}_TICKS = 0;")
@@ -322,6 +335,7 @@ def main():
     FIELD = {b: field(b) for b in bones}
     lines = []
     lookups = []
+    flattened = []
 
     def emit(node, parent, parent_pivot):
         """One bone and everything under it.
@@ -344,6 +358,9 @@ def main():
             if not e:
                 continue
             (x, y, z), (w, h, d) = jbox(e)
+            if d < MIN_DEPTH:
+                flattened.append(e.get("name", "?"))
+                d = MIN_DEPTH
             tex = ".texOffs({}, {})".format(*[int(round(c)) for c in e["uv_offset"]]) \
                 if "uv_offset" in e else ".texOffs(0, 0)"
             mirror = ".mirror(true)" if e.get("mirror_uv") else ""
@@ -432,6 +449,9 @@ def main():
     with open(OUT, "w") as f:
         f.write(out)
     print(f"wrote {os.path.relpath(OUT, HERE)}")
+    if flattened:
+        print(f"  gave {len(flattened)} flat cube(s) {MIN_DEPTH} of depth so they do not "
+              f"z-fight themselves: {', '.join(sorted(set(flattened)))}")
     print(f"  {len(bb['elements'])} cubes, {len(bones)} bones, "
           f"sheet {res['width']}x{res['height']}")
     print(f"  foot plane java y {foot:.2f}, drawn at 1/{int(AUTHOR_SCALE)}")

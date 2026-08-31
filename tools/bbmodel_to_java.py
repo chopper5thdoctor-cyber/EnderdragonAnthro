@@ -58,7 +58,7 @@ def catmullrom(points, u):
                   + (-p0 + 3 * p1 - 3 * p2 + p3) * f * f * f)
 
 
-def bake(bb, clip, bones, require_all=True):
+def bake(bb, clip, bones, require_all=True, drop_zero=True):
     """Bake one of the rig's animations into per-axis sample tables.
 
     Baked rather than emitted as keyframes because the interpolation is then
@@ -105,7 +105,17 @@ def bake(bb, clip, bones, require_all=True):
             smooth = any(k.get("interpolation") == "catmullrom" for k in keys)
             for axis in ("x", "y", "z"):
                 pts = [_value(name, channel, axis, k) for k in keys]
-                if all(abs(v) < 1e-9 for v in pts):
+                if drop_zero and all(abs(v) < 1e-9 for v in pts):
+                    # Right for the dragon, whose clips are DELTAS on a rest
+                    # pose: a track of zeros adds nothing, so dropping it saves
+                    # a row and means the same thing.
+                    #
+                    # Wrong for the shade, whose play() reads a missing row as
+                    # "leave this bone alone" rather than "add nothing". There,
+                    # an artist keying a bone to zero is saying "this one is
+                    # STRAIGHT here" -- and dropping it turns that into its
+                    # opposite, so an elbow bent by the idle clip stayed bent
+                    # through every pose that tried to unbend it.
                     continue
                 sign = AXIS_SIGN[channel][axis]
                 scale = math.pi / 180.0 if channel == "rotation" else 1.0
