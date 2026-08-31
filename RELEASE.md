@@ -100,6 +100,40 @@ Worth knowing before that work starts: `theFormIsIdempotent` in the gametests
 asserts that transforming twice is the same as transforming once, and it will
 need a companion asserting that transforming *without paying* does nothing.
 
+## 7. Not a release item: four shade rigs, not one
+
+**Decided by the author; not built.** The court is to get a rig each rather than
+sharing `art/shade_base.bbmodel`.
+
+The current arrangement is one rig with per-shade clips (`vaelle.walk` beside a
+default `walk`) and per-shade sheets, on the reasoning that what differs between
+the four is paint and motion rather than bones. That reasoning is wrong about
+the intent: they are meant to differ in build as well — a skirt on one and not
+another, a different silhouette each — and geometry cannot be a per-slot
+override the way a clip or a texture can. One rig would mean every shade
+carrying every other shade's cubes and hiding them with transparent texels,
+which is a worse lie than four files.
+
+What it costs, so nobody rediscovers it the hard way: **rigs drift.**
+`shade_source.bbmodel` and `shade_base.bbmodel` were supposed to be the same
+model and have not been for some time — different bosom, an extra collar piece,
+arms a unit wider — and `segment_shade_limbs.py` had to cut the packed rig
+rather than the source because of it. Four rigs is four chances at that. If they
+are to share anything (the humanoid bone names, the foot plane, the six
+copyPose targets), something has to check that they still agree, the way
+`verify_model.py` checks a rig against its generated Java.
+
+Mechanically it is not a large change and the hard parts are already done:
+
+- `shade_to_java.py` discovers bones from the rig rather than a fixed list, so
+  four differently-boned rigs already convert.
+- It would emit four model classes (or one class with four layer definitions);
+  `ShadeLayer` bakes one layer today and would bake four, picking by slot the
+  same way `SKINS[slot]` already picks a sheet.
+- Per-shade clips could then go back to plain names inside each rig, and the
+  `<name>.<clip>` convention retires.
+- `FOOT_PLANE` becomes per rig, and the stance check has to run for each.
+
 ---
 
 ## Before tagging
