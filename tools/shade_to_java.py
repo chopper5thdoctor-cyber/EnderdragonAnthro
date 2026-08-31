@@ -29,22 +29,65 @@ RIG = os.path.join(HERE, "art/shade_base.bbmodel")
 OUT = os.path.join(HERE,
                    "src/main/java/com/enderdragonanthro/client/model/ShadeModel.java")
 
-#: Appended rather than inserted: a clip's table row is BONES.index(bone) * 6,
-#: so putting the new segments at the end leaves every already-baked row where
-#: it was. The six originals also keep their names -- the upper arm is still
-#: `right_arm` -- so copyPose and every drawn clip carry on untouched, and the
-#: segments are an addition rather than a rename.
+#: The bones copyPose writes vanilla's pose onto. These six and no others --
+#: they are named for HumanoidModel's, which is the whole trick.
+POSED = ("head", "body", "right_arm", "left_arm", "right_leg", "left_leg")
+
+#: Bones a clip may key, in the order the baked tables are laid out. Appended
+#: rather than inserted: a clip's row is index * 6, so adding to the end leaves
+#: every already-baked row where it was.
 BONES = ("head", "body", "right_arm", "left_arm", "right_leg", "left_leg",
          "right_forearm", "left_forearm", "right_shin", "left_shin")
 
 
+def discover(bb):
+    """Every named group in the rig, in outliner order.
+
+    The converter used to emit only the bones it had been told about and drop
+    everything else -- silently, which is this project's oldest and worst
+    failure mode. An artist who groups her skirt under `SkirtFlapA` or moves the
+    bosom into a `Bosom` group loses those cubes entirely: no error, no warning,
+    the model simply comes out of the converter smaller than it went in, and the
+    only symptom is a shade with no chest.
+
+    So the rig decides what the bones are. BONES stays as the clip table's
+    layout and POSED as the six vanilla drives; anything else the artist adds is
+    a bone too, and it renders.
+    """
+    groups = {g["uuid"]: g for g in bb.get("groups", [])}
+    found, unnamed = [], 0
+
+    def walk(nodes):
+        nonlocal unnamed
+        for n in nodes:
+            if isinstance(n, str):
+                continue
+            name = groups.get(n["uuid"], {}).get("name")
+            if not name:
+                unnamed += 1
+                continue
+            found.append(name)
+            walk(n.get("children", []))
+
+    walk(bb["outliner"])
+    if unnamed:
+        sys.exit(f"ERROR: {unnamed} group(s) in the rig have no name. A bone is "
+                 "addressed by name -- by copyPose, by every animation, and by "
+                 "ShadeModel's own fields -- so an unnamed one cannot be emitted. "
+                 "Name them in Blockbench and convert again.")
+    duplicates = {n for n in found if found.count(n) > 1}
+    if duplicates:
+        sys.exit(f"ERROR: more than one group is called {sorted(duplicates)}. "
+                 "Bone names become Java fields and have to be unique.")
+    return found
+
+
 def field(bone):
-    """right_forearm -> rightForearm."""
+    """right_forearm -> rightForearm, SkirtFlapA -> skirtFlapA."""
     head, *rest = bone.split("_")
-    return head + "".join(w.capitalize() for w in rest)
-
-
-FIELD = {b: field(b) for b in BONES}
+    name = head[:1].lower() + head[1:] + "".join(w[:1].upper() + w[1:] for w in rest)
+    # `root` is taken by the field every bone hangs from.
+    return name + "Bone" if name == "root" else name
 
 #: The clothing layer's name suffix. It hangs outside the body on purpose, so
 #: anything measuring the body has to leave it out -- see FOOT_PLANE below.
@@ -57,12 +100,18 @@ CLIPS = (("idle", "IDLE"), ("walk", "WALK"), ("carry", "CARRY"),
          ("angry", "ANGRY"), ("pet", "PET"))
 
 
-def clips(bb):
-    """Every animation in the rig, baked to sample tables and Java source."""
+def clips(bb, bones):
+    """Every animation in the rig, baked to sample tables and Java source.
+
+    Baked against the bones the RIG has, not a list written here. Against a
+    fixed list, an artist who adds a bone and animates it gets the geometry and
+    silently loses the motion -- the clip bakes, the table has no row for it,
+    and nothing says so.
+    """
     out, ticks = [], []
     for clip, field in CLIPS:
-        baked = bake(bb, clip, BONES, require_all=False)
-        rows = len(BONES) * 6
+        baked = bake(bb, clip, bones, require_all=False)
+        rows = len(bones) * 6
         if baked is None:
             ticks.append(f"    public static final int {field}_TICKS = 0;")
             out.append(f"    private static final float[][] {field} = new float[{rows}][];")
@@ -73,7 +122,7 @@ def clips(bb):
         out.append("")
         out.append("    static {")
         for (bone, channel, axis), samples in sorted(tracks.items()):
-            row = BONES.index(bone) * 6 + (0 if channel == "rotation" else 3) + "xyz".index(axis)
+            row = bones.index(bone) * 6 + (0 if channel == "rotation" else 3) + "xyz".index(axis)
             body = ", ".join(f"{v:.5f}F" for v in samples)
             out.append(f"        {field}[{row}] = new float[] {{{body}}};"
                        f"   // {bone}.{channel}.{axis}")
@@ -145,6 +194,9 @@ public class ShadeModel {{
         rot(this.leftArm, from.leftArm);
         rot(this.rightLeg, from.rightLeg);
         rot(this.leftLeg, from.leftLeg);
+        // Anything else the artist added hangs off one of these six and rides
+        // along; it is deliberately not driven from vanilla, which has no
+        // opinion about a skirt.
     }}
 
     /**
@@ -266,6 +318,8 @@ def main():
     groups = {g["uuid"]: g for g in bb.get("groups", [])}
     els = {e["uuid"]: e for e in bb["elements"]}
 
+    bones = discover(bb)
+    FIELD = {b: field(b) for b in bones}
     lines = []
     lookups = []
 
@@ -278,7 +332,7 @@ def main():
         """
         g = groups.get(node["uuid"], {})
         name = g.get("name")
-        if name not in BONES:
+        if name not in bones:
             return
         piv = jpivot(g.get("origin", [0, 0, 0]))
         boxes, spun, nested = [], [], []
@@ -349,18 +403,20 @@ def main():
         + (f'root.getChild("{n}");\n' if p == "root"
            else f'this.{FIELD[p]}.getChild("{n}");\n')
         for n, p in lookups)
-    order = [n for n in BONES if n in {x for x, _ in lookups}]
-    bonelist = ", ".join("this." + FIELD[n] for n in order)
+    # bones() must be the discovered list in the discovered order, because that
+    # is exactly how clips() laid the tables out. One source for both, so a
+    # curve cannot end up played on the wrong bone.
+    bonelist = ", ".join("this." + FIELD[n] for n in bones)
 
     out = TEMPLATE.format(parts="\n".join(lines), tw=res["width"], th=res["height"],
                           author=int(AUTHOR_SCALE), foot=f"{foot:.3f}",
-                          clips=clips(bb), samples=CLIP_SAMPLES,
+                          clips=clips(bb, bones), samples=CLIP_SAMPLES,
                           fields=fields, lookups=gets, bonelist=bonelist)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w") as f:
         f.write(out)
     print(f"wrote {os.path.relpath(OUT, HERE)}")
-    print(f"  {len(bb['elements'])} cubes, {len(BONES)} bones, "
+    print(f"  {len(bb['elements'])} cubes, {len(bones)} bones, "
           f"sheet {res['width']}x{res['height']}")
     print(f"  foot plane java y {foot:.2f}, drawn at 1/{int(AUTHOR_SCALE)}")
 

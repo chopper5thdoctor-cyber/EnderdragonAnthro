@@ -136,9 +136,26 @@ def bake(bb, clip, bones, require_all=True):
     return int(round(length * 20.0)), tracks
 
 
+#: A plain number, however Blockbench happened to write it down. Keyframe
+#: values are stored as molang source, so a number typed into the box comes back
+#: as a string -- and it keeps whatever whitespace was typed with it. Real files
+#: contain '23\n', '-17.8421\n' and '- 26.3561', the last being a minus, a
+#: space, and a number, which float() refuses outright.
+#:
+#: Deliberately not "strip all whitespace and hope": that would turn '1 2' into
+#: twelve. A sign may be separated from its digits and the whole may be padded;
+#: anything else is an expression and still stops the bake.
+_PLAIN = __import__("re").compile(
+    r"^\s*([+-]?)\s*(\d*\.?\d+(?:[eE][+-]?\d+)?)\s*$")
+
+
 def _value(bone, channel, axis, k):
     """One keyframe value, which Blockbench stores as a molang expression."""
     raw = k["data_points"][0].get(axis, 0)
+    if isinstance(raw, str):
+        hit = _PLAIN.match(raw)
+        if hit:
+            return float(hit.group(1) + hit.group(2))
     try:
         return float(raw)
     except (TypeError, ValueError):
