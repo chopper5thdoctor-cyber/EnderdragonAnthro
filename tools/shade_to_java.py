@@ -365,8 +365,24 @@ def main():
         cl = "CubeListBuilder.create()" + ("\n                        ".join([""] + boxes)
                                            if boxes else "")
         off = [piv[i] - parent_pivot[i] for i in range(3)]
+        # A BONE may be rotated too, and this used to drop that on the floor --
+        # every shade group was at zero rotation, so emitting only the offset
+        # was silently correct for as long as nobody rotated one. The first
+        # artist to tilt a group (the bow, at 30 degrees) got a bone that sat in
+        # the right PLACE facing the wrong way, which verify_model caught as a
+        # 3.4-unit corner error with the centres agreeing exactly -- the
+        # signature of an orientation lost rather than a position miscomputed.
+        # bbmodel_to_java.py has always done this; this file simply never had a
+        # rotated group to do it for.
+        grot = g.get("rotation") or [0, 0, 0]
+        if any(abs(t) > 1e-9 for t in grot):
+            jr = jrot(grot)
+            pose = (f'PartPose.offsetAndRotation({off[0]:.3f}F, {off[1]:.3f}F, '
+                    f'{off[2]:.3f}F, {jr[0]:.4f}F, {jr[1]:.4f}F, {jr[2]:.4f}F)')
+        else:
+            pose = f'PartPose.offset({off[0]:.3f}F, {off[1]:.3f}F, {off[2]:.3f}F)'
         lines.append(f'        PartDefinition {name} = {parent}.addOrReplaceChild("{name}", {cl},')
-        lines.append(f'                PartPose.offset({off[0]:.3f}F, {off[1]:.3f}F, {off[2]:.3f}F));')
+        lines.append(f'                {pose});')
         for i, (cname, cpiv, crot, mirror, tex, o, size) in enumerate(spun):
             child = f"{name}_{i}"
             lines.append(f'        {name}.addOrReplaceChild("{child}", CubeListBuilder.create()')

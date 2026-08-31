@@ -36,6 +36,10 @@ public class ShadeModel {
     private final ModelPart root;
     private final ModelPart head;
     private final ModelPart body;
+    private final ModelPart skirtFlapA;
+    private final ModelPart skirtFlapB;
+    private final ModelPart bowtie;
+    private final ModelPart bosom;
     private final ModelPart rightArm;
     private final ModelPart rightForearm;
     private final ModelPart leftArm;
@@ -49,6 +53,10 @@ public class ShadeModel {
         this.root = root;
         this.head = root.getChild("head");
         this.body = root.getChild("body");
+        this.skirtFlapA = this.body.getChild("SkirtFlapA");
+        this.skirtFlapB = this.body.getChild("SkirtFlapB");
+        this.bowtie = this.body.getChild("Bowtie");
+        this.bosom = this.body.getChild("Bosom");
         this.rightArm = root.getChild("right_arm");
         this.rightForearm = this.rightArm.getChild("right_forearm");
         this.leftArm = root.getChild("left_arm");
@@ -66,11 +74,12 @@ public class ShadeModel {
         PartDefinition head = root.addOrReplaceChild("head", CubeListBuilder.create()
                         .texOffs(0, 63).addBox(-8.000F, -17.000F, -8.000F, 16.000F, 16.000F, 16.000F)
                         .texOffs(0, 128).addBox(-8.500F, -17.500F, -8.500F, 17.000F, 17.000F, 17.000F),
-                PartPose.offset(0.000F, 18.000F, 0.000F));
+                PartPose.offset(0.000F, 17.000F, 0.000F));
 
         PartDefinition body = root.addOrReplaceChild("body", CubeListBuilder.create()
                         .texOffs(0, 96).addBox(-3.000F, -30.000F, -3.000F, 6.000F, 8.000F, 6.000F)
-                        .texOffs(108, 128).addBox(-3.500F, -30.500F, -3.500F, 7.000F, 9.000F, 7.000F),
+                        .texOffs(117, 231).addBox(-7.500F, -11.100F, -5.000F, 15.000F, 2.000F, 10.000F)
+                        .texOffs(122, 232).addBox(-3.500F, -28.100F, -4.250F, 7.000F, 3.000F, 9.000F),
                 PartPose.offset(0.000F, 44.000F, 0.000F));
         body.addOrReplaceChild("body_0", CubeListBuilder.create()
                         .texOffs(91, 0).addBox(-4.000F, -13.000F, -4.000F, 10.000F, 26.000F, 8.000F),
@@ -79,20 +88,44 @@ public class ShadeModel {
                         .mirror(true).texOffs(91, 0).addBox(-6.000F, -13.000F, -4.000F, 10.000F, 26.000F, 8.000F),
                 PartPose.offsetAndRotation(1.000F, -13.000F, 0.000F, -0.0000F, 0.0000F, -0.3665F));
         body.addOrReplaceChild("body_2", CubeListBuilder.create()
-                        .texOffs(65, 63).addBox(-9.000F, -4.000F, -2.000F, 16.000F, 8.000F, 8.000F),
-                PartPose.offsetAndRotation(1.000F, -19.800F, -6.400F, -1.0472F, 0.0000F, -0.0000F));
-        body.addOrReplaceChild("body_3", CubeListBuilder.create()
                         .texOffs(68, 128).addBox(-4.500F, -13.500F, -4.500F, 11.000F, 27.000F, 9.000F),
                 PartPose.offsetAndRotation(-1.000F, -13.000F, 0.000F, -0.0000F, 0.0000F, 0.3665F));
-        body.addOrReplaceChild("body_4", CubeListBuilder.create()
+        body.addOrReplaceChild("body_3", CubeListBuilder.create()
                         .mirror(true).texOffs(136, 128).addBox(-6.500F, -13.500F, -4.500F, 11.000F, 27.000F, 9.000F),
                 PartPose.offsetAndRotation(1.000F, -13.000F, 0.000F, -0.0000F, 0.0000F, -0.3665F));
-        body.addOrReplaceChild("body_5", CubeListBuilder.create()
+
+        PartDefinition SkirtFlapA = body.addOrReplaceChild("SkirtFlapA", CubeListBuilder.create(),
+                PartPose.offset(-0.500F, -2.000F, -0.500F));
+        SkirtFlapA.addOrReplaceChild("SkirtFlapA_0", CubeListBuilder.create()
+                        .texOffs(24, 226).addBox(-10.000F, -11.000F, 0.000F, 20.000F, 22.000F, 0.000F),
+                PartPose.offsetAndRotation(0.500F, 10.500F, 5.400F, -3.1067F, 0.0000F, -0.0000F));
+
+        PartDefinition SkirtFlapB = body.addOrReplaceChild("SkirtFlapB", CubeListBuilder.create(),
+                PartPose.offset(-0.500F, -2.000F, -0.500F));
+        SkirtFlapB.addOrReplaceChild("SkirtFlapB_0", CubeListBuilder.create()
+                        .texOffs(24, 226).addBox(-10.500F, -21.500F, -0.100F, 20.000F, 22.000F, 0.000F),
+                PartPose.offsetAndRotation(0.000F, 0.300F, -4.025F, 0.0349F, 0.0000F, -3.1416F));
+
+        PartDefinition Bowtie = body.addOrReplaceChild("Bowtie", CubeListBuilder.create(),
+                PartPose.offsetAndRotation(0.000F, -10.023F, 7.341F, -0.5236F, 0.0000F, -0.0000F));
+        Bowtie.addOrReplaceChild("Bowtie_0", CubeListBuilder.create()
+                        .texOffs(78, 232).addBox(-6.580F, 7.500F, -4.642F, 16.000F, 15.000F, 0.000F),
+                PartPose.offsetAndRotation(4.641F, -14.990F, -4.036F, 0.5444F, -0.2635F, -0.1564F));
+        Bowtie.addOrReplaceChild("Bowtie_1", CubeListBuilder.create()
+                        .mirror(true).texOffs(78, 232).addBox(-9.420F, 7.500F, -4.642F, 16.000F, 15.000F, 0.000F),
+                PartPose.offsetAndRotation(-4.641F, -14.990F, -4.036F, 0.5444F, 0.2635F, 0.1564F));
+
+        PartDefinition Bosom = body.addOrReplaceChild("Bosom", CubeListBuilder.create(),
+                PartPose.offset(0.000F, -16.443F, -5.275F));
+        Bosom.addOrReplaceChild("Bosom_0", CubeListBuilder.create()
                         .texOffs(176, 128).addBox(-9.500F, -4.500F, -2.500F, 17.000F, 9.000F, 9.000F),
-                PartPose.offsetAndRotation(1.000F, -19.800F, -6.400F, -1.0472F, 0.0000F, -0.0000F));
+                PartPose.offsetAndRotation(1.000F, -1.607F, -0.875F, -1.0472F, 0.0000F, -0.0000F));
+        Bosom.addOrReplaceChild("Bosom_1", CubeListBuilder.create()
+                        .texOffs(65, 63).addBox(-9.000F, -4.000F, -2.000F, 16.000F, 8.000F, 8.000F),
+                PartPose.offsetAndRotation(1.000F, -1.857F, -1.125F, -1.0472F, 0.0000F, -0.0000F));
 
         PartDefinition right_arm = root.addOrReplaceChild("right_arm", CubeListBuilder.create(),
-                PartPose.offset(-8.000F, 20.000F, 0.000F));
+                PartPose.offset(-9.000F, 20.000F, 0.000F));
         right_arm.addOrReplaceChild("right_arm_0", CubeListBuilder.create()
                         .texOffs(66, 0).addBox(-5.000F, 0.000F, -2.000F, 5.000F, 18.000F, 6.000F),
                 PartPose.offsetAndRotation(4.000F, 2.000F, -1.000F, -0.0000F, 0.0000F, 0.2793F));
@@ -101,16 +134,16 @@ public class ShadeModel {
                 PartPose.offsetAndRotation(4.000F, 2.000F, -1.000F, -0.0000F, 0.0000F, 0.2793F));
 
         PartDefinition right_forearm = right_arm.addOrReplaceChild("right_forearm", CubeListBuilder.create(),
-                PartPose.offset(-3.365F, 18.614F, 0.000F));
+                PartPose.offset(-6.365F, 17.614F, 4.000F));
         right_forearm.addOrReplaceChild("right_forearm_0", CubeListBuilder.create()
                         .texOffs(88, 34).addBox(-2.500F, 0.000F, -3.000F, 5.000F, 18.000F, 6.000F),
-                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, 0.2793F));
+                PartPose.offsetAndRotation(3.000F, 1.000F, -4.000F, -0.0000F, 0.0000F, 0.2793F));
         right_forearm.addOrReplaceChild("right_forearm_1", CubeListBuilder.create()
                         .texOffs(108, 144).addBox(-3.000F, -0.500F, -3.500F, 6.000F, 19.000F, 7.000F),
-                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, 0.2793F));
+                PartPose.offsetAndRotation(3.000F, 1.000F, -4.000F, -0.0000F, 0.0000F, 0.2793F));
 
         PartDefinition left_arm = root.addOrReplaceChild("left_arm", CubeListBuilder.create(),
-                PartPose.offset(8.000F, 20.000F, 0.000F));
+                PartPose.offset(9.000F, 20.000F, 0.000F));
         left_arm.addOrReplaceChild("left_arm_0", CubeListBuilder.create()
                         .mirror(true).texOffs(66, 0).addBox(0.000F, 0.000F, -2.000F, 5.000F, 18.000F, 6.000F),
                 PartPose.offsetAndRotation(-4.000F, 2.000F, -1.000F, -0.0000F, 0.0000F, -0.2793F));
@@ -119,13 +152,13 @@ public class ShadeModel {
                 PartPose.offsetAndRotation(-4.000F, 2.000F, -1.000F, -0.0000F, 0.0000F, -0.2793F));
 
         PartDefinition left_forearm = left_arm.addOrReplaceChild("left_forearm", CubeListBuilder.create(),
-                PartPose.offset(3.365F, 18.614F, 0.000F));
+                PartPose.offset(6.365F, 17.614F, 4.000F));
         left_forearm.addOrReplaceChild("left_forearm_0", CubeListBuilder.create()
                         .mirror(true).texOffs(88, 34).addBox(-2.500F, 0.000F, -3.000F, 5.000F, 18.000F, 6.000F),
-                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, -0.2793F));
+                PartPose.offsetAndRotation(-3.000F, 1.000F, -4.000F, -0.0000F, 0.0000F, -0.2793F));
         left_forearm.addOrReplaceChild("left_forearm_1", CubeListBuilder.create()
                         .mirror(true).texOffs(202, 146).addBox(-3.000F, -0.500F, -3.500F, 6.000F, 19.000F, 7.000F),
-                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, -0.2793F));
+                PartPose.offsetAndRotation(-3.000F, 1.000F, -4.000F, -0.0000F, 0.0000F, -0.2793F));
 
         PartDefinition right_leg = root.addOrReplaceChild("right_leg", CubeListBuilder.create(),
                 PartPose.offset(-4.000F, 44.000F, 0.000F));
@@ -137,13 +170,13 @@ public class ShadeModel {
                 PartPose.offsetAndRotation(-1.300F, -0.400F, 0.000F, -0.0000F, 0.0000F, -0.0175F));
 
         PartDefinition right_shin = right_leg.addOrReplaceChild("right_shin", CubeListBuilder.create(),
-                PartPose.offset(-0.864F, 24.596F, 0.000F));
+                PartPose.offset(-0.864F, 24.596F, -4.000F));
         right_shin.addOrReplaceChild("right_shin_0", CubeListBuilder.create()
                         .texOffs(64, 79).addBox(-4.000F, 0.000F, -4.000F, 8.000F, 27.000F, 8.000F),
-                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, -0.0175F));
+                PartPose.offsetAndRotation(0.000F, 0.000F, 4.000F, -0.0000F, 0.0000F, -0.0175F));
         right_shin.addOrReplaceChild("right_shin_1", CubeListBuilder.create()
                         .texOffs(36, 164).addBox(-4.500F, -0.500F, -4.500F, 9.000F, 28.000F, 9.000F),
-                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, -0.0175F));
+                PartPose.offsetAndRotation(0.000F, 0.000F, 4.000F, -0.0000F, 0.0000F, -0.0175F));
 
         PartDefinition left_leg = root.addOrReplaceChild("left_leg", CubeListBuilder.create(),
                 PartPose.offset(4.000F, 44.000F, 0.000F));
@@ -155,13 +188,13 @@ public class ShadeModel {
                 PartPose.offsetAndRotation(1.300F, -0.400F, 0.000F, -0.0000F, 0.0000F, 0.0175F));
 
         PartDefinition left_shin = left_leg.addOrReplaceChild("left_shin", CubeListBuilder.create(),
-                PartPose.offset(0.864F, 24.596F, 0.000F));
+                PartPose.offset(0.864F, 24.596F, -4.000F));
         left_shin.addOrReplaceChild("left_shin_0", CubeListBuilder.create()
                         .texOffs(96, 79).addBox(-4.000F, 0.000F, -4.000F, 8.000F, 27.000F, 8.000F),
-                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, 0.0175F));
+                PartPose.offsetAndRotation(0.000F, 0.000F, 4.000F, -0.0000F, 0.0000F, 0.0175F));
         left_shin.addOrReplaceChild("left_shin_1", CubeListBuilder.create()
                         .texOffs(134, 164).addBox(-4.500F, -0.500F, -4.500F, 9.000F, 28.000F, 9.000F),
-                PartPose.offsetAndRotation(0.000F, 0.000F, 0.000F, -0.0000F, 0.0000F, 0.0175F));
+                PartPose.offsetAndRotation(0.000F, 0.000F, 4.000F, -0.0000F, 0.0000F, 0.0175F));
 
         return LayerDefinition.create(mesh, 256, 256);
     }
@@ -207,64 +240,76 @@ public class ShadeModel {
     /** Samples each baked clip holds across one cycle. */
     private static final int CLIP_SAMPLES = 32;
 
-    public static final int IDLE_TICKS = 70;
+    public static final int IDLE_TICKS = 64;
     public static final int WALK_TICKS = 20;
     public static final int CARRY_TICKS = 60;
     public static final int ANGRY_TICKS = 20;
     public static final int PET_TICKS = 40;
 
-    private static final float[][] IDLE = new float[60][];
+    private static final float[][] IDLE = new float[84][];
 
     static {
-        IDLE[24] = new float[] {-0.00000F, 0.00889F, 0.02105F, 0.02087F, 0.00398F, -0.01405F, -0.01954F, -0.01710F, -0.01034F, 0.00383F, 0.02030F, 0.02395F, 0.01123F, -0.00471F, -0.01370F, -0.01965F, -0.01884F, -0.00452F, 0.01507F, 0.02273F, 0.01647F, 0.00547F, -0.00540F, -0.01866F, -0.02395F, -0.01207F, 0.00715F, 0.01727F, 0.01721F, 0.01349F, 0.00908F, 0.00243F};   // left_arm.rotation.x
-        IDLE[26] = new float[] {-0.10000F, -0.09898F, -0.09611F, -0.09162F, -0.08529F, -0.07769F, -0.06922F, -0.05967F, -0.05000F, -0.04033F, -0.03078F, -0.02231F, -0.01471F, -0.00838F, -0.00389F, -0.00102F, -0.00000F, -0.00102F, -0.00389F, -0.00838F, -0.01471F, -0.02231F, -0.03078F, -0.04033F, -0.05000F, -0.05967F, -0.06922F, -0.07769F, -0.08529F, -0.09162F, -0.09611F, -0.09898F};   // left_arm.rotation.z
-        IDLE[12] = new float[] {-0.00000F, -0.00889F, -0.02105F, -0.02087F, -0.00398F, 0.01405F, 0.01954F, 0.01710F, 0.01034F, -0.00383F, -0.02030F, -0.02395F, -0.01123F, 0.00471F, 0.01370F, 0.01965F, 0.01884F, 0.00452F, -0.01507F, -0.02273F, -0.01647F, -0.00547F, 0.00540F, 0.01866F, 0.02395F, 0.01207F, -0.00715F, -0.01727F, -0.01721F, -0.01349F, -0.00908F, -0.00243F};   // right_arm.rotation.x
-        IDLE[14] = new float[] {0.10000F, 0.09898F, 0.09611F, 0.09162F, 0.08529F, 0.07769F, 0.06922F, 0.05967F, 0.05000F, 0.04033F, 0.03078F, 0.02231F, 0.01471F, 0.00838F, 0.00389F, 0.00102F, -0.00000F, 0.00102F, 0.00389F, 0.00838F, 0.01471F, 0.02231F, 0.03078F, 0.04033F, 0.05000F, 0.05967F, 0.06922F, 0.07769F, 0.08529F, 0.09162F, 0.09611F, 0.09898F};   // right_arm.rotation.z
+        IDLE[10] = new float[] {0.50000F, 0.48259F, 0.45949F, 0.43153F, 0.39957F, 0.36443F, 0.32696F, 0.28800F, 0.24838F, 0.20896F, 0.17055F, 0.13402F, 0.10019F, 0.06990F, 0.04400F, 0.02332F, 0.00871F, 0.00100F, 0.00146F, 0.01255F, 0.03331F, 0.06228F, 0.09797F, 0.13892F, 0.18363F, 0.23064F, 0.27847F, 0.32564F, 0.37068F, 0.41211F, 0.44846F, 0.47825F};   // body.position.y
+        IDLE[4] = new float[] {0.50000F, 0.47388F, 0.43923F, 0.39730F, 0.34935F, 0.29665F, 0.24044F, 0.18200F, 0.12258F, 0.06343F, 0.00583F, -0.04897F, -0.09972F, -0.14515F, -0.18400F, -0.21501F, -0.23693F, -0.24850F, -0.24782F, -0.23118F, -0.20003F, -0.15658F, -0.10304F, -0.04163F, 0.02544F, 0.09596F, 0.16770F, 0.23846F, 0.30602F, 0.36817F, 0.42269F, 0.46737F};   // head.position.y
+        IDLE[48] = new float[] {-0.00000F, -0.00369F, -0.00821F, -0.01262F, -0.01595F, -0.01727F, -0.01548F, -0.01119F, -0.00608F, -0.00180F, -0.00000F, -0.00180F, -0.00608F, -0.01119F, -0.01548F, -0.01727F, -0.01548F, -0.01119F, -0.00608F, -0.00180F, -0.00000F, -0.00151F, -0.00519F, -0.00981F, -0.01412F, -0.01687F, -0.01706F, -0.01555F, -0.01292F, -0.00962F, -0.00608F, -0.00273F};   // left_arm.rotation.x
+        IDLE[50] = new float[] {-0.10000F, -0.09623F, -0.08988F, -0.08292F, -0.07731F, -0.07500F, -0.07760F, -0.08380F, -0.09120F, -0.09740F, -0.10000F, -0.09740F, -0.09120F, -0.08380F, -0.07760F, -0.07500F, -0.07760F, -0.08380F, -0.09120F, -0.09740F, -0.10000F, -0.09782F, -0.09249F, -0.08580F, -0.07956F, -0.07558F, -0.07537F, -0.07801F, -0.08242F, -0.08772F, -0.09301F, -0.09740F};   // left_arm.rotation.z
+        IDLE[72] = new float[] {-0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F, -0.04363F};   // left_leg.rotation.x
+        IDLE[40] = new float[] {-0.00000F, -0.03482F, -0.08103F, -0.13693F, -0.20086F, -0.27114F, -0.34608F, -0.42400F, -0.50323F, -0.58209F, -0.65889F, -0.73197F, -0.79963F, -0.86020F, -0.91200F, -0.95335F, -0.98258F, -0.99799F, -0.99709F, -0.97491F, -0.93337F, -0.87544F, -0.80405F, -0.72217F, -0.63274F, -0.53873F, -0.44307F, -0.34872F, -0.25864F, -0.17578F, -0.10308F, -0.04350F};   // right_arm.position.y
+        IDLE[38] = new float[] {0.44907F, 0.44543F, 0.44056F, 0.43475F, 0.42833F, 0.42159F, 0.41486F, 0.40843F, 0.40315F, 0.39805F, 0.39248F, 0.38669F, 0.38094F, 0.37550F, 0.37062F, 0.36657F, 0.36362F, 0.36201F, 0.36209F, 0.36428F, 0.36824F, 0.37355F, 0.37978F, 0.38652F, 0.39332F, 0.39977F, 0.40543F, 0.41321F, 0.42159F, 0.42998F, 0.43775F, 0.44432F};   // right_arm.rotation.z
+        IDLE[45] = new float[] {0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F, 0.39442F};   // right_forearm.position.x
+        IDLE[46] = new float[] {0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F, 0.91893F};   // right_forearm.position.y
+        IDLE[44] = new float[] {-1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F, -1.35263F};   // right_forearm.rotation.z
+        IDLE[60] = new float[] {0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F, 0.04363F};   // right_leg.rotation.x
     }
 
-    private static final float[][] WALK = new float[60][];
+    private static final float[][] WALK = new float[84][];
 
     static {
-        WALK[24] = new float[] {0.40000F, 0.40660F, 0.41054F, 0.38908F, 0.34062F, 0.27462F, 0.19460F, 0.09818F, -0.00000F, -0.09818F, -0.19460F, -0.27462F, -0.34062F, -0.38908F, -0.41054F, -0.40660F, -0.40000F, -0.40660F, -0.41054F, -0.38908F, -0.34062F, -0.27462F, -0.19460F, -0.09818F, -0.00000F, 0.09818F, 0.19460F, 0.27462F, 0.34062F, 0.38908F, 0.41054F, 0.40660F};   // left_arm.rotation.x
-        WALK[48] = new float[] {-0.70000F, -0.68570F, -0.64544F, -0.58254F, -0.49412F, -0.38771F, -0.26920F, -0.13543F, -0.00000F, 0.13543F, 0.26920F, 0.38771F, 0.49412F, 0.58254F, 0.64544F, 0.68570F, 0.70000F, 0.68570F, 0.64544F, 0.58254F, 0.49412F, 0.38771F, 0.26920F, 0.13543F, -0.00000F, -0.13543F, -0.26920F, -0.38771F, -0.49412F, -0.58254F, -0.64544F, -0.68570F};   // left_leg.rotation.x
-        WALK[12] = new float[] {-0.40000F, -0.40660F, -0.41054F, -0.38908F, -0.34062F, -0.27462F, -0.19460F, -0.09818F, -0.00000F, 0.09818F, 0.19460F, 0.27462F, 0.34062F, 0.38908F, 0.41054F, 0.40660F, 0.40000F, 0.40660F, 0.41054F, 0.38908F, 0.34062F, 0.27462F, 0.19460F, 0.09818F, -0.00000F, -0.09818F, -0.19460F, -0.27462F, -0.34062F, -0.38908F, -0.41054F, -0.40660F};   // right_arm.rotation.x
-        WALK[36] = new float[] {0.70000F, 0.68570F, 0.64544F, 0.58254F, 0.49412F, 0.38771F, 0.26920F, 0.13543F, -0.00000F, -0.13543F, -0.26920F, -0.38771F, -0.49412F, -0.58254F, -0.64544F, -0.68570F, -0.70000F, -0.68570F, -0.64544F, -0.58254F, -0.49412F, -0.38771F, -0.26920F, -0.13543F, -0.00000F, 0.13543F, 0.26920F, 0.38771F, 0.49412F, 0.58254F, 0.64544F, 0.68570F};   // right_leg.rotation.x
+        WALK[12] = new float[] {0.65450F, 0.66912F, 0.68614F, 0.66317F, 0.55812F, 0.38961F, 0.22653F, 0.06130F, -0.00000F, 0.11026F, 0.29018F, 0.45275F, 0.52666F, 0.58009F, 0.62032F, 0.64568F, 0.65450F, 0.63496F, 0.58009F, 0.49551F, 0.40432F, 0.28434F, 0.15736F, 0.05279F, -0.00000F, 0.04120F, 0.16441F, 0.29214F, 0.38231F, 0.46737F, 0.53983F, 0.61322F};   // SkirtFlapA.rotation.x
+        WALK[18] = new float[] {-0.64985F, -0.66574F, -0.68453F, -0.66300F, -0.55845F, -0.38986F, -0.22657F, -0.06130F, -0.00000F, -0.11188F, -0.29372F, -0.45408F, -0.52029F, -0.56128F, -0.58775F, -0.60198F, -0.60622F, -0.59626F, -0.56128F, -0.49364F, -0.40712F, -0.28788F, -0.15981F, -0.05362F, -0.00000F, -0.04120F, -0.16441F, -0.29214F, -0.38242F, -0.46769F, -0.54005F, -0.61161F};   // SkirtFlapB.rotation.x
+        WALK[48] = new float[] {0.40000F, 0.36914F, 0.32812F, 0.27930F, 0.22500F, 0.16758F, 0.10937F, 0.05273F, -0.00000F, -0.05547F, -0.11875F, -0.18516F, -0.25000F, -0.30859F, -0.35625F, -0.38828F, -0.40000F, -0.38828F, -0.35625F, -0.30859F, -0.25000F, -0.18516F, -0.11875F, -0.05547F, -0.00000F, 0.05273F, 0.10937F, 0.16758F, 0.22500F, 0.27930F, 0.32812F, 0.36914F};   // left_arm.rotation.x
+        WALK[72] = new float[] {-0.70000F, -0.64600F, -0.57422F, -0.48877F, -0.39375F, -0.29326F, -0.19141F, -0.09229F, -0.00000F, 0.09707F, 0.20781F, 0.32402F, 0.43750F, 0.54004F, 0.62344F, 0.67949F, 0.70000F, 0.67949F, 0.62344F, 0.54004F, 0.43750F, 0.32402F, 0.20781F, 0.09707F, -0.00000F, -0.09229F, -0.19141F, -0.29326F, -0.39375F, -0.48877F, -0.57422F, -0.64600F};   // left_leg.rotation.x
+        WALK[36] = new float[] {-0.40000F, -0.36914F, -0.32812F, -0.27930F, -0.22500F, -0.16758F, -0.10937F, -0.05273F, -0.00000F, 0.05547F, 0.11875F, 0.18516F, 0.25000F, 0.30859F, 0.35625F, 0.38828F, 0.40000F, 0.38828F, 0.35625F, 0.30859F, 0.25000F, 0.18516F, 0.11875F, 0.05547F, -0.00000F, -0.05273F, -0.10937F, -0.16758F, -0.22500F, -0.27930F, -0.32812F, -0.36914F};   // right_arm.rotation.x
+        WALK[60] = new float[] {0.70000F, 0.64600F, 0.57422F, 0.48877F, 0.39375F, 0.29326F, 0.19141F, 0.09229F, -0.00000F, -0.09707F, -0.20781F, -0.32402F, -0.43750F, -0.54004F, -0.62344F, -0.67949F, -0.70000F, -0.67949F, -0.62344F, -0.54004F, -0.43750F, -0.32402F, -0.20781F, -0.09707F, -0.00000F, 0.09229F, 0.19141F, 0.29326F, 0.39375F, 0.48877F, 0.57422F, 0.64600F};   // right_leg.rotation.x
     }
 
-    private static final float[][] CARRY = new float[60][];
+    private static final float[][] CARRY = new float[84][];
 
     static {
-        CARRY[24] = new float[] {-0.31416F, -0.30642F, -0.29878F, -0.29201F, -0.28592F, -0.28087F, -0.27727F, -0.27498F, -0.27416F, -0.27498F, -0.27727F, -0.28087F, -0.28592F, -0.29201F, -0.29878F, -0.30642F, -0.31416F, -0.32189F, -0.32954F, -0.33631F, -0.34239F, -0.34745F, -0.35104F, -0.35334F, -0.35416F, -0.35334F, -0.35104F, -0.34745F, -0.34239F, -0.33631F, -0.32954F, -0.32189F};   // left_arm.rotation.x
-        CARRY[26] = new float[] {-0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F, -0.12000F};   // left_arm.rotation.z
-        CARRY[12] = new float[] {-0.31416F, -0.30642F, -0.29878F, -0.29201F, -0.28592F, -0.28087F, -0.27727F, -0.27498F, -0.27416F, -0.27498F, -0.27727F, -0.28087F, -0.28592F, -0.29201F, -0.29878F, -0.30642F, -0.31416F, -0.32189F, -0.32954F, -0.33631F, -0.34239F, -0.34745F, -0.35104F, -0.35334F, -0.35416F, -0.35334F, -0.35104F, -0.34745F, -0.34239F, -0.33631F, -0.32954F, -0.32189F};   // right_arm.rotation.x
-        CARRY[14] = new float[] {0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F, 0.12000F};   // right_arm.rotation.z
+        CARRY[48] = new float[] {-0.40143F, -0.40598F, -0.41290F, -0.42115F, -0.42966F, -0.43740F, -0.44332F, -0.44637F, -0.44579F, -0.44250F, -0.43713F, -0.43022F, -0.42229F, -0.41389F, -0.40555F, -0.39781F, -0.39120F, -0.38441F, -0.37691F, -0.36922F, -0.36188F, -0.35539F, -0.35029F, -0.34711F, -0.34635F, -0.34883F, -0.35439F, -0.36211F, -0.37109F, -0.38042F, -0.38919F, -0.39649F};   // left_arm.rotation.x
+        CARRY[49] = new float[] {0.55851F, 0.55469F, 0.54953F, 0.54339F, 0.53661F, 0.52956F, 0.52259F, 0.51604F, 0.51037F, 0.50437F, 0.49789F, 0.49133F, 0.48511F, 0.47963F, 0.47529F, 0.47251F, 0.47169F, 0.47335F, 0.47731F, 0.48301F, 0.48991F, 0.49745F, 0.50507F, 0.51222F, 0.51834F, 0.52395F, 0.52978F, 0.53564F, 0.54134F, 0.54667F, 0.55144F, 0.55545F};   // left_arm.rotation.y
+        CARRY[50] = new float[] {-0.10472F, -0.10365F, -0.10297F, -0.10216F, -0.10070F, -0.09807F, -0.09377F, -0.08726F, -0.07839F, -0.06599F, -0.05059F, -0.03349F, -0.01602F, 0.00050F, 0.01476F, 0.02544F, 0.03122F, 0.03172F, 0.02771F, 0.02021F, 0.01025F, -0.00116F, -0.01300F, -0.02425F, -0.03389F, -0.04296F, -0.05286F, -0.06315F, -0.07338F, -0.08310F, -0.09186F, -0.09922F};   // left_arm.rotation.z
+        CARRY[36] = new float[] {-0.40143F, -0.40599F, -0.41293F, -0.42119F, -0.42973F, -0.43749F, -0.44342F, -0.44647F, -0.44590F, -0.44260F, -0.43722F, -0.43029F, -0.42234F, -0.41392F, -0.40557F, -0.39781F, -0.39118F, -0.38437F, -0.37685F, -0.36915F, -0.36179F, -0.35529F, -0.35017F, -0.34698F, -0.34622F, -0.34871F, -0.35428F, -0.36202F, -0.37102F, -0.38037F, -0.38916F, -0.39648F};   // right_arm.rotation.x
+        CARRY[37] = new float[] {-0.56266F, -0.55884F, -0.55368F, -0.54754F, -0.54076F, -0.53371F, -0.52674F, -0.52019F, -0.51452F, -0.50852F, -0.50204F, -0.49548F, -0.48926F, -0.48378F, -0.47944F, -0.47666F, -0.47584F, -0.47750F, -0.48146F, -0.48716F, -0.49406F, -0.50160F, -0.50922F, -0.51637F, -0.52249F, -0.52810F, -0.53393F, -0.53979F, -0.54549F, -0.55082F, -0.55559F, -0.55960F};   // right_arm.rotation.y
+        CARRY[38] = new float[] {0.10472F, 0.10334F, 0.10188F, 0.10015F, 0.09793F, 0.09501F, 0.09120F, 0.08628F, 0.08030F, 0.07255F, 0.06321F, 0.05298F, 0.04253F, 0.03256F, 0.02375F, 0.01678F, 0.01236F, 0.01026F, 0.01001F, 0.01138F, 0.01410F, 0.01794F, 0.02264F, 0.02796F, 0.03363F, 0.04062F, 0.04957F, 0.05976F, 0.07050F, 0.08108F, 0.09078F, 0.09889F};   // right_arm.rotation.z
     }
 
-    private static final float[][] ANGRY = new float[60][];
+    private static final float[][] ANGRY = new float[84][];
 
     static {
-        ANGRY[0] = new float[] {-0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F, -0.15000F};   // head.rotation.x
-        ANGRY[24] = new float[] {-0.40000F, -0.42779F, -0.45345F, -0.45823F, -0.43750F, -0.40834F, -0.38221F, -0.35372F, -0.34000F, -0.35372F, -0.38221F, -0.40834F, -0.43750F, -0.45823F, -0.45345F, -0.42779F, -0.40000F, -0.37221F, -0.34655F, -0.34177F, -0.36250F, -0.39166F, -0.41779F, -0.44628F, -0.46000F, -0.44628F, -0.41779F, -0.39166F, -0.36250F, -0.34177F, -0.34655F, -0.37221F};   // left_arm.rotation.x
-        ANGRY[26] = new float[] {-0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F};   // left_arm.rotation.z
-        ANGRY[12] = new float[] {-0.40000F, -0.37221F, -0.34655F, -0.34177F, -0.36250F, -0.39166F, -0.41779F, -0.44628F, -0.46000F, -0.44628F, -0.41779F, -0.39166F, -0.36250F, -0.34177F, -0.34655F, -0.37221F, -0.40000F, -0.42779F, -0.45345F, -0.45823F, -0.43750F, -0.40834F, -0.38221F, -0.35372F, -0.34000F, -0.35372F, -0.38221F, -0.40834F, -0.43750F, -0.45823F, -0.45345F, -0.42779F};   // right_arm.rotation.x
-        ANGRY[14] = new float[] {0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F};   // right_arm.rotation.z
+        ANGRY[0] = new float[] {0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F, 0.21817F};   // head.rotation.x
+        ANGRY[48] = new float[] {0.40000F, 0.42779F, 0.45345F, 0.45823F, 0.43750F, 0.40834F, 0.38221F, 0.35372F, 0.34000F, 0.35372F, 0.38221F, 0.40834F, 0.43750F, 0.45823F, 0.45345F, 0.42779F, 0.40000F, 0.37221F, 0.34655F, 0.34177F, 0.36250F, 0.39166F, 0.41779F, 0.44628F, 0.46000F, 0.44628F, 0.41779F, 0.39166F, 0.36250F, 0.34177F, 0.34655F, 0.37221F};   // left_arm.rotation.x
+        ANGRY[50] = new float[] {-0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F, -0.22000F};   // left_arm.rotation.z
+        ANGRY[36] = new float[] {0.40000F, 0.37221F, 0.34655F, 0.34177F, 0.36250F, 0.39166F, 0.41779F, 0.44628F, 0.46000F, 0.44628F, 0.41779F, 0.39166F, 0.36250F, 0.34177F, 0.34655F, 0.37221F, 0.40000F, 0.42779F, 0.45345F, 0.45823F, 0.43750F, 0.40834F, 0.38221F, 0.35372F, 0.34000F, 0.35372F, 0.38221F, 0.40834F, 0.43750F, 0.45823F, 0.45345F, 0.42779F};   // right_arm.rotation.x
+        ANGRY[38] = new float[] {0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F, 0.22000F};   // right_arm.rotation.z
     }
 
-    private static final float[][] PET = new float[60][];
+    private static final float[][] PET = new float[84][];
 
     static {
+        PET[18] = new float[] {-0.04363F, -0.04636F, -0.04909F, -0.05181F, -0.05454F, -0.05727F, -0.06000F, -0.06272F, -0.06545F, -0.06818F, -0.07090F, -0.07363F, -0.07636F, -0.07909F, -0.08181F, -0.08454F, -0.08727F, -0.08454F, -0.08181F, -0.07909F, -0.07636F, -0.07363F, -0.07090F, -0.06818F, -0.06545F, -0.06272F, -0.06000F, -0.05727F, -0.05454F, -0.05181F, -0.04909F, -0.04636F};   // SkirtFlapB.rotation.x
         PET[6] = new float[] {-0.00000F, 0.00102F, 0.00389F, 0.00838F, 0.01471F, 0.02232F, 0.03078F, 0.04033F, 0.05000F, 0.05967F, 0.06922F, 0.07768F, 0.08529F, 0.09162F, 0.09611F, 0.09898F, 0.10000F, 0.09898F, 0.09611F, 0.09162F, 0.08529F, 0.07768F, 0.06922F, 0.05967F, 0.05000F, 0.04033F, 0.03078F, 0.02232F, 0.01471F, 0.00838F, 0.00389F, 0.00102F};   // body.rotation.x
         PET[0] = new float[] {-0.00000F, 0.00459F, 0.01752F, 0.03772F, 0.06617F, 0.10042F, 0.13852F, 0.18150F, 0.22500F, 0.26850F, 0.31148F, 0.34958F, 0.38383F, 0.41228F, 0.43248F, 0.44541F, 0.45000F, 0.44541F, 0.43248F, 0.41228F, 0.38383F, 0.34958F, 0.31148F, 0.26850F, 0.22500F, 0.18150F, 0.13852F, 0.10042F, 0.06617F, 0.03772F, 0.01752F, 0.00459F};   // head.rotation.x
         PET[1] = new float[] {0.00000F, 0.00204F, 0.00779F, 0.01677F, 0.02941F, 0.04463F, 0.06157F, 0.08067F, 0.10000F, 0.11934F, 0.13844F, 0.15537F, 0.17059F, 0.18323F, 0.19221F, 0.19796F, 0.20000F, 0.19796F, 0.19221F, 0.18323F, 0.17059F, 0.15537F, 0.13844F, 0.11934F, 0.10000F, 0.08067F, 0.06157F, 0.04463F, 0.02941F, 0.01677F, 0.00779F, 0.00204F};   // head.rotation.y
-        PET[24] = new float[] {-0.00000F, -0.00255F, -0.00973F, -0.02096F, -0.03676F, -0.05579F, -0.07696F, -0.10083F, -0.12500F, -0.14917F, -0.17304F, -0.19421F, -0.21324F, -0.22904F, -0.24027F, -0.24745F, -0.25000F, -0.24745F, -0.24027F, -0.22904F, -0.21324F, -0.19421F, -0.17304F, -0.14917F, -0.12500F, -0.10083F, -0.07696F, -0.05579F, -0.03676F, -0.02096F, -0.00973F, -0.00255F};   // left_arm.rotation.x
-        PET[26] = new float[] {-0.00000F, -0.00306F, -0.01168F, -0.02515F, -0.04412F, -0.06695F, -0.09235F, -0.12100F, -0.15000F, -0.17900F, -0.20765F, -0.23305F, -0.25588F, -0.27485F, -0.28832F, -0.29694F, -0.30000F, -0.29694F, -0.28832F, -0.27485F, -0.25588F, -0.23305F, -0.20765F, -0.17900F, -0.15000F, -0.12100F, -0.09235F, -0.06695F, -0.04412F, -0.02515F, -0.01168F, -0.00306F};   // left_arm.rotation.z
-        PET[12] = new float[] {-0.00000F, -0.00255F, -0.00973F, -0.02096F, -0.03676F, -0.05579F, -0.07696F, -0.10083F, -0.12500F, -0.14917F, -0.17304F, -0.19421F, -0.21324F, -0.22904F, -0.24027F, -0.24745F, -0.25000F, -0.24745F, -0.24027F, -0.22904F, -0.21324F, -0.19421F, -0.17304F, -0.14917F, -0.12500F, -0.10083F, -0.07696F, -0.05579F, -0.03676F, -0.02096F, -0.00973F, -0.00255F};   // right_arm.rotation.x
-        PET[14] = new float[] {-0.00000F, 0.00306F, 0.01168F, 0.02515F, 0.04412F, 0.06695F, 0.09235F, 0.12100F, 0.15000F, 0.17900F, 0.20765F, 0.23305F, 0.25588F, 0.27485F, 0.28832F, 0.29694F, 0.30000F, 0.29694F, 0.28832F, 0.27485F, 0.25588F, 0.23305F, 0.20765F, 0.17900F, 0.15000F, 0.12100F, 0.09235F, 0.06695F, 0.04412F, 0.02515F, 0.01168F, 0.00306F};   // right_arm.rotation.z
+        PET[48] = new float[] {-0.00000F, -0.00255F, -0.00973F, -0.02096F, -0.03676F, -0.05579F, -0.07696F, -0.10083F, -0.12500F, -0.14917F, -0.17304F, -0.19421F, -0.21324F, -0.22904F, -0.24027F, -0.24745F, -0.25000F, -0.24745F, -0.24027F, -0.22904F, -0.21324F, -0.19421F, -0.17304F, -0.14917F, -0.12500F, -0.10083F, -0.07696F, -0.05579F, -0.03676F, -0.02096F, -0.00973F, -0.00255F};   // left_arm.rotation.x
+        PET[50] = new float[] {-0.00000F, -0.00306F, -0.01168F, -0.02515F, -0.04412F, -0.06695F, -0.09235F, -0.12100F, -0.15000F, -0.17900F, -0.20765F, -0.23305F, -0.25588F, -0.27485F, -0.28832F, -0.29694F, -0.30000F, -0.29694F, -0.28832F, -0.27485F, -0.25588F, -0.23305F, -0.20765F, -0.17900F, -0.15000F, -0.12100F, -0.09235F, -0.06695F, -0.04412F, -0.02515F, -0.01168F, -0.00306F};   // left_arm.rotation.z
+        PET[36] = new float[] {-0.00000F, -0.00255F, -0.00973F, -0.02096F, -0.03676F, -0.05579F, -0.07696F, -0.10083F, -0.12500F, -0.14917F, -0.17304F, -0.19421F, -0.21324F, -0.22904F, -0.24027F, -0.24745F, -0.25000F, -0.24745F, -0.24027F, -0.22904F, -0.21324F, -0.19421F, -0.17304F, -0.14917F, -0.12500F, -0.10083F, -0.07696F, -0.05579F, -0.03676F, -0.02096F, -0.00973F, -0.00255F};   // right_arm.rotation.x
+        PET[38] = new float[] {-0.00000F, 0.00306F, 0.01168F, 0.02515F, 0.04412F, 0.06695F, 0.09235F, 0.12100F, 0.15000F, 0.17900F, 0.20765F, 0.23305F, 0.25588F, 0.27485F, 0.28832F, 0.29694F, 0.30000F, 0.29694F, 0.28832F, 0.27485F, 0.25588F, 0.23305F, 0.20765F, 0.17900F, 0.15000F, 0.12100F, 0.09235F, 0.06695F, 0.04412F, 0.02515F, 0.01168F, 0.00306F};   // right_arm.rotation.z
     }
 
     /** The bones a clip can move, in the order the tables are laid out. */
     private ModelPart[] bones() {
-        return new ModelPart[] {this.head, this.body, this.rightArm, this.rightForearm, this.leftArm, this.leftForearm, this.rightLeg, this.rightShin, this.leftLeg, this.leftShin};
+        return new ModelPart[] {this.head, this.body, this.skirtFlapA, this.skirtFlapB, this.bowtie, this.bosom, this.rightArm, this.rightForearm, this.leftArm, this.leftForearm, this.rightLeg, this.rightShin, this.leftLeg, this.leftShin};
     }
 
     /**
