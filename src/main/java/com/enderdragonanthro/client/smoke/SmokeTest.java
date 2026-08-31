@@ -5,6 +5,7 @@ import com.enderdragonanthro.ability.AbilityAction;
 import com.enderdragonanthro.client.DragonHearts;
 import com.enderdragonanthro.client.DragonHud;
 import com.enderdragonanthro.ability.DragonIntent;
+import com.enderdragonanthro.ability.ShadeIdentity;
 import com.enderdragonanthro.client.DragonIntentClient;
 import com.enderdragonanthro.client.DragonPickupClient;
 import com.enderdragonanthro.client.DragonSightClient;
@@ -280,15 +281,21 @@ public final class SmokeTest {
         // correct is a clip with keyframes and no length, or a length and no
         // keyframes: either means the bake half-happened, and both draw as a
         // shade that stands rigid with no error anywhere.
-        for (ShadeModel.Clip clip : ShadeModel.Clip.values()) {
-            boolean timed = ShadeModel.ticks(clip) > 0;
-            boolean keyed = false;
-            for (float[] track : ShadeModel.clip(clip)) {
-                keyed |= track != null;
+        // Every shade, not just the first: they animate from their own clips
+        // now, falling back to the court's default, and a slot whose fallback
+        // failed to wire up would be a shade that simply stands still.
+        for (int slot = 0; slot < ShadeIdentity.NAMES.length; slot++) {
+            for (ShadeModel.Clip clip : ShadeModel.Clip.values()) {
+                boolean timed = ShadeModel.ticks(slot, clip) > 0;
+                boolean keyed = false;
+                for (float[] track : ShadeModel.clip(slot, clip)) {
+                    keyed |= track != null;
+                }
+                check(ShadeIdentity.NAMES[slot] + "'s " + clip + " clip is whole",
+                        timed == keyed,
+                        timed ? "it has a length and no keyframes"
+                              : "it has keyframes and no length");
             }
-            check("the shade's " + clip + " clip is whole", timed == keyed,
-                    timed ? "it has a length and no keyframes"
-                          : "it has keyframes and no length");
         }
     }
 

@@ -112,36 +112,89 @@ MIN_DEPTH = 0.1
 CLIPS = (("idle", "IDLE"), ("walk", "WALK"), ("carry", "CARRY"),
          ("angry", "ANGRY"), ("pet", "PET"))
 
+#: The court, in slot order -- the same order ShadeIdentity keeps them in, and
+#: the same names ShadeLayer looks for skins under.
+#:
+#: A shade animates from `<name>.<clip>` if the rig carries one and from the
+#: bare `<clip>` if it does not, so one rig holds every court member's motion
+#: over ONE set of geometry. The alternative was a bbmodel each, and this
+#: project has already been bitten by two files that were supposed to hold the
+#: same model and quietly stopped: shade_source and shade_base disagree to this
+#: day. Four of them would be four times that.
+COURT = ("vaelle", "keshanne", "nyrelle", "orrinne")
+
+
+def one_clip(bb, name, field, bones):
+    """Bake a single animation into (declaration lines, tick count), or None."""
+    baked = bake(bb, name, bones, require_all=False, drop_zero=False)
+    if baked is None:
+        return None
+    length, tracks = baked
+    rows = len(bones) * 6
+    out = [f"    private static final float[][] {field} = new float[{rows}][];", "",
+           "    static {"]
+    for (bone, channel, axis), samples in sorted(tracks.items()):
+        row = bones.index(bone) * 6 + (0 if channel == "rotation" else 3) + "xyz".index(axis)
+        body = ", ".join(f"{v:.5f}F" for v in samples)
+        out.append(f"        {field}[{row}] = new float[] {{{body}}};"
+                   f"   // {bone}.{channel}.{axis}")
+    out.append("    }")
+    out.append("")
+    return out, length
+
 
 def clips(bb, bones):
-    """Every animation in the rig, baked to sample tables and Java source.
+    """Every animation in the rig, baked per shade with a shared default.
 
     Baked against the bones the RIG has, not a list written here. Against a
     fixed list, an artist who adds a bone and animates it gets the geometry and
     silently loses the motion -- the clip bakes, the table has no row for it,
     and nothing says so.
+
+    A table is emitted ONCE. Where a shade has no clip of her own she points at
+    the default's array rather than getting a copy of it, so four shades sharing
+    a walk cost one walk.
     """
-    out, ticks = [], []
+    out, tables, lengths = [], {}, {}
+    rows = len(bones) * 6
+
     for clip, field in CLIPS:
-        baked = bake(bb, clip, bones, require_all=False, drop_zero=False)
-        rows = len(bones) * 6
-        if baked is None:
-            ticks.append(f"    public static final int {field}_TICKS = 0;")
-            out.append(f"    private static final float[][] {field} = new float[{rows}][];")
-            continue
-        length, tracks = baked
-        ticks.append(f"    public static final int {field}_TICKS = {length};")
-        out.append(f"    private static final float[][] {field} = new float[{rows}][];")
-        out.append("")
-        out.append("    static {")
-        for (bone, channel, axis), samples in sorted(tracks.items()):
-            row = bones.index(bone) * 6 + (0 if channel == "rotation" else 3) + "xyz".index(axis)
-            body = ", ".join(f"{v:.5f}F" for v in samples)
-            out.append(f"        {field}[{row}] = new float[] {{{body}}};"
-                       f"   // {bone}.{channel}.{axis}")
-        out.append("    }")
-        out.append("")
-    return "\n".join(ticks) + "\n\n" + "\n".join(out)
+        made = one_clip(bb, clip, "D_" + field, bones)
+        if made is None:
+            out.append(f"    private static final float[][] D_{field} = new float[{rows}][];")
+            out.append("")
+            tables[(None, clip)], lengths[(None, clip)] = "D_" + field, 0
+        else:
+            body, length = made
+            out.extend(body)
+            tables[(None, clip)], lengths[(None, clip)] = "D_" + field, length
+
+    for slot, who in enumerate(COURT):
+        for clip, field in CLIPS:
+            made = one_clip(bb, f"{who}.{clip}", f"{who.upper()}_{field}", bones)
+            if made is None:                       # she uses the court's default
+                tables[(slot, clip)] = tables[(None, clip)]
+                lengths[(slot, clip)] = lengths[(None, clip)]
+                continue
+            body, length = made
+            out.extend(body)
+            tables[(slot, clip)] = f"{who.upper()}_{field}"
+            lengths[(slot, clip)] = length
+
+    out.append(f"    /** [slot][clip] -- shared arrays, not copies. */")
+    out.append(f"    private static final float[][][][] BY_SLOT = {{")
+    for slot in range(len(COURT)):
+        row = ", ".join(tables[(slot, c)] for c, _ in CLIPS)
+        out.append(f"        {{{row}}},   // {COURT[slot]}")
+    out.append("    };")
+    out.append("")
+    out.append(f"    private static final int[][] TICKS_BY_SLOT = {{")
+    for slot in range(len(COURT)):
+        row = ", ".join(str(lengths[(slot, c)]) for c, _ in CLIPS)
+        out.append(f"        {{{row}}},   // {COURT[slot]}")
+    out.append("    };")
+    out.append("")
+    return "\n".join(out)
 
 
 TEMPLATE = '''package com.enderdragonanthro.client.model;
@@ -281,26 +334,21 @@ public class ShadeModel {{
         }}
     }}
 
-    /** The clips, by the name the rig calls them. Empty means nobody drew one. */
-    public static float[][] clip(Clip which) {{
-        return switch (which) {{
-            case IDLE -> IDLE;
-            case WALK -> WALK;
-            case CARRY -> CARRY;
-            case ANGRY -> ANGRY;
-            case PET -> PET;
-        }};
+    /**
+     * One shade's clip. Empty means nobody has drawn one, for her or at all.
+     *
+     * A slot with no animation of its own falls back to the court's shared
+     * default, which is how three shades can share a walk while the fourth has
+     * her own. Out-of-range slots take the default too, so an enderman that is
+     * not one of the four cannot throw here.
+     */
+    public static float[][] clip(int slot, Clip which) {{
+        return BY_SLOT[Math.floorMod(slot, BY_SLOT.length)][which.ordinal()];
     }}
 
-    /** How long each runs, in ticks. Zero means the rig carries no such clip. */
-    public static int ticks(Clip which) {{
-        return switch (which) {{
-            case IDLE -> IDLE_TICKS;
-            case WALK -> WALK_TICKS;
-            case CARRY -> CARRY_TICKS;
-            case ANGRY -> ANGRY_TICKS;
-            case PET -> PET_TICKS;
-        }};
+    /** How long that clip runs, in ticks. Zero means there is no such clip. */
+    public static int ticks(int slot, Clip which) {{
+        return TICKS_BY_SLOT[Math.floorMod(slot, TICKS_BY_SLOT.length)][which.ordinal()];
     }}
 
     /** What a shade can be doing, as far as the rig is concerned. */

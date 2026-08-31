@@ -170,42 +170,47 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
      * nothing, so the shade falls back to exactly the borrowed pose it had
      * before any of this existed.
      *
+     * <p>The clips are per shade. A slot with none of her own uses the court's
+     * shared default, so the four can diverge one animation at a time instead
+     * of all at once -- and until they do, three of them cost nothing, because
+     * the generated tables are shared arrays rather than copies.
+     *
      * <p>The two phases come from different clocks on purpose. A walk driven by
      * time slides its feet, because the ground goes past at whatever speed the
      * mob is moving and the stride does not; limbSwing IS that distance, so a
      * stride keyed against it plants. Everything else is ambient and belongs on
      * the world clock.
      */
-    private void animate(EnderMan enderman, float limbSwing, float limbSwingAmount,
-                         float ageInTicks) {
+    private void animate(int slot, EnderMan enderman, float limbSwing,
+                         float limbSwingAmount, float ageInTicks) {
         // Standing still is not "not walking": limbSwingAmount eases in and out,
         // so the two crossfade rather than swapping at a threshold.
         float stride = Math.min(1.0F, limbSwingAmount);
-        play(ShadeModel.Clip.IDLE, ageInTicks, 1.0F - stride);
+        play(slot, ShadeModel.Clip.IDLE, ageInTicks, 1.0F - stride);
         // limbSwing is distance travelled, and a stride is two paces, so the
         // 0.6662 here is vanilla's own — matching it is what keeps a shade's
         // feet landing where the enderman underneath thinks they are.
-        play(ShadeModel.Clip.WALK, limbSwing * 0.6662F / (2.0F * (float) Math.PI)
-                * ShadeModel.ticks(ShadeModel.Clip.WALK), stride);
+        play(slot, ShadeModel.Clip.WALK, limbSwing * 0.6662F / (2.0F * (float) Math.PI)
+                * ShadeModel.ticks(slot, ShadeModel.Clip.WALK), stride);
 
         // The states that take over the arms entirely, most specific last.
         if (enderman.getCarriedBlock() != null) {
-            play(ShadeModel.Clip.CARRY, ageInTicks, 1.0F);
+            play(slot, ShadeModel.Clip.CARRY, ageInTicks, 1.0F);
         }
         if (enderman.isCreepy()) {
-            play(ShadeModel.Clip.ANGRY, ageInTicks, 1.0F);
+            play(slot, ShadeModel.Clip.ANGRY, ageInTicks, 1.0F);
         } else if (EndermanHappyClient.isHappy(enderman)) {
-            play(ShadeModel.Clip.PET, ageInTicks, 1.0F);
+            play(slot, ShadeModel.Clip.PET, ageInTicks, 1.0F);
         }
     }
 
     /** One clip, at whatever phase its own length puts that tick at. */
-    private void play(ShadeModel.Clip which, float ticks, float weight) {
-        int length = ShadeModel.ticks(which);
+    private void play(int slot, ShadeModel.Clip which, float ticks, float weight) {
+        int length = ShadeModel.ticks(slot, which);
         if (length <= 0 || weight <= 0.0F) {
-            return;                    // nobody has drawn this one
+            return;                    // nobody has drawn this one, for her or at all
         }
-        this.model.play(ShadeModel.clip(which), ticks / length, weight);
+        this.model.play(ShadeModel.clip(slot, which), ticks / length, weight);
     }
 
     /** The lit half of a face, paired with the face it belongs to. */
@@ -242,7 +247,7 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
             return;
         }
         this.model.copyPose(getParentModel());
-        animate(enderman, limbSwing, limbSwingAmount, ageInTicks);
+        animate(slot, enderman, limbSwing, limbSwingAmount, ageInTicks);
 
         poseStack.pushPose();
         // Lift first, then shrink: groundOffset is already measured in the
