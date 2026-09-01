@@ -16,6 +16,7 @@ import net.minecraft.server.level.TicketType;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
@@ -214,17 +215,28 @@ public final class DragonMinions {
      * per {@link #BUILD_PERIOD} ticks, with the shade teleporting to each and
      * swinging for it.
      */
+    /**
+     * One block of the frame, and where she stands to put it there.
+     *
+     * The stand is part of the plan rather than derived in the tick, because it
+     * is not one rule. Pillaring a post means placing the block *under* your own
+     * feet mid-hop; bridging the lintel means standing on the last block and
+     * placing the next one *beside* it. Deriving one from the block would get
+     * one of the two wrong, and the one it got wrong would be the lintel —
+     * twelve blocks over open air, which is the shot that reads as flying.
+     */
+    public record Lay(BlockPos block, BlockPos stand) {
+    }
+
     private static final class Build {
-        /** Every frame block, in the order they go in: bottom course first. */
-        final List<BlockPos> plan = new ArrayList<>();
+        /** Every frame block, in the order they go in: sill, posts, lintel. */
+        final List<Lay> plan = new ArrayList<>();
         int cursor;
         /** The interior, cleared once the frame is closed. */
         BlockPos foot;
         Direction across;
         int inner;
         int tall;
-        /** So gravity and fall damage can be given back exactly as they were. */
-        boolean hadGravity = true;
     }
 
     /**
@@ -1290,10 +1302,18 @@ public final class DragonMinions {
     /**
      * Lay out the frame and set the shade to work on it.
      *
-     * Bottom course first, then each course upward — the order a person builds
-     * a wall in, which is the whole point of doing it over time at all. Within
-     * a course it runs across, so the sill is laid end to end before anything
-     * stands on it.
+     * The order is the order a person can actually build it in, which is not
+     * the order you would write the loop in. Course by course looks right on
+     * paper and is impossible in survival: nothing holds you up at course six.
+     *
+     * So: the sill end to end, standing on the ground. Then a post at a time,
+     * bottom to top, riding it up the way anybody pillars — jump, put the block
+     * under your own feet, land on it. Then the lintel bridged across from the
+     * top of a post, each block laid from the last one.
+     *
+     * Every position in that order has something under it at the moment she is
+     * standing there. That is the whole reason for it, and it is what lets the
+     * build run with gravity on.
      */
     private static void begin(ServerPlayer owner, ServerLevel level, EnderMan minion,
                               BlockPos foot, Direction across, int inner, int tall) {
@@ -1315,29 +1335,62 @@ public final class DragonMinions {
         build.across = across;
         build.inner = inner;
         build.tall = tall;
-        for (int h = -1; h <= tall; h++) {
-            for (int w = -1; w <= inner; w++) {
-                if (w == -1 || w == inner || h == -1 || h == tall) {
-                    build.plan.add(foot.relative(across, w).above(h));
-                }
-            }
-        }
-        // She works in the air for most of this, and a four-block enderman
-        // dropped from the top of a twelve-block frame takes the fall like
-        // anything else. Gravity goes off for the duration and is handed back
-        // exactly as it was found.
-        build.hadGravity = !minion.isNoGravity();
-        minion.setNoGravity(true);
+        build.plan.addAll(planFor(foot, across, inner, tall));
         shade.build = build;
     }
 
     /**
-     * One block, and the shade standing where it could have put it there.
+     * The frame, block by block, with the footing for each.
      *
-     * The teleport is not decoration: the frame is up to twelve blocks tall and
-     * an enderman that walked to the top of it would have to climb something
-     * that does not exist yet. Blinking to each course is what an enderman would
-     * do anyway, and it is the only way the reach makes sense.
+     * Separate and public so the order can be walked without a world — the
+     * property that matters is "she is standing on something at every step",
+     * and checking that by watching her build one is how it shipped wrong the
+     * first time.
+     */
+    public static List<Lay> planFor(BlockPos foot, Direction across, int inner, int tall) {
+        List<Lay> plan = new ArrayList<>();
+        // The sill, end to end. She is standing on the ground and swapping the
+        // block under her own feet, which is how you lay a bottom course.
+        for (int w = -1; w <= inner; w++) {
+            BlockPos block = foot.relative(across, w).above(-1);
+            plan.add(new Lay(block, block.above()));
+        }
+        // A post at a time, riding it up: jump, block under the feet, land.
+        for (int post : new int[] {-1, inner}) {
+            for (int h = 0; h <= tall; h++) {
+                BlockPos block = foot.relative(across, post).above(h);
+                plan.add(new Lay(block, block.above()));
+            }
+        }
+        // The lintel, bridged from the top of the left post: she stands on the
+        // block behind her and lays the next one out in front. Standing on top
+        // of *this* one would be standing on the open doorway.
+        for (int w = 0; w < inner; w++) {
+            plan.add(new Lay(foot.relative(across, w).above(tall),
+                    foot.relative(across, w - 1).above(tall + 1)));
+        }
+        return plan;
+    }
+
+    /**
+     * One block, and the shade standing on top of it.
+     *
+     * She used to stand *beside* each block with gravity switched off, which
+     * put her in mid-air for the whole of a twelve-block frame — and hovering
+     * beside a wall placing blocks into empty space is precisely what creative
+     * flight looks like. It was reported as "she looked like she had creative
+     * flight", which is the correct reading of what was on screen.
+     *
+     * She now stands where a player stands at the moment of placing — see
+     * {@link Lay}, which carries the stand with the block because pillaring and
+     * bridging are two different moves. Every position in the plan has solid
+     * footing under it by the end of the tick it is used in, checked by walking
+     * the plan for frames from 1x2 to 7x21, so gravity stays on and does
+     * nothing rather than being switched off and having to be handed back.
+     *
+     * The teleport stays. The frame is up to twelve blocks tall, an enderman
+     * that walked would have to climb something that does not exist yet, and
+     * blinking is what an enderman does anyway.
      */
     private static void buildTick(ServerPlayer owner, ServerLevel level, Shade shade,
                                   EnderMan minion) {
@@ -1349,23 +1402,46 @@ public final class DragonMinions {
             finish(owner, level, shade, minion);
             return;
         }
-        BlockPos at = build.plan.get(build.cursor++);
-
-        // Beside the block and facing it, on the owner's side of the frame, so
-        // the work happens where it can be watched rather than behind the wall.
-        Direction facing = build.across.getClockWise();
-        BlockPos stand = at.relative(facing);
+        Lay lay = build.plan.get(build.cursor++);
+        BlockPos at = lay.block();
+        BlockPos stand = lay.stand();
         minion.teleportTo(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
+        // Zeroed rather than left: two ticks of fall between placements would
+        // otherwise accumulate into a visible sag by the top of a tall frame.
+        minion.setDeltaMovement(Vec3.ZERO);
         minion.fallDistance = 0.0F;
-        minion.getLookControl().setLookAt(at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5);
+        face(minion, at);
         // The swing is the whole reason this reads as building. LivingEntity
         // drives the same arm animation a player's does.
-        minion.swing(net.minecraft.world.InteractionHand.MAIN_HAND, true);
+        minion.swing(InteractionHand.MAIN_HAND, true);
 
         if (!level.getBlockState(at).is(Blocks.OBSIDIAN)) {
             level.setBlockAndUpdate(at, Blocks.OBSIDIAN.defaultBlockState());
             level.playSound(null, at, SoundEvents.STONE_PLACE, SoundSource.BLOCKS, 0.7F, 0.6F);
         }
+    }
+
+    /**
+     * Turn her to the block she is placing, body and head together.
+     *
+     * Set rather than asked for. {@code LookControl} turns a few degrees per
+     * tick towards a target, and she is somewhere else two ticks later — so
+     * asking it politely leaves her looking at where the last block was for the
+     * whole build. Pillaring up means looking down at her own feet, which is
+     * exactly what this computes and exactly what a player does.
+     */
+    private static void face(EnderMan minion, BlockPos at) {
+        double dx = at.getX() + 0.5 - minion.getX();
+        double dy = at.getY() + 0.5 - minion.getEyeY();
+        double dz = at.getZ() + 0.5 - minion.getZ();
+        float yaw = (float) (Mth.atan2(dz, dx) * (180.0 / Math.PI)) - 90.0F;
+        float pitch = (float) (-(Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz))
+                * (180.0 / Math.PI)));
+        minion.setYRot(yaw);
+        minion.yBodyRot = yaw;
+        minion.setYHeadRot(yaw);
+        minion.setXRot(pitch);
+        minion.getLookControl().setLookAt(at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5);
     }
 
     /**
@@ -1392,7 +1468,6 @@ public final class DragonMinions {
         GateMemory.of(level).remember(heart);
         level.playSound(null, heart, SoundEvents.PORTAL_TRIGGER, SoundSource.BLOCKS, 0.8F, 1.4F);
 
-        minion.setNoGravity(!build.hadGravity);
         minion.fallDistance = 0.0F;
         shade.build = null;
         // Back beside the dragon rather than left standing at the top of what

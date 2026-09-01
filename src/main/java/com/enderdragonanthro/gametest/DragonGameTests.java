@@ -26,6 +26,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * The world, asserted on.
  *
@@ -359,6 +363,82 @@ public class DragonGameTests implements FabricGameTest {
             helper.fail("her name is drawn in " + colour + ", not #"
                     + String.format("%06X", ShadeIdentity.TINT_RGB[0])
                     + " which is what she is painted");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * She is standing on something at every block of a gate she raises.
+     *
+     * REPORTED: "the ender shade looked like she had creative flight ... she
+     * should look like she's actually building like a normal player." She was
+     * hovering. The build switched gravity off and put her BESIDE each block,
+     * which for a twelve-block frame is a shade floating in open air placing
+     * obsidian into the sky — the exact silhouette of creative mode.
+     *
+     * The fix is an order she could really build in, so the check is on the
+     * order: walk it against a flat world and measure what is under her feet at
+     * the instant she arrives — before the block she came to place.
+     *
+     * That "before" is the whole check, and the first version of this test did
+     * not have it. Letting the new block count as its own support makes a stand
+     * of {@code block.above()} footing by definition, and the test passed
+     * against the broken order it was written to catch. It is only a check if
+     * it asks what was already there.
+     *
+     * One block of air is allowed: that is a jump-place, the block lands under
+     * you and you land on it. Two or more is standing on nothing.
+     *
+     * Run over frame sizes rather than one, because the gate is cut for
+     * whatever has to walk through it, and the worst case scales with the
+     * height — a twelve-tall frame put her thirteen blocks up.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void aGateIsBuiltFromSomethingToStandOn(GameTestHelper helper) {
+        final int hop = 1;
+        for (int[] size : new int[][] {{1, 2}, {2, 3}, {3, 5}, {4, 8}, {5, 12}, {7, 21}}) {
+            int inner = size[0];
+            int tall = size[1];
+            // Ground is solid up to and including the sill course, which sits
+            // one below foot; foot.y is the first block of open doorway.
+            BlockPos foot = new BlockPos(0, 1, 0);
+            Set<BlockPos> solid = new HashSet<>();
+            List<DragonMinions.Lay> plan =
+                    DragonMinions.planFor(foot, Direction.EAST, inner, tall);
+
+            Set<BlockPos> laid = new HashSet<>();
+            for (DragonMinions.Lay lay : plan) {
+                if (!laid.add(lay.block())) {
+                    helper.fail("the plan lays " + lay.block() + " twice");
+                }
+                BlockPos probe = lay.stand().below();
+                int gap = 0;
+                while (probe.getY() >= foot.getY() && !solid.contains(probe)) {
+                    gap++;
+                    probe = probe.below();
+                }
+                if (gap > hop) {
+                    helper.fail("building a " + inner + "x" + tall + " gate, she stands at "
+                            + lay.stand() + " to place " + lay.block() + " with " + gap
+                            + " blocks of nothing under her — that is the hover that"
+                            + " read as creative flight");
+                }
+                solid.add(lay.block());
+            }
+
+            // And it is still the whole frame: perimeter, once each.
+            Set<BlockPos> want = new HashSet<>();
+            for (int h = -1; h <= tall; h++) {
+                for (int w = -1; w <= inner; w++) {
+                    if (w == -1 || w == inner || h == -1 || h == tall) {
+                        want.add(foot.relative(Direction.EAST, w).above(h));
+                    }
+                }
+            }
+            if (!laid.equals(want)) {
+                helper.fail("a " + inner + "x" + tall + " gate came out as " + laid.size()
+                        + " blocks, not the " + want.size() + " the frame is");
+            }
         }
         helper.succeed();
     }
