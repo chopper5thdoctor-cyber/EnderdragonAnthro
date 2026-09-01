@@ -395,3 +395,39 @@ mine, --style vanilla    light 62.4%  h 59%  v 61%  run 2.32
 
 Deterministic for a given file and `--seed`, so re-running after a repaint does
 not reshuffle what you kept.
+
+
+## prune_test_builds.bat
+
+Windows. Keeps the newest downloaded test build and deletes the older ones, so a
+mods folder does not fill up with every push you have ever tried.
+
+```bat
+prune_test_builds.bat              ask before deleting
+prune_test_builds.bat /y           do not ask
+prune_test_builds.bat /list        show what it would do, change nothing
+prune_test_builds.bat /keep:3      leave the three newest
+prune_test_builds.bat D:\mc\mods   that folder rather than its own
+```
+
+Drop it in the folder you download into and double-click it.
+
+**Newest is decided by timestamp, never by name.** Builds arrive as `mod.jar`,
+then `mod (1).jar` from a browser that will not overwrite, or as
+`mod-a1b2c3d.jar` and `mod-180.jar` when the name carries the commit. Sorting by
+name gets all three wrong differently: `(2)` sorts after `(10)`, a sha does not
+order at all, and a re-download of an older build can land as `(7)`.
+
+Two things it is careful about:
+
+- **Only `PATTERN`, minus `EXCLUDE`.** Other mods in the folder are invisible to
+  it. `EXCLUDE` defaults to `-sources`, because the build produces a sources jar
+  beside the mod jar and it would otherwise be deleted as an older copy.
+- **The survivor is renamed back to the clean name.** The first download is the
+  one without a `(n)`, so it is also the oldest and the first to go — without the
+  rename you would be left holding `mod (3).jar`, then `mod (7).jar`, with the
+  number climbing forever.
+
+`/bygroup` switches from "every match is one family" to "group by name up to the
+first `(`", for a folder that legitimately holds several artifacts you all want
+to keep.
