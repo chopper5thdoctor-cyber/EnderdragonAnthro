@@ -67,7 +67,20 @@ loom {
 // model layers baking, a keypress surviving the round trip to the server, and
 // a widget actually appearing on a screen.
 //
-//   ./gradlew runSmoke
+//   ./gradlew runSmoke        the checks that need no world
+//   ./gradlew runSmokeWorld   those, plus the round trips through a real world
+//
+// ---- on a machine with no display ----------------------------------------
+//
+// Both need a window and an OpenGL context, but neither needs a GPU. Mesa's
+// llvmpipe renders in software and is quite fast enough for a harness that
+// never looks at a frame:
+//
+//   LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
+//     xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runSmokeWorld
+//
+// Without that, GLFW fails at init with "Failed to detect any supported
+// platform" and the run reads as a mod crash rather than as a missing display.
 //
 loom {
     runs {

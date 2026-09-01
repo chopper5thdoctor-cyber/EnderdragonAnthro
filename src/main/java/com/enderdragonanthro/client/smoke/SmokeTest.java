@@ -118,7 +118,16 @@ public final class SmokeTest {
                     step);
         }
         if (client.level == null) {
-            if (client.screen == null || ++ticks < SETTLE) {
+            // The overlay, not the timer, is what says the resources are in.
+            // Minecraft puts the title screen up FIRST and the loading overlay
+            // over the top of it, so `screen != null` is true from very early
+            // on and the five-second settle was racing the reload rather than
+            // waiting for it. On a real GPU the reload wins and the harness
+            // never noticed; under software rendering it does not, and hearts()
+            // asked the GUI atlas for a sprite before the atlas existed --
+            // "Tried to lookup sprite, but atlas is not initialized", which
+            // reads as a bug in the mod and is a bug in the harness.
+            if (client.getOverlay() != null || client.screen == null || ++ticks < SETTLE) {
                 return;
             }
             if (!asked) {
@@ -310,8 +319,27 @@ public final class SmokeTest {
         client.setScreen(new InventoryScreen(client.player));
         boolean found = client.screen != null && client.screen.children().stream()
                 .anyMatch(child -> child instanceof PickupButton);
+        // KNOWN GAP, and the reason this fails rather than being made to pass:
+        // InventoryScreen.init() in creative mode does not build an inventory
+        // screen at all, it calls setScreen(new CreativeModeInventoryScreen)
+        // and returns. InventoryPickupMixin targets InventoryScreen, so in
+        // creative there is no pick-up switch anywhere. In survival there is,
+        // which is why this was never noticed by playing.
+        //
+        // The harness makes its world CREATIVE, so this check is currently a
+        // true report about creative and not about the mixin. Turning it green
+        // needs a decision -- either put the switch on the creative screen too,
+        // or make the smoke world survival -- and neither is the harness's to
+        // make. A target nobody exercised is not a pass.
+        String screen = client.screen == null ? "none"
+                : client.screen.getClass().getSimpleName();
         check("the pick-up switch is on the inventory", found,
-                "opened the inventory in dragon form and found no PickupButton");
+                "opened the inventory in dragon form and got " + screen
+                + " with no PickupButton"
+                + (screen.startsWith("CreativeMode")
+                        ? " -- creative swaps the screen, and the mixin only"
+                          + " covers InventoryScreen"
+                        : ""));
         client.setScreen(null);
     }
 
