@@ -399,35 +399,42 @@ not reshuffle what you kept.
 
 ## prune_test_builds.bat
 
-Windows. Keeps the newest downloaded test build and deletes the older ones, so a
-mods folder does not fill up with every push you have ever tried.
+Windows. Clears old downloads of the mod out of `Downloads`, so testing every
+push does not leave a stack of them behind. Testing a push means downloading the
+pack **and** unzipping it, so it removes both kinds: the `.zip` files and the
+extracted folders beside them.
 
 ```bat
-prune_test_builds.bat              ask before deleting
-prune_test_builds.bat /y           do not ask
+prune_test_builds.bat              list, then ask before removing
 prune_test_builds.bat /list        show what it would do, change nothing
+prune_test_builds.bat /y           do not ask
+prune_test_builds.bat /keep:0      remove all of them, newest included
 prune_test_builds.bat /keep:3      leave the three newest
-prune_test_builds.bat D:\mc\mods   that folder rather than its own
+prune_test_builds.bat D:\stuff     somewhere other than Downloads
 ```
 
-Drop it in the folder you download into and double-click it.
+Double-click it, or run it from anywhere — it goes to `%USERPROFILE%\Downloads`
+on its own.
 
-**Newest is decided by timestamp, never by name.** Builds arrive as `mod.jar`,
-then `mod (1).jar` from a browser that will not overwrite, or as
-`mod-a1b2c3d.jar` and `mod-180.jar` when the name carries the commit. Sorting by
-name gets all three wrong differently: `(2)` sorts after `(10)`, a sha does not
-order at all, and a re-download of an older build can land as `(7)`.
+**Run it with `/list` first.** It removes folders with `rd /s /q`, which does not
+go to the Recycle Bin.
 
-Two things it is careful about:
+**Zips and folders are counted separately**, so `/keep:1` leaves the newest zip
+*and* the newest unzipped copy, rather than whichever of the two happened to be
+touched last.
 
-- **Only `PATTERN`, minus `EXCLUDE`.** Other mods in the folder are invisible to
-  it. `EXCLUDE` defaults to `-sources`, because the build produces a sources jar
-  beside the mod jar and it would otherwise be deleted as an older copy.
-- **The survivor is renamed back to the clean name.** The first download is the
-  one without a `(n)`, so it is also the oldest and the first to go — without the
-  rename you would be left holding `mod (3).jar`, then `mod (7).jar`, with the
-  number climbing forever.
+**Newest is decided by timestamp, never by name.** Downloads arrive as
+`pack.zip`, then `pack (1).zip` from a browser that will not overwrite, or as
+`pack-a1b2c3d.zip` when the name carries the commit. Sorting by name gets all
+three wrong differently: `(2)` sorts after `(10)`, a sha does not order at all,
+and re-downloading an older build can land it as `(7)`.
 
-`/bygroup` switches from "every match is one family" to "group by name up to the
-first `(`", for a folder that legitimately holds several artifacts you all want
-to keep.
+What it will not touch: anything whose name does not match `PATTERN`
+(`*enderdragonanthro*`). The tax return, the photos, the installers are all
+invisible to it. It also refuses to run at all if `PATTERN` has been widened to
+`*` or `*.*` — "everything in Downloads, recursive, no Recycle Bin" is not a
+mistake worth making twice.
+
+Not run from this repo: there is no `cmd.exe` here. The **algorithm** was checked
+against a synthetic Downloads folder holding zips, matching extracted folders and
+unrelated files; the **batch syntax** is reviewed, not executed.
