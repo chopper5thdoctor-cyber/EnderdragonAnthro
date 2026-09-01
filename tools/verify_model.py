@@ -527,6 +527,67 @@ def check_hearts():
         print(out.stdout + out.stderr)
         sys.exit("FAIL: the heart sprites do not match their derivation rules")
     print("PASS: every derived heart matches the sprite it comes from")
+    check_world_state()
+
+
+#: Live per-player state, in the shape it is always written in.
+_STATIC_STATE = re.compile(
+    r"private static final (?:Map|Set|List)<[^;=]*>\s+([A-Z_0-9]+)\s*=\s*new ")
+
+#: Where the mod keeps that state. Anything under here is server-side and dies
+#: with the world; the client packages are per-connection and reset themselves.
+_STATE_ROOTS = ("ability", "transform", "boss", "block", "item", "command")
+
+
+def check_world_state():
+    """A static map is per process, not per world, and nothing else says so.
+
+    Singleplayer runs the server inside the client, so a static map filled while
+    you played one save is still full when you open the next one. That is how
+    Vaelle came to hold slot 0 in a world she had never been in: the court was a
+    static map, the second save asked for a free slot, and it was told there was
+    only one left.
+
+    The class of bug is invisible from the compiler, invisible in review, and
+    invisible in play unless somebody opens two saves in one sitting. So the
+    shape is checked instead: any class holding live per-player state has to
+    have a forgetWorld(), and ServerMemory has to call it. Adding a map without
+    a way to drop it fails here rather than in a bug report.
+
+    Excluded on purpose: constants (Map.of and friends do not match, since they
+    are not `new`), and anything under client/, which is torn down with the
+    connection.
+    """
+    memory = os.path.join(HERE, "src/main/java/com/enderdragonanthro/ServerMemory.java")
+    with open(memory) as fh:
+        coordinator = fh.read()
+
+    unswept, uncalled = [], []
+    for root in _STATE_ROOTS:
+        folder = os.path.join(HERE, "src/main/java/com/enderdragonanthro", root)
+        for path in sorted(glob.glob(os.path.join(folder, "**/*.java"), recursive=True)):
+            with open(path) as fh:
+                text = fh.read()
+            held = _STATIC_STATE.findall(text)
+            if not held:
+                continue
+            name = os.path.basename(path)[:-5]
+            rel = os.path.relpath(path, HERE)
+            if "static void forgetWorld()" not in text:
+                # DragonMinions keeps its own pair, because its state is the one
+                # piece that is written down rather than dropped.
+                if not ("static void forget()" in text and "static void load(" in text):
+                    unswept.append(f"{rel} holds {', '.join(held)} and has no forgetWorld()")
+                    continue
+            if name + "." not in coordinator:
+                uncalled.append(f"{rel} has a forgetWorld() that ServerMemory never calls")
+
+    if unswept or uncalled:
+        print("FAIL: state that outlives the world it belongs to")
+        for line in unswept + uncalled:
+            print("  " + line)
+        sys.exit(1)
+    print("PASS: every holder of live state is dropped when the world closes")
 
 
 if __name__ == "__main__":

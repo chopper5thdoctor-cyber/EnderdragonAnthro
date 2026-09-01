@@ -264,6 +264,86 @@ public final class DragonMinions {
     private DragonMinions() {
     }
 
+    // ------------------------------------------------------- between worlds
+
+    /**
+     * Forget everything held in memory. The world keeps its own copy.
+     *
+     * Singleplayer runs the server inside the client, so these maps outlive the
+     * world they were filled from: quit to the title screen, load a different
+     * save, and slot 0 was still Vaelle's in a world Vaelle has never been in.
+     * The next summon read the roll as "one taken" and gave you Keshanne.
+     *
+     * Called on the way in as well as on the way out. On the way out is the
+     * fix; on the way in is because a crash never gets to run the way out, and
+     * the state that survives a crash is exactly the state nobody tests.
+     */
+    public static void forget() {
+        COURT.clear();
+        SELECTED.clear();
+        GRUDGES.clear();
+        STRIKES.clear();
+    }
+
+    /** Read the roll back out of the save that owns it. */
+    public static void load(MinecraftServer server) {
+        forget();
+        for (Map.Entry<UUID, List<CourtMemory.Seat>> entry
+                : CourtMemory.of(server).everyCourt().entrySet()) {
+            List<Shade> court = new ArrayList<>();
+            for (CourtMemory.Seat seat : entry.getValue()) {
+                if (seat.slot() < 0 || seat.slot() >= MAX_PER_PLAYER) {
+                    continue;
+                }
+                Shade shade = new Shade();
+                shade.slot = seat.slot();
+                shade.entity = seat.entity();
+                shade.dimension = seat.dimension();
+                shade.lastPos = seat.lastPos();
+                if (seat.order() != null) {
+                    for (Order order : Order.values()) {
+                        if (order.name().equals(seat.order())) {
+                            shade.order = order;
+                            break;
+                        }
+                    }
+                }
+                if (seat.wanted() != null) {
+                    ResourceLocation what = ResourceLocation.tryParse(seat.wanted());
+                    if (what != null && BuiltInRegistries.BLOCK.containsKey(what)) {
+                        shade.wanted = BuiltInRegistries.BLOCK.get(what);
+                    }
+                }
+                court.add(shade);
+            }
+            if (!court.isEmpty()) {
+                COURT.put(entry.getKey(), court);
+            }
+        }
+    }
+
+    /**
+     * Write the roll back down, for every court we are holding.
+     *
+     * On a pulse and on shutdown rather than from each place that changes the
+     * roll: there are a dozen of those, and the next one added would not have
+     * been given a save call. {@code CourtMemory.remember} compares before it
+     * writes, so a court standing still costs one list comparison.
+     */
+    public static void save(MinecraftServer server) {
+        CourtMemory memory = CourtMemory.of(server);
+        for (Map.Entry<UUID, List<Shade>> entry : COURT.entrySet()) {
+            List<CourtMemory.Seat> seats = new ArrayList<>();
+            for (Shade shade : entry.getValue()) {
+                seats.add(new CourtMemory.Seat(shade.slot, shade.entity, shade.dimension,
+                        shade.lastPos, shade.order == null ? null : shade.order.name(),
+                        shade.wanted == null ? null
+                                : BuiltInRegistries.BLOCK.getKey(shade.wanted).toString()));
+            }
+            memory.remember(entry.getKey(), seats);
+        }
+    }
+
     // ---------------------------------------------------------------- summon
 
     public static void summon(ServerPlayer owner) {
@@ -1019,7 +1099,19 @@ public final class DragonMinions {
 
     // ------------------------------------------------------------------ tick
 
+    /**
+     * How often the roll is written down.
+     *
+     * Five seconds, not every tick: the only thing it protects against is a
+     * crash between now and shutdown, and five seconds of a shade's walk is not
+     * worth a comparison sixty times a second.
+     */
+    private static final int SAVE_PULSE = 100;
+
     public static void tick(MinecraftServer server) {
+        if (server.getTickCount() % SAVE_PULSE == 0) {
+            save(server);
+        }
         for (ServerPlayer owner : server.getPlayerList().getPlayers()) {
             List<Shade> court = COURT.get(owner.getUUID());
             if (court == null || court.isEmpty()) {

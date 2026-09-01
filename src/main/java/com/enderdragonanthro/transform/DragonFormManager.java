@@ -211,6 +211,17 @@ public final class DragonFormManager {
     private static final int AMBIENT_EVERY = 3;
     private static final Map<UUID, Long> LAST_BURST = new HashMap<>();
 
+    /**
+     * Drop everything held for a world that is no longer loaded.
+     *
+     * See {@link com.enderdragonanthro.ServerMemory}: these maps are static, and
+     * static is per process rather than per world. Singleplayer runs the server
+     * inside the client, so without this they carry into the next save you open.
+     */
+    public static void forgetWorld() {
+        LAST_BURST.clear();
+    }
+
     public static void tick(MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (!isDragon(player)) {

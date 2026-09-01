@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Pose;
@@ -358,6 +359,52 @@ public class DragonGameTests implements FabricGameTest {
             helper.fail("her name is drawn in " + colour + ", not #"
                     + String.format("%06X", ShadeIdentity.TINT_RGB[0])
                     + " which is what she is painted");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Closing a world empties the court, and opening one fills it from the save.
+     *
+     * The reported bug: play one save, summon, quit to the title screen, open a
+     * different save, summon again -- and the second world hands you Keshanne,
+     * because slot 0 is still spoken for by a Vaelle standing in the first one.
+     * Singleplayer runs the server inside the client, so the static map that
+     * holds the court outlived the world that filled it.
+     *
+     * Both halves are asserted here, because either alone is a different bug.
+     * Only clearing would lose your court on every relog and let the next summon
+     * put a second Vaelle beside the first. Only saving would fix nothing.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void aCourtBelongsToOneSave(GameTestHelper helper) {
+        floor(helper, 8);
+        FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(1, 1, 1));
+        DragonMinions.summon(dragon);
+        if (DragonMinions.roster(dragon).size() != 1) {
+            helper.fail("nobody was summoned, so there is nothing to carry across");
+        }
+
+        // Shutting down: write the roll into this world, then let go of it.
+        MinecraftServer server = helper.getLevel().getServer();
+        DragonMinions.save(server);
+        DragonMinions.forget();
+        if (!DragonMinions.roster(dragon).isEmpty()) {
+            helper.fail("the court survived the world closing; open another save"
+                    + " and slot 0 is still taken by a shade who is not in it");
+        }
+
+        // Opening it again: the same world, so the same court.
+        DragonMinions.load(server);
+        var back = DragonMinions.roster(dragon);
+        if (back.size() != 1) {
+            helper.fail("the court did not come back with the save: " + back.size()
+                    + " row(s). Summoning now would put a second one of her in"
+                    + " the world beside the first");
+        }
+        if (back.get(0).slot() != 0) {
+            helper.fail("she came back in slot " + back.get(0).slot()
+                    + " rather than the one she was summoned into");
         }
         helper.succeed();
     }

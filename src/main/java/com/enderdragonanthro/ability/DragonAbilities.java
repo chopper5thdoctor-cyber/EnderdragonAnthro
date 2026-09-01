@@ -51,6 +51,20 @@ public final class DragonAbilities {
     /** How wide the jet counts as, for what it catches. */
     private static final double JET_RADIUS = 1.5;
     private static final List<Jet> JETS = new ArrayList<>();
+
+    /**
+     * Drop everything held for a world that is no longer loaded.
+     *
+     * See {@link com.enderdragonanthro.ServerMemory}: these maps are static, and
+     * static is per process rather than per world. Singleplayer runs the server
+     * inside the client, so without this they carry into the next save you open.
+     */
+    public static void forgetWorld() {
+        COOLDOWNS.clear();
+        ACTIVE_CHARGES.clear();
+        JETS.clear();
+        LAST_CRATER.clear();
+    }
     /** Evasive jump always lands at least this far away. */
     private static final double EVADE_MIN_DISTANCE = 1000.0;
     /** Player warp only considers people beyond this. */

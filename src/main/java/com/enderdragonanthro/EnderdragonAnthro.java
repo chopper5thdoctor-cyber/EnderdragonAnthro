@@ -85,6 +85,21 @@ public class EnderdragonAnthro implements ModInitializer {
                 DragonMinions.applyOrder(context.player(), payload.slot(),
                         payload.order(), payload.quarry()));
 
+        // Static state is per process, and singleplayer runs the server inside a
+        // client that outlives it — so without these two the last save you
+        // played is still in memory when you open the next one. ServerMemory
+        // says what that cost, in detail; the short version is that Vaelle held
+        // slot 0 in a world she had never been in.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STARTED
+                .register(ServerMemory::enterWorld);
+        // STOPPING writes, STOPPED drops. The order matters: by STOPPED the
+        // levels are already saved and closed, so marking one dirty there marks
+        // a world nobody is going to write again.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING
+                .register(ServerMemory::leavingWorld);
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED
+                .register(ServerMemory::forgetWorld);
+
         // Reapply the (transient) attribute modifiers and boss bar when a saved dragon logs in
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             DragonFormManager.onJoin(handler.getPlayer());

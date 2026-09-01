@@ -28,6 +28,17 @@ import java.util.UUID;
 public final class DragonPickup {
     private static final Set<UUID> STOOPS_NOT = new HashSet<>();
 
+    /**
+     * Drop everything held for a world that is no longer loaded.
+     *
+     * See {@link com.enderdragonanthro.ServerMemory}: these maps are static, and
+     * static is per process rather than per world. Singleplayer runs the server
+     * inside the client, so without this they carry into the next save you open.
+     */
+    public static void forgetWorld() {
+        STOOPS_NOT.clear();
+    }
+
     private DragonPickup() {
     }
 

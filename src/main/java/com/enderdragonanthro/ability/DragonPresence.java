@@ -60,6 +60,17 @@ public final class DragonPresence {
 
     private static final Map<UUID, Long> PROVOKED = new HashMap<>();
 
+    /**
+     * Drop everything held for a world that is no longer loaded.
+     *
+     * See {@link com.enderdragonanthro.ServerMemory}: these maps are static, and
+     * static is per process rather than per world. Singleplayer runs the server
+     * inside the client, so without this they carry into the next save you open.
+     */
+    public static void forgetWorld() {
+        PROVOKED.clear();
+    }
+
     private DragonPresence() {
     }
 

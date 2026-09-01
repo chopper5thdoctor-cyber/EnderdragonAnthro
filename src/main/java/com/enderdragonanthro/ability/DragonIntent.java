@@ -162,6 +162,17 @@ public enum DragonIntent {
 
     private static final Map<UUID, DragonIntent> HELD = new HashMap<>();
 
+    /**
+     * Drop everything held for a world that is no longer loaded.
+     *
+     * See {@link com.enderdragonanthro.ServerMemory}: these maps are static, and
+     * static is per process rather than per world. Singleplayer runs the server
+     * inside the client, so without this they carry into the next save you open.
+     */
+    public static void forgetWorld() {
+        HELD.clear();
+    }
+
     public static DragonIntent of(Player player) {
         return HELD.getOrDefault(player.getUUID(), DEFAULT);
     }

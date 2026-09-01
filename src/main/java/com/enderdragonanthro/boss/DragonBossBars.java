@@ -20,6 +20,25 @@ public final class DragonBossBars {
     private static final double VIEW_RANGE = 96.0;
     private static final Map<UUID, ServerBossEvent> BARS = new HashMap<>();
 
+    /**
+     * Drop everything held for a world that is no longer loaded.
+     *
+     * See {@link com.enderdragonanthro.ServerMemory}: these maps are static, and
+     * static is per process rather than per world. Singleplayer runs the server
+     * inside the client, so without this they carry into the next save you open.
+     *
+     * A bar is emptied before it is dropped. A {@code ServerBossEvent} holds the
+     * players it is shown to, and those are players of a world that is closing;
+     * letting the map go without clearing them keeps the whole player list
+     * reachable from a static field for as long as the game runs.
+     */
+    public static void forgetWorld() {
+        for (ServerBossEvent bar : BARS.values()) {
+            bar.removeAllPlayers();
+        }
+        BARS.clear();
+    }
+
     private DragonBossBars() {
     }
 
