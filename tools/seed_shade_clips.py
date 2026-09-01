@@ -68,22 +68,64 @@ def bb(x=0.0, y=0.0, z=0.0):
     return [f"{-deg(x):.4f}", f"{deg(y):.4f}", f"{-deg(z):.4f}"]
 
 
+def up(units):
+    """A vertical offset, in the units and the direction the animator sees.
+
+    Blockbench counts y upward and the converter flips it, so this is written
+    the way it looks in the editor: positive is up.
+    """
+    return ["0", f"{units:.4f}", "0"]
+
+
 # --------------------------------------------------------------------- clips
 
 def idle(t):
-    """HumanoidModel's ambient sway, at the slower of its two periods.
+    """Standing: breathing, and shifting her weight.
 
-    rightArm.zRot = cos(age*0.09)*0.05 + 0.05, mirrored on the left, plus a
-    smaller x wobble. The enderman halves every arm x before it draws, so the
-    x term is halved here and the z term is not -- EndermanModel does not touch
-    z at all.
+    Deliberately plain -- this is the neutral one. It is what a shade nobody
+    has animated yet stands in, and what the next one starts from.
+
+    ## Why it is not vanilla's any more
+
+    It used to be HumanoidModel's ambient sway and nothing else: two arms, a
+    z-swing of three degrees, no body and no breath. On a vanilla enderman that
+    is enough, because an enderman is a stick figure that mostly stands in the
+    dark. On a four-block figure standing next to you in daylight it reads as a
+    statue with a twitch, which is what got reported.
+
+    ## What is in it
+
+    A breath on the loop's own period, lifting rather than centring -- she
+    never sinks below her standing height, so the feet stay planted and the
+    stance height is still the one the foot-plane check pins. Head and arms
+    take the same lift, because in this rig they hang off the root beside the
+    body rather than under it; bobbing the body alone pulls her apart at the
+    shoulders and the neck.
+
+    A weight shift a quarter-cycle out from the breath, so the two do not stack
+    into one pulse and the figure never quite repeats.
+
+    The arms keep swinging on their own clock, twice per loop, because an idle
+    whose every part shares one period reads as a machine.
+
+    Nothing touches the head's ROTATION, and that is load-bearing: play()
+    overwrites what it keys, so a head keyed here would throw away the vanilla
+    head tracking underneath and she would stop looking at you. Nothing touches
+    the legs either -- planted is the point.
     """
-    age = t * (2.0 * math.pi / 0.09)          # one full z-sway
+    turn = t * 2.0 * math.pi
+    breath = math.sin(turn)
+    shift = math.cos(turn)                      # a quarter-cycle behind
+    sway = math.sin(turn * 2.0)                 # the arms, on their own
+    lift = 0.5 + 0.5 * breath                   # 0..1 unit, never below rest
     return {
-        "right_arm": bb(x=math.sin(age * 0.067 / 0.09) * 0.05 * 0.5,
-                        z=math.cos(age * 0.09) * 0.05 + 0.05),
-        "left_arm": bb(x=-math.sin(age * 0.067 / 0.09) * 0.05 * 0.5,
-                       z=-(math.cos(age * 0.09) * 0.05 + 0.05)),
+        "body": {"rotation": bb(x=-0.020 * breath, z=0.015 * shift),
+                 "position": up(lift)},
+        "head": {"position": up(lift)},
+        "right_arm": {"rotation": bb(x=0.030 * sway, z=0.060 + 0.020 * breath),
+                      "position": up(lift)},
+        "left_arm": {"rotation": bb(x=-0.030 * sway, z=-0.060 - 0.020 * breath),
+                     "position": up(lift)},
     }
 
 
@@ -97,10 +139,10 @@ def walk(t):
     p = t * 2.0 * math.pi
     clamp = lambda v: max(-0.4, min(0.4, v))
     return {
-        "right_arm": bb(x=clamp(math.cos(p + math.pi) * 2.0 * 0.5 * 0.5)),
-        "left_arm": bb(x=clamp(math.cos(p) * 2.0 * 0.5 * 0.5)),
-        "right_leg": bb(x=math.cos(p) * 1.4 * 0.5),
-        "left_leg": bb(x=math.cos(p + math.pi) * 1.4 * 0.5),
+        "right_arm": {"rotation": bb(x=clamp(math.cos(p + math.pi) * 2.0 * 0.5 * 0.5))},
+        "left_arm": {"rotation": bb(x=clamp(math.cos(p) * 2.0 * 0.5 * 0.5))},
+        "right_leg": {"rotation": bb(x=math.cos(p) * 1.4 * 0.5)},
+        "left_leg": {"rotation": bb(x=math.cos(p + math.pi) * 1.4 * 0.5)},
     }
 
 
@@ -113,8 +155,8 @@ def carry(t):
     """
     breathe = math.sin(t * 2.0 * math.pi) * 0.04
     return {
-        "right_arm": bb(x=-math.pi / 10.0 + breathe, z=0.12),
-        "left_arm": bb(x=-math.pi / 10.0 + breathe, z=-0.12),
+        "right_arm": {"rotation": bb(x=-math.pi / 10.0 + breathe, z=0.12)},
+        "left_arm": {"rotation": bb(x=-math.pi / 10.0 + breathe, z=-0.12)},
     }
 
 
@@ -127,9 +169,9 @@ def angry(t):
     """
     shake = math.sin(t * 2.0 * math.pi * 3.0) * 0.06
     return {
-        "head": bb(x=-0.15),
-        "right_arm": bb(x=-0.4 + shake, z=0.22),
-        "left_arm": bb(x=-0.4 - shake, z=-0.22),
+        "head": {"rotation": bb(x=-0.15)},
+        "right_arm": {"rotation": bb(x=-0.4 + shake, z=0.22)},
+        "left_arm": {"rotation": bb(x=-0.4 - shake, z=-0.22)},
     }
 
 
@@ -141,10 +183,10 @@ def pet(t):
     """
     bow = (1.0 - math.cos(t * 2.0 * math.pi)) * 0.5      # 0 -> 1 -> 0
     return {
-        "head": bb(x=0.45 * bow, y=0.20 * bow),
-        "body": bb(x=0.10 * bow),
-        "right_arm": bb(x=-0.25 * bow, z=0.30 * bow),
-        "left_arm": bb(x=-0.25 * bow, z=-0.30 * bow),
+        "head": {"rotation": bb(x=0.45 * bow, y=0.20 * bow)},
+        "body": {"rotation": bb(x=0.10 * bow)},
+        "right_arm": {"rotation": bb(x=-0.25 * bow, z=0.30 * bow)},
+        "left_arm": {"rotation": bb(x=-0.25 * bow, z=-0.30 * bow)},
     }
 
 
@@ -159,22 +201,28 @@ CLIPS = {
 
 
 def animation(name, fn, ticks, loops):
-    """One Blockbench animation, keyed at KEYS evenly spaced points."""
+    """One Blockbench animation, keyed at KEYS evenly spaced points.
+
+    A clip function answers {bone: {channel: [x, y, z]}}. Both channels are
+    real: rotation and position bake into different rows of the same table and
+    the model plays both.
+    """
     animators = {}
     for step in range(KEYS):
         t = step / KEYS
         at = round(t * ticks / 20.0, 4)                  # Blockbench works in seconds
-        for bone, value in fn(t).items():
+        for bone, channels in fn(t).items():
             slot = animators.setdefault(bone, {"name": bone, "type": "bone",
                                                "keyframes": []})
-            slot["keyframes"].append({
-                "channel": "rotation",
-                "data_points": [{"x": value[0], "y": value[1], "z": value[2]}],
-                "uuid": f"{name}-{bone}-{step}",
-                "time": at,
-                "color": -1,
-                "interpolation": "catmullrom",
-            })
+            for channel, value in channels.items():
+                slot["keyframes"].append({
+                    "channel": channel,
+                    "data_points": [{"x": value[0], "y": value[1], "z": value[2]}],
+                    "uuid": f"{name}-{bone}-{channel}-{step}",
+                    "time": at,
+                    "color": -1,
+                    "interpolation": "catmullrom",
+                })
     return {
         "uuid": f"shade-clip-{name}",
         "name": name,
@@ -191,7 +239,16 @@ def animation(name, fn, ticks, loops):
     }
 
 
-def main(path):
+def main(path, only=None):
+    """Write the clips into the rig, replacing only the ones named.
+
+    `only` is the safety catch and the reason this is still runnable. The rig is
+    the source of truth now and holds hand-drawn work -- vaelle.idle and the
+    rest of her set -- so a bare re-run that rewrote `animations` wholesale
+    would delete it. Anything not named is copied through untouched, and an
+    animation the rig has that this tool does not know about (every per-shade
+    override) is never a candidate in the first place.
+    """
     with open(path) as f:
         model = json.load(f)
 
@@ -201,14 +258,36 @@ def main(path):
         sys.exit(f"ERROR: the rig has no bone named {missing}; "
                  "animations key off bone names and would land nowhere")
 
-    model["animations"] = [animation(name, *spec) for name, spec in CLIPS.items()]
+    wanted = list(CLIPS) if only is None else list(only)
+    unknown = [name for name in wanted if name not in CLIPS]
+    if unknown:
+        sys.exit(f"ERROR: no clip called {unknown}; this tool knows "
+                 + ", ".join(CLIPS))
+
+    existing = model.get("animations", [])
+    kept = [a for a in existing if a.get("name") not in wanted]
+    fresh = [animation(name, *CLIPS[name]) for name in wanted]
+    # In the rig's order where they already existed, so opening it after a
+    # re-seed does not shuffle the animation list under the artist.
+    order = {a.get("name"): i for i, a in enumerate(existing)}
+    model["animations"] = sorted(
+        kept + fresh, key=lambda a: order.get(a["name"], len(existing)))
     with open(path, "w") as f:
         json.dump(model, f, indent=2)
 
-    print(f"seeded {len(CLIPS)} animations into {os.path.relpath(path, HERE)}:")
-    for name, (_, ticks, loops) in CLIPS.items():
+    print(f"wrote {len(fresh)} animation(s) into {os.path.relpath(path, HERE)}:")
+    for name in wanted:
+        _, ticks, loops = CLIPS[name]
         print(f"  {name:6s} {ticks:3d} ticks  {'loop' if loops else 'once'}")
+    if kept:
+        print(f"left alone: {', '.join(a.get('name', '?') for a in kept)}")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else RIG)
+    args = sys.argv[1:]
+    picked = None
+    if "--only" in args:
+        at = args.index("--only")
+        picked = args[at + 1].split(",")
+        args = args[:at] + args[at + 2:]
+    main(args[0] if args else RIG, picked)

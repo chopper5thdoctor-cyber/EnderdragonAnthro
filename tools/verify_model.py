@@ -527,7 +527,50 @@ def check_hearts():
         print(out.stdout + out.stderr)
         sys.exit("FAIL: the heart sprites do not match their derivation rules")
     print("PASS: every derived heart matches the sprite it comes from")
+    check_clip_channels()
     check_world_state()
+
+
+#: Every generated model, and what plays its clips.
+_CLIP_PLAYERS = ("src/main/java/com/enderdragonanthro/client/model/ShadeModel.java",
+                 "src/main/java/com/enderdragonanthro/client/model/DragonFormModel.java")
+
+
+def check_clip_channels():
+    """Everything the bake writes has to be something the model reads.
+
+    A clip bakes six rows per bone -- rotation x/y/z then position x/y/z -- and
+    ShadeModel.play read the first three and stopped. Position keyframes were
+    converted, written into the file, shipped, and dropped on the floor at draw
+    time. Every position key ever drawn on a shade did nothing: the whole of
+    the breath in vaelle.idle, silently, for as long as the class existed.
+
+    Nothing could have caught that downstream. The tables were right, the
+    converter was right, verify_model compared the geometry and agreed, and the
+    only symptom was an animation that looked like it had not been saved.
+
+    So: a file that plays clips has to touch all six offsets, either by naming
+    them or by looping over them.
+    """
+    for rel in _CLIP_PLAYERS:
+        path = os.path.join(HERE, rel)
+        with open(path) as fh:
+            text = fh.read()
+        if re.search(r"for \(int k = 0; k < 6; k\+\+\)", text):
+            continue                     # loops the lot; nothing to miss
+        seen = {0} if re.search(r"\[b \* 6\]", text) else set()
+        seen.update(int(m) for m in re.findall(r"\[b \* 6 \+ (\d)\]", text))
+        missing = sorted({0, 1, 2, 3, 4, 5} - seen)
+        if missing:
+            rows = ["rotation.x", "rotation.y", "rotation.z",
+                    "position.x", "position.y", "position.z"]
+            print(f"FAIL: {rel} bakes six rows per bone and plays "
+                  f"{len(seen)} of them")
+            for row in missing:
+                print(f"  row {row} ({rows[row]}) is written by the converter "
+                      "and never read")
+            sys.exit(1)
+    print(f"PASS: all {len(_CLIP_PLAYERS)} clip players read every row they are given")
 
 
 #: Live per-player state, in the shape it is always written in.

@@ -6476,6 +6476,522 @@
       "start_delay": "",
       "loop_delay": "",
       "animators": {
+        "body": {
+          "name": "body",
+          "type": "bone",
+          "keyframes": [
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0.0000",
+                  "y": "0.0000",
+                  "z": "-0.8594"
+                }
+              ],
+              "uuid": "idle-body-rotation-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.5000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0.5730",
+                  "y": "0.0000",
+                  "z": "-0.7443"
+                }
+              ],
+              "uuid": "idle-body-rotation-1",
+              "time": 0.2917,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.7500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-1",
+              "time": 0.2917,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0.9924",
+                  "y": "0.0000",
+                  "z": "-0.4297"
+                }
+              ],
+              "uuid": "idle-body-rotation-2",
+              "time": 0.5833,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.9330",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-2",
+              "time": 0.5833,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "1.1459",
+                  "y": "0.0000",
+                  "z": "-0.0000"
+                }
+              ],
+              "uuid": "idle-body-rotation-3",
+              "time": 0.875,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "1.0000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-3",
+              "time": 0.875,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0.9924",
+                  "y": "0.0000",
+                  "z": "0.4297"
+                }
+              ],
+              "uuid": "idle-body-rotation-4",
+              "time": 1.1667,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.9330",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-4",
+              "time": 1.1667,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0.5730",
+                  "y": "0.0000",
+                  "z": "0.7443"
+                }
+              ],
+              "uuid": "idle-body-rotation-5",
+              "time": 1.4583,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.7500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-5",
+              "time": 1.4583,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0.0000",
+                  "y": "0.0000",
+                  "z": "0.8594"
+                }
+              ],
+              "uuid": "idle-body-rotation-6",
+              "time": 1.75,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.5000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-6",
+              "time": 1.75,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "-0.5730",
+                  "y": "0.0000",
+                  "z": "0.7443"
+                }
+              ],
+              "uuid": "idle-body-rotation-7",
+              "time": 2.0417,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.2500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-7",
+              "time": 2.0417,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "-0.9924",
+                  "y": "0.0000",
+                  "z": "0.4297"
+                }
+              ],
+              "uuid": "idle-body-rotation-8",
+              "time": 2.3333,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0670",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-8",
+              "time": 2.3333,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "-1.1459",
+                  "y": "0.0000",
+                  "z": "0.0000"
+                }
+              ],
+              "uuid": "idle-body-rotation-9",
+              "time": 2.625,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-9",
+              "time": 2.625,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "-0.9924",
+                  "y": "0.0000",
+                  "z": "-0.4297"
+                }
+              ],
+              "uuid": "idle-body-rotation-10",
+              "time": 2.9167,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0670",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-10",
+              "time": 2.9167,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "-0.5730",
+                  "y": "0.0000",
+                  "z": "-0.7443"
+                }
+              ],
+              "uuid": "idle-body-rotation-11",
+              "time": 3.2083,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.2500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-body-position-11",
+              "time": 3.2083,
+              "color": -1,
+              "interpolation": "catmullrom"
+            }
+          ]
+        },
+        "head": {
+          "name": "head",
+          "type": "bone",
+          "keyframes": [
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.5000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.7500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-1",
+              "time": 0.2917,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.9330",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-2",
+              "time": 0.5833,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "1.0000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-3",
+              "time": 0.875,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.9330",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-4",
+              "time": 1.1667,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.7500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-5",
+              "time": 1.4583,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.5000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-6",
+              "time": 1.75,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.2500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-7",
+              "time": 2.0417,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0670",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-8",
+              "time": 2.3333,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-9",
+              "time": 2.625,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0670",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-10",
+              "time": 2.9167,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.2500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-head-position-11",
+              "time": 3.2083,
+              "color": -1,
+              "interpolation": "catmullrom"
+            }
+          ]
+        },
         "right_arm": {
           "name": "right_arm",
           "type": "bone",
@@ -6486,10 +7002,24 @@
                 {
                   "x": "-0.0000",
                   "y": "0.0000",
-                  "z": "-5.7296"
+                  "z": "-3.4377"
                 }
               ],
-              "uuid": "idle-right_arm-0",
+              "uuid": "idle-right_arm-rotation-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.5000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-0",
               "time": 0.0,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6498,12 +7028,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "1.3295",
+                  "x": "-1.4886",
                   "y": "0.0000",
-                  "z": "-5.3458"
+                  "z": "-4.0107"
                 }
               ],
-              "uuid": "idle-right_arm-1",
+              "uuid": "idle-right_arm-rotation-1",
+              "time": 0.2917,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.7500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-1",
               "time": 0.2917,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6512,12 +7056,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "-0.9897",
+                  "x": "-1.4886",
                   "y": "0.0000",
-                  "z": "-4.2972"
+                  "z": "-4.4301"
                 }
               ],
-              "uuid": "idle-right_arm-2",
+              "uuid": "idle-right_arm-rotation-2",
+              "time": 0.5833,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.9330",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-2",
               "time": 0.5833,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6526,12 +7084,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "-0.5927",
+                  "x": "-0.0000",
                   "y": "0.0000",
-                  "z": "-2.8648"
+                  "z": "-4.5837"
                 }
               ],
-              "uuid": "idle-right_arm-3",
+              "uuid": "idle-right_arm-rotation-3",
+              "time": 0.875,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "1.0000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-3",
               "time": 0.875,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6540,12 +7112,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "1.4309",
+                  "x": "1.4886",
                   "y": "0.0000",
-                  "z": "-1.4324"
+                  "z": "-4.4301"
                 }
               ],
-              "uuid": "idle-right_arm-4",
+              "uuid": "idle-right_arm-rotation-4",
+              "time": 1.1667,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.9330",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-4",
               "time": 1.1667,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6554,12 +7140,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "-0.4725",
+                  "x": "1.4886",
                   "y": "0.0000",
-                  "z": "-0.3838"
+                  "z": "-4.0107"
                 }
               ],
-              "uuid": "idle-right_arm-5",
+              "uuid": "idle-right_arm-rotation-5",
+              "time": 1.4583,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.7500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-5",
               "time": 1.4583,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6568,12 +7168,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "-1.0792",
+                  "x": "0.0000",
                   "y": "0.0000",
-                  "z": "-0.0000"
+                  "z": "-3.4377"
                 }
               ],
-              "uuid": "idle-right_arm-6",
+              "uuid": "idle-right_arm-rotation-6",
+              "time": 1.75,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.5000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-6",
               "time": 1.75,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6582,12 +7196,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "1.2759",
+                  "x": "-1.4886",
                   "y": "0.0000",
-                  "z": "-0.3838"
+                  "z": "-2.8648"
                 }
               ],
-              "uuid": "idle-right_arm-7",
+              "uuid": "idle-right_arm-rotation-7",
+              "time": 2.0417,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.2500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-7",
               "time": 2.0417,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6596,12 +7224,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "0.1295",
+                  "x": "-1.4886",
                   "y": "0.0000",
-                  "z": "-1.4324"
+                  "z": "-2.4454"
                 }
               ],
-              "uuid": "idle-right_arm-8",
+              "uuid": "idle-right_arm-rotation-8",
+              "time": 2.3333,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0670",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-8",
               "time": 2.3333,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6610,12 +7252,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "-1.3722",
+                  "x": "-0.0000",
                   "y": "0.0000",
-                  "z": "-2.8648"
+                  "z": "-2.2918"
                 }
               ],
-              "uuid": "idle-right_arm-9",
+              "uuid": "idle-right_arm-rotation-9",
+              "time": 2.625,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-9",
               "time": 2.625,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6624,12 +7280,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "0.8920",
+                  "x": "1.4886",
                   "y": "0.0000",
-                  "z": "-4.2972"
+                  "z": "-2.4454"
                 }
               ],
-              "uuid": "idle-right_arm-10",
+              "uuid": "idle-right_arm-rotation-10",
+              "time": 2.9167,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0670",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-10",
               "time": 2.9167,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6638,12 +7308,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "0.7082",
+                  "x": "1.4886",
                   "y": "0.0000",
-                  "z": "-5.3458"
+                  "z": "-2.8648"
                 }
               ],
-              "uuid": "idle-right_arm-11",
+              "uuid": "idle-right_arm-rotation-11",
+              "time": 3.2083,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.2500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-right_arm-position-11",
               "time": 3.2083,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6660,10 +7344,24 @@
                 {
                   "x": "0.0000",
                   "y": "0.0000",
-                  "z": "5.7296"
+                  "z": "3.4377"
                 }
               ],
-              "uuid": "idle-left_arm-0",
+              "uuid": "idle-left_arm-rotation-0",
+              "time": 0.0,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.5000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-0",
               "time": 0.0,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6672,12 +7370,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "-1.3295",
+                  "x": "1.4886",
                   "y": "0.0000",
-                  "z": "5.3458"
+                  "z": "4.0107"
                 }
               ],
-              "uuid": "idle-left_arm-1",
+              "uuid": "idle-left_arm-rotation-1",
+              "time": 0.2917,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.7500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-1",
               "time": 0.2917,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6686,12 +7398,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "0.9897",
+                  "x": "1.4886",
                   "y": "0.0000",
-                  "z": "4.2972"
+                  "z": "4.4301"
                 }
               ],
-              "uuid": "idle-left_arm-2",
+              "uuid": "idle-left_arm-rotation-2",
+              "time": 0.5833,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.9330",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-2",
               "time": 0.5833,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6700,12 +7426,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "0.5927",
+                  "x": "0.0000",
                   "y": "0.0000",
-                  "z": "2.8648"
+                  "z": "4.5837"
                 }
               ],
-              "uuid": "idle-left_arm-3",
+              "uuid": "idle-left_arm-rotation-3",
+              "time": 0.875,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "1.0000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-3",
               "time": 0.875,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6714,12 +7454,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "-1.4309",
+                  "x": "-1.4886",
                   "y": "0.0000",
-                  "z": "1.4324"
+                  "z": "4.4301"
                 }
               ],
-              "uuid": "idle-left_arm-4",
+              "uuid": "idle-left_arm-rotation-4",
+              "time": 1.1667,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.9330",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-4",
               "time": 1.1667,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6728,12 +7482,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "0.4725",
+                  "x": "-1.4886",
                   "y": "0.0000",
-                  "z": "0.3838"
+                  "z": "4.0107"
                 }
               ],
-              "uuid": "idle-left_arm-5",
+              "uuid": "idle-left_arm-rotation-5",
+              "time": 1.4583,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.7500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-5",
               "time": 1.4583,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6742,12 +7510,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "1.0792",
+                  "x": "-0.0000",
                   "y": "0.0000",
-                  "z": "0.0000"
+                  "z": "3.4377"
                 }
               ],
-              "uuid": "idle-left_arm-6",
+              "uuid": "idle-left_arm-rotation-6",
+              "time": 1.75,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.5000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-6",
               "time": 1.75,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6756,12 +7538,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "-1.2759",
+                  "x": "1.4886",
                   "y": "0.0000",
-                  "z": "0.3838"
+                  "z": "2.8648"
                 }
               ],
-              "uuid": "idle-left_arm-7",
+              "uuid": "idle-left_arm-rotation-7",
+              "time": 2.0417,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.2500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-7",
               "time": 2.0417,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6770,12 +7566,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "-0.1295",
+                  "x": "1.4886",
                   "y": "0.0000",
-                  "z": "1.4324"
+                  "z": "2.4454"
                 }
               ],
-              "uuid": "idle-left_arm-8",
+              "uuid": "idle-left_arm-rotation-8",
+              "time": 2.3333,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0670",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-8",
               "time": 2.3333,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6784,12 +7594,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "1.3722",
+                  "x": "0.0000",
                   "y": "0.0000",
-                  "z": "2.8648"
+                  "z": "2.2918"
                 }
               ],
-              "uuid": "idle-left_arm-9",
+              "uuid": "idle-left_arm-rotation-9",
+              "time": 2.625,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0000",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-9",
               "time": 2.625,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6798,12 +7622,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "-0.8920",
+                  "x": "-1.4886",
                   "y": "0.0000",
-                  "z": "4.2972"
+                  "z": "2.4454"
                 }
               ],
-              "uuid": "idle-left_arm-10",
+              "uuid": "idle-left_arm-rotation-10",
+              "time": 2.9167,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.0670",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-10",
               "time": 2.9167,
               "color": -1,
               "interpolation": "catmullrom"
@@ -6812,12 +7650,26 @@
               "channel": "rotation",
               "data_points": [
                 {
-                  "x": "-0.7082",
+                  "x": "-1.4886",
                   "y": "0.0000",
-                  "z": "5.3458"
+                  "z": "2.8648"
                 }
               ],
-              "uuid": "idle-left_arm-11",
+              "uuid": "idle-left_arm-rotation-11",
+              "time": 3.2083,
+              "color": -1,
+              "interpolation": "catmullrom"
+            },
+            {
+              "channel": "position",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0.2500",
+                  "z": "0"
+                }
+              ],
+              "uuid": "idle-left_arm-position-11",
               "time": 3.2083,
               "color": -1,
               "interpolation": "catmullrom"

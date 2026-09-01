@@ -234,9 +234,27 @@ public class ShadeModel {{
 
     private final ModelPart root;
 {fields}
+    /**
+     * Where every bone sits before anything animates it, x/y/z per bone.
+     *
+     * Taken once, from the layer definition, because a position track is a
+     * DELTA on the rest pose and there is nowhere else to read the rest pose
+     * from. Rotations do not need this: every bone in the rig rests at zero, so
+     * a keyed rotation is already an absolute angle.
+     */
+    private final float[] restPos;
+
     public ShadeModel(ModelPart root) {{
         this.root = root;
-{lookups}    }}
+{lookups}
+        ModelPart[] bones = bones();
+        this.restPos = new float[bones.length * 3];
+        for (int b = 0; b < bones.length; b++) {{
+            this.restPos[b * 3] = bones[b].x;
+            this.restPos[b * 3 + 1] = bones[b].y;
+            this.restPos[b * 3 + 2] = bones[b].z;
+        }}
+    }}
 
     public static LayerDefinition createBodyLayer() {{
         MeshDefinition mesh = new MeshDefinition();
@@ -263,6 +281,18 @@ public class ShadeModel {{
         // Anything else the artist added hangs off one of these six and rides
         // along; it is deliberately not driven from vanilla, which has no
         // opinion about a skirt.
+
+        // Positions back to rest, every frame, for the same reason the six
+        // rotations above are rewritten every frame: a clip has to start from
+        // somewhere fixed. Nothing else resets them -- vanilla never writes a
+        // position here -- so without this a breath keyed in the idle would
+        // stay wherever the last frame of it left the body, and stay there for
+        // as long as she walked.
+        ModelPart[] bones = bones();
+        for (int b = 0; b < bones.length; b++) {{
+            bones[b].setPos(this.restPos[b * 3], this.restPos[b * 3 + 1],
+                    this.restPos[b * 3 + 2]);
+        }}
     }}
 
     /**
@@ -305,8 +335,15 @@ public class ShadeModel {{
      * That is the difference between "the artist did not animate the head" and
      * "the artist wants the head at zero", and getting it the other way round
      * would throw away vanilla's head tracking the moment anyone drew a walk
-     * cycle. Every bone in this rig rests at zero, so a keyed value is both a
-     * delta and an absolute angle and the animator shows exactly what plays.
+     * cycle. Every bone in this rig rests at zero, so a keyed rotation is both
+     * a delta and an absolute angle and the animator shows exactly what plays.
+     *
+     * Positions are the other three rows of each bone, and they were baked and
+     * then dropped on the floor for as long as this class has existed -- the
+     * loop read rows 0, 1 and 2 of six and stopped. Every position keyframe
+     * ever drawn on a shade did nothing, silently, including the whole of the
+     * breath in vaelle.idle. A position IS a delta, on the rest pose rather
+     * than on zero, which is what restPos is for.
      */
     public void play(float[][] clip, float phase, float weight) {{
         if (weight <= 0.0F || clip.length == 0) {{
@@ -330,6 +367,21 @@ public class ShadeModel {{
             }}
             if (z != null) {{
                 bone.zRot = Mth.lerp(weight, bone.zRot, Mth.lerp(f, z[lo], z[hi]));
+            }}
+            float[] px = clip[b * 6 + 3];
+            float[] py = clip[b * 6 + 4];
+            float[] pz = clip[b * 6 + 5];
+            if (px != null) {{
+                bone.x = Mth.lerp(weight, bone.x,
+                        this.restPos[b * 3] + Mth.lerp(f, px[lo], px[hi]));
+            }}
+            if (py != null) {{
+                bone.y = Mth.lerp(weight, bone.y,
+                        this.restPos[b * 3 + 1] + Mth.lerp(f, py[lo], py[hi]));
+            }}
+            if (pz != null) {{
+                bone.z = Mth.lerp(weight, bone.z,
+                        this.restPos[b * 3 + 2] + Mth.lerp(f, pz[lo], pz[hi]));
             }}
         }}
     }}
