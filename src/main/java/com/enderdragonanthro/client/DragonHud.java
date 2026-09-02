@@ -13,10 +13,13 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Ability list, shown only while transformed: a column down the left edge,
@@ -115,18 +118,45 @@ public final class DragonHud {
         }
         renderOwnBossBar(graphics, mc.player, mc);
 
-        List<Map.Entry<KeyMapping, AbilityAction>> chips = new ArrayList<>(CHIPS.entrySet());
-        if (chips.isEmpty()) {
+        List<Map.Entry<KeyMapping, AbilityAction>> all = new ArrayList<>(CHIPS.entrySet());
+        if (all.isEmpty()) {
             return;
         }
         int rowH = CHIP_H + 2;
-        int leftCount = chips.size() / 2;
+        int leftCount = all.size() / 2;
+
+        // The shortest names go left, because the left column is the one that
+        // costs something: its labels are right-aligned, so the widest of them
+        // is exactly how far the whole block is pushed off the screen edge.
+        // Dragonsight and Fire (Hold) on the left shoved the caps a third of
+        // the way across the screen for no reason -- on the right they simply
+        // run outward into space nothing else wants.
+        //
+        // Sorted on the RESERVED width, not the drawn one, and stably, so the
+        // order within a column stays the order the keys were registered in.
+        List<Map.Entry<KeyMapping, AbilityAction>> byLength = new ArrayList<>(all);
+        byLength.sort(Comparator.comparingInt(e -> reserveWidth(mc, e.getValue())));
+        Set<AbilityAction> onTheLeft = new HashSet<>();
+        for (int i = 0; i < leftCount; i++) {
+            onTheLeft.add(byLength.get(i).getValue());
+        }
+        List<Map.Entry<KeyMapping, AbilityAction>> chips = new ArrayList<>(all.size());
+        for (Map.Entry<KeyMapping, AbilityAction> entry : all) {
+            if (onTheLeft.contains(entry.getValue())) {
+                chips.add(entry);
+            }
+        }
+        for (Map.Entry<KeyMapping, AbilityAction> entry : all) {
+            if (!onTheLeft.contains(entry.getValue())) {
+                chips.add(entry);
+            }
+        }
 
         // The left column's labels run right-to-left, so the caps can only be
         // placed once the widest of them is known.
         int widest = 0;
         for (int i = 0; i < leftCount; i++) {
-            widest = Math.max(widest, labelWidth(mc, chips.get(i).getValue()));
+            widest = Math.max(widest, reserveWidth(mc, chips.get(i).getValue()));
         }
         int xLeft = MARGIN + widest + GAP;
         int xRight = xLeft + KEY_W + COLUMN_GAP;
@@ -193,6 +223,31 @@ public final class DragonHud {
             width += 1 + mc.font.width(intentLabel());
         }
         return width;
+    }
+
+    /**
+     * The most this chip could ever need, whatever the dial says.
+     *
+     * Layout uses this and drawing uses {@link #labelWidth}, and the difference
+     * between them is the whole point. The Intent chip's text changes width
+     * when you press B -- "Passive" is not "Alert" -- so laying out from the
+     * drawn width would move the caps, and on a column that is right-aligned
+     * that means the entire block hops sideways mid-press.
+     *
+     * Measuring the longest stop instead pins the geometry. It also decides
+     * which column the chip goes in, and deciding THAT from the drawn width
+     * would be worse still: a chip could change columns on a keypress.
+     */
+    private static int reserveWidth(Minecraft mc, AbilityAction action) {
+        if (action != AbilityAction.CRATER) {
+            return mc.font.width(action.label);
+        }
+        int stop = 0;
+        for (DragonIntent intent : DragonIntent.values()) {
+            stop = Math.max(stop, mc.font.width(Component.literal(intent.label())
+                    .withStyle(style -> style.withBold(intent.bold()))));
+        }
+        return mc.font.width(action.label) + 1 + stop;
     }
 
     private static Component intentLabel() {
