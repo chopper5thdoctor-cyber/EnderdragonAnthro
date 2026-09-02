@@ -16,6 +16,7 @@ import com.enderdragonanthro.client.render.ShadeLayer;
 import com.enderdragonanthro.network.AbilityActionPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Difficulty;
@@ -26,6 +27,7 @@ import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -210,7 +212,49 @@ public final class SmokeTest {
             case 9 -> inventoryButton(client);
             case 10 -> check("the pick-up switch starts on", DragonPickupClient.picksUp(),
                     "the client was never told which way the switch is");
+            case 11 -> shot(client);
+            case 12 -> shotLanded(client);
             default -> finish(client);
+        }
+    }
+
+    /**
+     * A frame of the real HUD, saved to disk.
+     *
+     * Every other check here answers a yes/no question, and layout is not one
+     * of those. "The ability list is two columns with the labels facing
+     * outward" cannot be asserted without describing the arrangement twice and
+     * checking that the two descriptions agree, which proves nothing about what
+     * is on screen. A picture does, and by this step the harness is standing in
+     * a world in dragon form with the HUD up, which is the only hard part.
+     *
+     * Deliberately not a pass or a fail: a screenshot cannot be wrong, only
+     * looked at. It is recorded as a skip carrying the path, so a run that
+     * produced one says so and a run that could not says why.
+     */
+    private static void shot(Minecraft client) {
+        if (client.getMainRenderTarget() == null) {
+            SKIPPED.add("HUD screenshot -- there is no render target to read");
+            return;
+        }
+        Screenshot.grab(client.gameDirectory, "hud.png", client.getMainRenderTarget(),
+                message -> EnderdragonAnthro.LOGGER.info("[smoke] {}", message.getString()));
+        // grab() hands the pixels to the IO pool and returns immediately, so
+        // finishing on the next step raced it and left a zero-byte file behind.
+        // Waited out and then checked, because "the file exists" and "the file
+        // has a picture in it" turned out to be different questions.
+        waited = SETTLE;
+    }
+
+    /** Did the picture actually land? */
+    private static void shotLanded(Minecraft client) {
+        File file = new File(new File(client.gameDirectory, "screenshots"), "hud.png");
+        if (file.isFile() && file.length() > 0) {
+            SKIPPED.add("HUD screenshot -- " + file.length() + " bytes at "
+                    + file.getAbsolutePath());
+        } else {
+            SKIPPED.add("HUD screenshot -- nothing was written to "
+                    + file.getAbsolutePath());
         }
     }
 

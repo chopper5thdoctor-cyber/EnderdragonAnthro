@@ -12,7 +12,9 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -82,6 +84,30 @@ public final class DragonHud {
         return scale != null && scale.getModifier(EnderdragonAnthro.id("dragon_scale")) != null;
     }
 
+    /** Width of a key cap. */
+    private static final int KEY_W = 20;
+    /** Between a cap and its own label. */
+    private static final int GAP = 4;
+    /** Between the two cap columns. */
+    private static final int COLUMN_GAP = 3;
+    /** From the screen edge to the outermost text. */
+    private static final int MARGIN = 6;
+
+    /**
+     * Two columns of caps, labels facing outward.
+     *
+     * Thirteen abilities in one list ran the full height of the screen and
+     * still fell off the bottom. Splitting them in two halves that, and putting
+     * each column's labels on its own outward side keeps the caps together in
+     * the middle of the block instead of leaving a ragged text gutter down the
+     * centre.
+     *
+     * The stagger is not arranged. Each column is centred on the screen's
+     * middle independently, and thirteen splits six and seven, so the taller
+     * column starts half a row higher and its caps sit between the other's.
+     * Nothing computes an offset; the offset is what centring two columns of
+     * different lengths does.
+     */
     public static void render(GuiGraphics graphics) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui || !isDragonForm(mc.player)) {
@@ -89,49 +115,90 @@ public final class DragonHud {
         }
         renderOwnBossBar(graphics, mc.player, mc);
 
-        // A vertical column down the left edge: the hotbar owns the bottom of
-        // the screen, and thirteen abilities never fit across it anyway.
-        int rowH = CHIP_H + 2;
-        int total = CHIPS.size() * rowH;
-        int x = 6;
-        int y = Math.max(4, (graphics.guiHeight() - total) / 2);
-
-        for (Map.Entry<KeyMapping, AbilityAction> entry : CHIPS.entrySet()) {
-            AbilityAction action = entry.getValue();
-            long sincePress = clientTicks - PRESSED_AT.getOrDefault(action, Long.MIN_VALUE / 2);
-            boolean lit = (clientTicks - sincePress >= 0 && sincePress < GLOW_TICKS)
-                    || TOGGLED.getOrDefault(action, false);
-
-            int keyW = 20;
-            graphics.fill(x, y, x + keyW, y + CHIP_H, lit ? BG_GLOW : BG);
-            drawBorder(graphics, x, y, keyW, lit ? BORDER_GLOW : BORDER);
-
-            long readyAt = READY_AT.getOrDefault(action, 0L);
-            if (readyAt > clientTicks && action.cooldownTicks > 0) {
-                float left = (float) (readyAt - clientTicks) / action.cooldownTicks;
-                graphics.fill(x + 1, y + 1, x + keyW - 1,
-                        y + 1 + (int) (left * (CHIP_H - 2)), COOLDOWN_SHADE);
-            }
-            graphics.drawCenteredString(mc.font, keyLabel(entry.getKey()),
-                    x + keyW / 2, y + (CHIP_H - 8) / 2, lit ? TEXT_GLOW : TEXT);
-            int textY = y + (CHIP_H - 8) / 2;
-            int textX = graphics.drawString(mc.font, action.label, x + keyW + 4,
-                    textY, lit ? LABEL_ON : LABEL, true);
-            if (action == AbilityAction.CRATER) {
-                // The one chip that says what it is set to rather than what it
-                // does. Drawn as a second string in the stop's own colour --
-                // green, amber, then the dragon's violet -- so the state reads
-                // at a glance without looking at the ability list at all.
-                // drawString returns where it stopped, so the two pieces meet
-                // whatever the font does with the first one.
-                DragonIntent intent = DragonIntentClient.get();
-                Component named = Component.literal(intent.label())
-                        .withStyle(style -> style.withBold(intent.bold()));
-                graphics.drawString(mc.font, named, textX + 1, textY,
-                        intent.rgb(), true);
-            }
-            y += rowH;
+        List<Map.Entry<KeyMapping, AbilityAction>> chips = new ArrayList<>(CHIPS.entrySet());
+        if (chips.isEmpty()) {
+            return;
         }
+        int rowH = CHIP_H + 2;
+        int leftCount = chips.size() / 2;
+
+        // The left column's labels run right-to-left, so the caps can only be
+        // placed once the widest of them is known.
+        int widest = 0;
+        for (int i = 0; i < leftCount; i++) {
+            widest = Math.max(widest, labelWidth(mc, chips.get(i).getValue()));
+        }
+        int xLeft = MARGIN + widest + GAP;
+        int xRight = xLeft + KEY_W + COLUMN_GAP;
+        int middle = graphics.guiHeight() / 2;
+
+        for (int i = 0; i < chips.size(); i++) {
+            boolean onLeft = i < leftCount;
+            int count = onLeft ? leftCount : chips.size() - leftCount;
+            int index = onLeft ? i : i - leftCount;
+            chip(graphics, mc, chips.get(i), onLeft ? xLeft : xRight,
+                    middle - count * rowH / 2 + index * rowH, onLeft);
+        }
+    }
+
+    /** One cap, and its label on whichever side the column faces. */
+    private static void chip(GuiGraphics graphics, Minecraft mc,
+                             Map.Entry<KeyMapping, AbilityAction> entry,
+                             int x, int y, boolean onLeft) {
+        AbilityAction action = entry.getValue();
+        long sincePress = clientTicks - PRESSED_AT.getOrDefault(action, Long.MIN_VALUE / 2);
+        boolean lit = (clientTicks - sincePress >= 0 && sincePress < GLOW_TICKS)
+                || TOGGLED.getOrDefault(action, false);
+
+        graphics.fill(x, y, x + KEY_W, y + CHIP_H, lit ? BG_GLOW : BG);
+        drawBorder(graphics, x, y, KEY_W, lit ? BORDER_GLOW : BORDER);
+
+        long readyAt = READY_AT.getOrDefault(action, 0L);
+        if (readyAt > clientTicks && action.cooldownTicks > 0) {
+            float left = (float) (readyAt - clientTicks) / action.cooldownTicks;
+            graphics.fill(x + 1, y + 1, x + KEY_W - 1,
+                    y + 1 + (int) (left * (CHIP_H - 2)), COOLDOWN_SHADE);
+        }
+        graphics.drawCenteredString(mc.font, keyLabel(entry.getKey()),
+                x + KEY_W / 2, y + (CHIP_H - 8) / 2, lit ? TEXT_GLOW : TEXT);
+
+        int textY = y + (CHIP_H - 8) / 2;
+        int textX = onLeft ? x - GAP - labelWidth(mc, action) : x + KEY_W + GAP;
+        int after = graphics.drawString(mc.font, action.label, textX, textY,
+                lit ? LABEL_ON : LABEL, true);
+        if (action == AbilityAction.CRATER) {
+            // The one chip that says what it is set to rather than what it
+            // does. Drawn as a second string in the stop's own colour --
+            // green, amber, then the dragon's violet -- so the state reads
+            // at a glance without looking at the ability list at all.
+            // drawString returns where it stopped, so the two pieces meet
+            // whatever the font does with the first one.
+            graphics.drawString(mc.font, intentLabel(), after + 1, textY,
+                    DragonIntentClient.get().rgb(), true);
+        }
+    }
+
+    /**
+     * How wide this chip's text is, all of it.
+     *
+     * The Intent chip draws two strings, and the second one changes as you turn
+     * the dial. In the left column the whole thing is right-aligned, so getting
+     * this wrong does not clip the label -- it slides the cap. Measuring both
+     * pieces is what keeps the two columns from shuffling sideways every time
+     * somebody presses B.
+     */
+    private static int labelWidth(Minecraft mc, AbilityAction action) {
+        int width = mc.font.width(action.label);
+        if (action == AbilityAction.CRATER) {
+            width += 1 + mc.font.width(intentLabel());
+        }
+        return width;
+    }
+
+    private static Component intentLabel() {
+        DragonIntent intent = DragonIntentClient.get();
+        return Component.literal(intent.label())
+                .withStyle(style -> style.withBold(intent.bold()));
     }
 
     private static String keyLabel(KeyMapping key) {
