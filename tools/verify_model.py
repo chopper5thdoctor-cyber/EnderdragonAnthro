@@ -13,6 +13,7 @@ were dropped entirely (44 of 75 cubes flattened), and the group rotation
 mapping had the wrong sign on Y and Z.
 """
 import glob
+import hashlib
 import json
 import math
 import os
@@ -529,6 +530,73 @@ def check_hearts():
     print("PASS: every derived heart matches the sprite it comes from")
     check_clip_channels()
     check_world_state()
+    check_dev_skins()
+
+
+#: The default skin table, 18 long: nine SLIM then the same nine WIDE.
+_SKIN_NAMES = ("alex", "ari", "efe", "kai", "makena", "noor", "steve", "sunny", "zuri")
+
+
+def _skin_model(name):
+    """What model an offline player of this name gets, and which skin.
+
+    Three steps, each read out of the 1.21.1 jar rather than remembered:
+
+        UUIDUtil.createOfflinePlayerUUID  nameUUIDFromBytes("OfflinePlayer:"+n)
+        java.util.UUID.hashCode           ((int)(hilo>>32)) ^ (int)hilo
+        DefaultPlayerSkin.getSkinIndex    Math.floorMod(hashCode, 18)
+    """
+    digest = bytearray(hashlib.md5(("OfflinePlayer:" + name).encode("utf-8")).digest())
+    digest[6] = (digest[6] & 0x0F) | 0x30          # version 3
+    digest[8] = (digest[8] & 0x3F) | 0x80          # IETF variant
+    msb = int.from_bytes(digest[:8], "big")
+    lsb = int.from_bytes(digest[8:], "big")
+
+    def signed(v):
+        v &= 0xFFFFFFFF
+        return v - (1 << 32) if v & 0x80000000 else v
+
+    hilo = msb ^ lsb
+    index = signed(signed(hilo >> 32) ^ signed(hilo)) % 18
+    return ("SLIM" if index < 9 else "WIDE"), _SKIN_NAMES[index % 9], index
+
+
+def check_dev_skins():
+    """The two dev players really are one wide model and one slim one.
+
+    run.bat exists to put a second pair of eyes on things only somebody else
+    can see, and half of why it names its players Jean_Wide and Jean_Slim is to
+    cover the three-pixel arm -- every layer this mod hangs off an arm has only
+    ever been looked at on a four-pixel one.
+
+    But the model is not something the run config sets. It falls out of the
+    NAME, through the offline UUID, through a hash. Rename a player to
+    something tidier and both of them can quietly land on the same model, and
+    the slim arm stops being tested with nothing to say so -- the windows still
+    open, both players still render, and the coverage is simply gone.
+
+    So the names are read back out of build.gradle and the arithmetic redone.
+    """
+    with open(os.path.join(HERE, "build.gradle")) as fh:
+        gradle = fh.read()
+    names = re.findall(r"programArg\s+'--username'\s*\n\s*programArg\s+'([^']+)'", gradle)
+    if len(names) < 2:
+        print("FAIL: build.gradle no longer names two dev players by --username")
+        sys.exit(1)
+
+    seen = {}
+    for name in names:
+        model, skin, index = _skin_model(name)
+        seen.setdefault(model, []).append(name)
+        print(f"  {name} -> index {index}, {model} ({skin})")
+    if len(seen) < 2:
+        only = next(iter(seen))
+        print(f"FAIL: both dev players are {only}, so the other arm width is "
+              "never on screen")
+        print("  the model comes from the name, not the run config -- pick "
+              "names whose hash lands on both halves of the table")
+        sys.exit(1)
+    print(f"PASS: the dev players cover both arm widths ({len(names)} named)")
 
 
 #: Every generated model, and what plays its clips.

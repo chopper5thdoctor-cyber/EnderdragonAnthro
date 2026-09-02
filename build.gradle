@@ -117,20 +117,53 @@ loom {
         // the tail, the form itself and the court are all things somebody ELSE
         // sees, and a bug there is invisible in singleplayer by construction.
         //
+        //   run.bat                          all three, in order, ready to go
+        //
+        // or by hand:
+        //
         //   ./gradlew prepareMultiplayer     once, writes server.properties
         //   ./gradlew runServer              then leave it running
-        //   ./gradlew runClient              you
-        //   ./gradlew runClientTwo           the other one
+        //   ./gradlew runClientOne           the wide one
+        //   ./gradlew runClientTwo           the slim one
         //
-        // Connect both to localhost. They get separate run directories so they
-        // do not fight over options.txt, and separate names so the server can
-        // tell them apart.
+        // Both auto-connect to localhost and get their own run directory, so
+        // they do not fight over options.txt.
+        //
+        // ---- the names are load-bearing ----------------------------------
+        //
+        // An offline server derives a player's UUID from the name
+        // (UUIDUtil.createOfflinePlayerUUID -> nameUUIDFromBytes of
+        // "OfflinePlayer:<name>"), and DefaultPlayerSkin picks the default skin
+        // with floorMod(uuid.hashCode(), 18) over a table whose first nine
+        // entries are SLIM and whose last nine are WIDE.
+        //
+        // So the model is a pure function of the name, and these two were
+        // chosen by computing it rather than by hoping:
+        //
+        //     Jean_Wide -> index 14 -> WIDE (noor)
+        //     Jean_Slim -> index  2 -> SLIM (efe)
+        //
+        // That matters because the arm on a slim model is three pixels wide,
+        // not four, and every layer this mod hangs off an arm has only ever
+        // been looked at on a wide one. The name says which you are looking at,
+        // so a bug that only shows on one of them is attributable on sight.
+        clientOne {
+            client()
+            name = 'Minecraft Client 1 (wide)'
+            runDir 'run'
+            programArg '--username'
+            programArg 'Jean_Wide'
+            programArg '--quickPlayMultiplayer'
+            programArg 'localhost'
+        }
         clientTwo {
             client()
-            name = 'Minecraft Client 2'
+            name = 'Minecraft Client 2 (slim)'
             runDir 'run2'
             programArg '--username'
-            programArg 'Keshanne'
+            programArg 'Jean_Slim'
+            programArg '--quickPlayMultiplayer'
+            programArg 'localhost'
         }
     }
 }
