@@ -15,6 +15,7 @@ bin/
 
 # Fabric/Loom
 run/
+run2/
 remappedSrc/
 
 # Vanilla game assets must never be committed (Mojang EULA — see DESIGN.md 5.4 #20)

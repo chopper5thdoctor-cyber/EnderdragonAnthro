@@ -63,6 +63,9 @@ public class EnderdragonAnthro implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(ShadeStatePayload.TYPE, ShadeStatePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(HomingCrystalPayload.TYPE, HomingCrystalPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(EndermanHappyPayload.TYPE, EndermanHappyPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                com.enderdragonanthro.network.DragonWingbeatPayload.TYPE,
+                com.enderdragonanthro.network.DragonWingbeatPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DragonBurnPayload.TYPE, DragonBurnPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(
                 com.enderdragonanthro.network.DragonSightPayload.TYPE,

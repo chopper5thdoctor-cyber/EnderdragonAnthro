@@ -108,5 +108,73 @@ loom {
             vmArg '-Denderdragonanthro.smoke.world=true'
             runDir 'build/smoke'
         }
+
+        // ------------------------------------------------- two players at once
+        //
+        // Almost everything in this mod is drawn on the player it belongs to,
+        // and every one of those has been looked at from inside that player's
+        // own head. A second pair of eyes is a different question: the wings,
+        // the tail, the form itself and the court are all things somebody ELSE
+        // sees, and a bug there is invisible in singleplayer by construction.
+        //
+        //   ./gradlew prepareMultiplayer     once, writes server.properties
+        //   ./gradlew runServer              then leave it running
+        //   ./gradlew runClient              you
+        //   ./gradlew runClientTwo           the other one
+        //
+        // Connect both to localhost. They get separate run directories so they
+        // do not fight over options.txt, and separate names so the server can
+        // tell them apart.
+        clientTwo {
+            client()
+            name = 'Minecraft Client 2'
+            runDir 'run2'
+            programArg '--username'
+            programArg 'Keshanne'
+        }
+    }
+}
+
+/**
+ * Make the dev server joinable by two offline clients.
+ *
+ * A dev client has no Mojang session, so a server left on online-mode refuses
+ * both of them with "Failed to verify username" -- which reads as a mod problem
+ * and is not one.
+ *
+ * Deliberately does not write eula.txt. Accepting Mojang's EULA is the author's
+ * to do, not a build script's; it is one line and the task says which.
+ */
+tasks.register('prepareMultiplayer') {
+    group = 'fabric'
+    description = 'Write a dev server.properties that two offline clients can join.'
+    doLast {
+        def run = file('run')
+        run.mkdirs()
+        def properties = new File(run, 'server.properties')
+        if (properties.exists()) {
+            logger.lifecycle("kept ${properties} as it is")
+        } else {
+            properties.text = [
+                '# Written by ./gradlew prepareMultiplayer, for local testing only.',
+                'online-mode=false',
+                'motd=EnderdragonAnthro dev',
+                'view-distance=8',
+                'spawn-protection=0',
+                'gamemode=creative',
+                'level-type=minecraft\\:flat',
+                'sync-chunk-writes=false',
+                ''
+            ].join('\n')
+            logger.lifecycle("wrote ${properties} (online-mode=false)")
+        }
+        def eula = new File(run, 'eula.txt')
+        if (!eula.exists() || !eula.text.contains('eula=true')) {
+            logger.lifecycle('')
+            logger.lifecycle('Now do this one thing yourself, because it is an agreement')
+            logger.lifecycle('and not a build step:')
+            logger.lifecycle("  put  eula=true  in  ${eula}")
+            logger.lifecycle('  (run ./gradlew runServer once and it will create the file)')
+        }
     }
 }

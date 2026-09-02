@@ -1,5 +1,7 @@
 package com.enderdragonanthro.ability;
 
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.enderdragonanthro.network.DragonWingbeatPayload;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -117,12 +119,38 @@ public final class DragonAbilities {
             case EVADE -> evade(player);
             case WARP -> warpToPlayer(player);
             case RETURN -> HomingCrystals.returnHome(player);
-            case GLIDE -> DragonFlight.start(player);
+            case GLIDE -> {
+                DragonFlight.start(player);
+                // The flier already flapped, locally, the moment the key went
+                // down. This is the only thing that tells anybody else.
+                wingbeat(player);
+            }
             case SIGHT -> DragonSight.toggle(player);
             case DRAGONFIRE -> DragonFire.breathe(player);
             case SUMMON -> DragonMinions.summon(player);
             case COMMAND -> DragonMinions.openCommandUi(player);
             case TRANSFORM -> {
+            }
+        }
+    }
+
+    /**
+     * Tell everyone watching that this dragon beat its wings.
+     *
+     * SHIPPED BUG, and one that could only ever be seen by somebody else:
+     * DragonWings.beat was called with client.player and nothing else, so the
+     * beat existed only in the head of whoever pressed the key. From a second
+     * player the dragon boosted past with its wings held dead still.
+     *
+     * To viewers and not to the flier -- the flier already started the beat
+     * locally on the keypress, which is what keeps it instant, and sending it
+     * back would only ever arrive late enough to restart a stroke in flight.
+     */
+    private static void wingbeat(ServerPlayer flier) {
+        DragonWingbeatPayload payload = new DragonWingbeatPayload(flier.getId());
+        for (ServerPlayer viewer : flier.serverLevel().players()) {
+            if (viewer != flier && viewer.distanceToSqr(flier) < 128.0 * 128.0) {
+                ServerPlayNetworking.send(viewer, payload);
             }
         }
     }

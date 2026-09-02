@@ -75,6 +75,17 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                 (payload, context) -> HomingCrystalsClient.accept(payload));
         ClientPlayNetworking.registerGlobalReceiver(EndermanHappyPayload.TYPE,
                 (payload, context) -> EndermanHappyClient.accept(payload));
+        // Somebody else's wingbeat. The local player's own is started on
+        // the keypress and never comes back through here.
+        ClientPlayNetworking.registerGlobalReceiver(
+                com.enderdragonanthro.network.DragonWingbeatPayload.TYPE,
+                (payload, context) -> context.client().execute(() -> {
+                    if (context.client().level != null
+                            && context.client().level.getEntity(payload.entityId())
+                                    instanceof net.minecraft.world.entity.player.Player who) {
+                        DragonWings.beat(who);
+                    }
+                }));
         ClientPlayNetworking.registerGlobalReceiver(
                 com.enderdragonanthro.network.DragonBurnPayload.TYPE,
                 (payload, context) -> DragonBurnClient.accept(payload));
