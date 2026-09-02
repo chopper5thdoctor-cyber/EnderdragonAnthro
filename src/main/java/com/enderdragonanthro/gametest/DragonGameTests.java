@@ -5,6 +5,7 @@ import com.enderdragonanthro.ability.DragonFire;
 import com.enderdragonanthro.ability.DragonIntent;
 import com.enderdragonanthro.ability.DragonMinions;
 import com.enderdragonanthro.ability.DragonPresence;
+import com.enderdragonanthro.ability.HomingCrystals;
 import com.enderdragonanthro.ability.ShadeIdentity;
 import com.enderdragonanthro.ability.NetherGate;
 import com.enderdragonanthro.transform.DragonFormManager;
@@ -440,6 +441,75 @@ public class DragonGameTests implements FabricGameTest {
                 helper.fail("a " + inner + "x" + tall + " gate came out as " + laid.size()
                         + " blocks, not the " + want.size() + " the frame is");
             }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Walking away from an anchor does not destroy it.
+     *
+     * REPORTED: "homing beacon breaks and returns to hand if too far from it."
+     * It did, and it was the court's oldest bug wearing a different hat. The
+     * once-a-second sweep asked player.serverLevel().getEntity(anchor) and read
+     * null as "shattered" — but null is also what an entity in a closed chunk
+     * answers, and an anchor is a thing you deliberately walk away from. So
+     * walking out of render distance destroyed it and handed you a replacement.
+     * Stepping through a portal did the same, because the lookup was against
+     * whichever level you happened to be standing in.
+     *
+     * Two of these three assertions fail against that code:
+     *
+     *  - the dimension is now recorded. It was a UUID field written as null on
+     *    every path, so "which world is my anchor in" had no answer at all,
+     *    which is the whole reason going home across a portal could not work.
+     *  - the anchor survives a save and reload, because it lives in the world's
+     *    data folder now rather than in a static map.
+     *
+     * The third — that the sweep leaves a standing anchor alone — passes either
+     * way here, because a gametest cannot close a chunk. It is asserted anyway:
+     * it is the behaviour that was reported, and a future change that starts
+     * handing out spare crystals should trip on something.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void anAnchorIsNotLostByWalkingAway(GameTestHelper helper) {
+        floor(helper, 8);
+        FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(1, 1, 1));
+        MinecraftServer server = helper.getLevel().getServer();
+        BlockPos at = helper.absolutePos(new BlockPos(4, 1, 4));
+
+        if (!HomingCrystals.place(helper.getLevel(), dragon, at)) {
+            helper.fail("the anchor would not go down, so there is nothing to test");
+        }
+        if (HomingCrystals.anchorDimension(dragon) == null) {
+            helper.fail("the anchor recorded no dimension, so nothing can find it"
+                    + " once its chunk closes or you cross a portal");
+        }
+        if (!HomingCrystals.anchorDimension(dragon).equals(helper.getLevel().dimension())) {
+            helper.fail("the anchor thinks it is in "
+                    + HomingCrystals.anchorDimension(dragon).location() + ", not "
+                    + helper.getLevel().dimension().location());
+        }
+
+        // Shut the world and open it again.
+        HomingCrystals.save(server);
+        HomingCrystals.forgetWorld();
+        if (HomingCrystals.hasAnchor(dragon)) {
+            helper.fail("forgetWorld left an anchor behind; it would follow you"
+                    + " into the next save");
+        }
+        HomingCrystals.load(server);
+        if (!HomingCrystals.hasAnchor(dragon)) {
+            helper.fail("the anchor did not survive a reload -- logging out would"
+                    + " lose the way home");
+        }
+
+        // And the sweep leaves it standing.
+        for (int tick = 0; tick < 3; tick++) {
+            HomingCrystals.tick(server);
+        }
+        if (!HomingCrystals.hasAnchor(dragon)) {
+            helper.fail("the sweep struck the anchor off while it was standing"
+                    + " right there");
         }
         helper.succeed();
     }

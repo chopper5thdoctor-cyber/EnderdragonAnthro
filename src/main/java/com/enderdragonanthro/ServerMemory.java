@@ -68,6 +68,7 @@ public final class ServerMemory {
      */
     public static void leavingWorld(MinecraftServer server) {
         DragonMinions.save(server);
+        HomingCrystals.save(server);
     }
 
     /** Let go of everything belonging to a world. */
@@ -90,5 +91,6 @@ public final class ServerMemory {
     public static void enterWorld(MinecraftServer server) {
         forgetWorld(server);
         DragonMinions.load(server);
+        HomingCrystals.load(server);
     }
 }
