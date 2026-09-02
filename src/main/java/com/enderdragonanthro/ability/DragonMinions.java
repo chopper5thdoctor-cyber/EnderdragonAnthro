@@ -1276,13 +1276,24 @@ public final class DragonMinions {
                     net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                     column.getX(), column.getZ()));
         }
-        BlockPos foot = ahead.atY(ground);
+        // One above the ground, not on it.
+        //
+        // The heightmap answers the first FREE block, so `ground` is already
+        // standing room and the sill used to go one below it -- into the dirt,
+        // destroying whatever was there. That is not how anybody builds a
+        // portal: you put the bottom row down ON the ground and step up into
+        // the doorway. Shifting the whole frame up by one does that, and it
+        // means the gate no longer eats a row of somebody's biome to stand up.
+        //
+        // The sill is no longer exempt from the clearance check either, because
+        // it is no longer meant to be buried. It is grass or air like the rest.
+        BlockPos foot = ahead.atY(ground).above();
 
-        // Everything above the sill has to be free, or a half-buried gate is
-        // worse than none. Grass, flowers and snow are replaceable and so do not
-        // count as in the way.
+        // The whole frame has to be free, or a half-buried gate is worse than
+        // none. Grass, flowers and snow are replaceable and so do not count as
+        // in the way.
         for (int w = -1; w <= inner; w++) {
-            for (int h = 0; h <= tall; h++) {
+            for (int h = -1; h <= tall; h++) {
                 BlockPos at = foot.relative(across, w).above(h);
                 if (!level.getBlockState(at).canBeReplaced()
                         && !level.getBlockState(at).is(Blocks.OBSIDIAN)) {
@@ -1296,8 +1307,16 @@ public final class DragonMinions {
         return foot;
     }
 
-    /** One block of the frame per this many ticks. Quick work, but work. */
-    private static final int BUILD_PERIOD = 2;
+    /**
+     * One block of the frame per this many ticks.
+     *
+     * Eight, which is two and a half blocks a second -- about what a person
+     * manages pillaring in survival, once the jump between each is counted. It
+     * was two, and ten a second is not building, it is a wipe effect with an
+     * enderman standing in front of it. A twelve-block gate now takes fifteen
+     * seconds, which is long enough to watch and short enough to wait for.
+     */
+    private static final int BUILD_PERIOD = 8;
 
     /**
      * Lay out the frame and set the shade to work on it.

@@ -399,9 +399,10 @@ public class DragonGameTests implements FabricGameTest {
         for (int[] size : new int[][] {{1, 2}, {2, 3}, {3, 5}, {4, 8}, {5, 12}, {7, 21}}) {
             int inner = size[0];
             int tall = size[1];
-            // Ground is solid up to and including the sill course, which sits
-            // one below foot; foot.y is the first block of open doorway.
-            BlockPos foot = new BlockPos(0, 1, 0);
+            // The sill sits ON the ground now rather than replacing the top
+            // layer of it, so solid ground starts two below foot and the sill
+            // course itself is air until she lays it.
+            BlockPos foot = new BlockPos(0, 2, 0);
             Set<BlockPos> solid = new HashSet<>();
             List<DragonMinions.Lay> plan =
                     DragonMinions.planFor(foot, Direction.EAST, inner, tall);
@@ -413,7 +414,7 @@ public class DragonGameTests implements FabricGameTest {
                 }
                 BlockPos probe = lay.stand().below();
                 int gap = 0;
-                while (probe.getY() >= foot.getY() && !solid.contains(probe)) {
+                while (probe.getY() >= foot.getY() - 1 && !solid.contains(probe)) {
                     gap++;
                     probe = probe.below();
                 }
