@@ -183,8 +183,8 @@ loom {
  * both of them with "Failed to verify username" -- which reads as a mod problem
  * and is not one.
  *
- * Deliberately does not write eula.txt. Accepting Mojang's EULA is the author's
- * to do, not a build script's; it is one line and the task says which.
+ * Also writes ops.json and eula.txt. The EULA one is an agreement rather than a
+ * setting, so the block that does it records whose agreement it is.
  */
 tasks.register('prepareMultiplayer') {
     group = 'fabric'
@@ -231,13 +231,35 @@ tasks.register('prepareMultiplayer') {
             println("wrote ${ops}, opping " + project.ext.devPlayers.join(' and ') + " at level 4")
         }
 
+        // Mojang's EULA, accepted -- and this is the one thing here that is not
+        // a technical decision, so it says who made it.
+        //
+        // ACCEPTED BY THE REPOSITORY OWNER, on their explicit instruction:
+        // "Can I just give you the eula.txt so we can skip the setting up EULA
+        // thing for testing over and over?"
+        //
+        // It was previously left to be typed by hand, deliberately, because a
+        // build script accepting a licence on an unknown person's behalf is not
+        // the same act as an author recording their own acceptance. What made
+        // it worth automating is that run/ is gitignored AND wiped every time a
+        // fresh build is unzipped, so it was not a one-off -- it was a toll on
+        // every single test cycle.
+        //
+        // Anyone else running this is agreeing to https://aka.ms/MinecraftEULA
+        // by doing so. If that is not wanted, delete this block: the server
+        // will write its own eula.txt saying false, as it always did.
         def eula = new File(run, 'eula.txt')
-        if (!eula.exists() || !eula.text.contains('eula=true')) {
-            println('')
-            println('Now do this one thing yourself, because it is an agreement')
-            println('and not a build step:')
-            println("  put  eula=true  in  ${eula}")
-            println('  (run ./gradlew runServer once and it will create the file)')
+        if (eula.exists() && eula.text.contains('eula=true')) {
+            println("kept ${eula}, already accepted")
+        } else {
+            eula.text = [
+                '# Written by ./gradlew prepareMultiplayer.',
+                '# The repository owner accepted https://aka.ms/MinecraftEULA;',
+                '# see the note in build.gradle. Running this server is agreeing to it.',
+                'eula=true',
+                ''
+            ].join('\n')
+            println("wrote ${eula} (eula=true, per the owner's instruction)")
         }
     }
 }

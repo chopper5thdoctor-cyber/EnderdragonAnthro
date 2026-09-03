@@ -64,42 +64,14 @@ REM online-mode has to be off or the server rejects both dev clients with
 REM "Failed to verify username", which reads as a mod problem and is not one.
 call gradlew.bat prepareMultiplayer --console=plain -q
 
-REM The EULA is an agreement, so it is not something this script accepts on
-REM anybody's behalf. It IS something it can refuse to waste five minutes on.
-if not exist "run\eula.txt" (
-    echo.
-    echo The server has never run here, so there is no run\eula.txt yet.
-    echo Starting it once to create one. It will stop immediately, which is
-    echo correct: put  eula=true  in that file and run this again.
-    echo.
-    call gradlew.bat runServer --console=plain
-    echo.
-    if exist "run\eula.txt" (
-        REM Opened rather than described, because "run\eula.txt" is a subfolder
-        REM that git ignores, so it is not where anybody looks first. Typing the
-        REM line is still yours to do -- this only saves finding the file.
-        echo ^>^> Opening %CD%\run\eula.txt
-        echo    Change  eula=false  to  eula=true , save, and run this again.
-        start "" notepad "run\eula.txt"
-    ) else (
-        echo ^>^> The server stopped before it wrote run\eula.txt, so it did not
-        echo    get as far as the EULA. Scroll up for what it said instead.
-    )
-    echo.
-    popd
-    call :held
-    exit /b 0
-)
+REM prepareMultiplayer writes run/eula.txt with eula=true, on the repository
+REM owner's instruction -- see the note beside it in build.gradle. This is only
+REM here in case that block was removed: without it the server exits at once
+REM and the wait below would sit out its full two and a half minutes for a
+REM server that was never coming.
+if not exist "run\eula.txt" goto noeula
 findstr /i /c:"eula=true" "run\eula.txt" >nul
-if errorlevel 1 (
-    echo.
-    echo run\eula.txt does not say eula=true, so the server will refuse to
-    echo start. That line is yours to add, not this script's:
-    echo   %CD%\run\eula.txt
-    popd
-    call :held
-    exit /b 1
-)
+if errorlevel 1 goto noeula
 
 echo Starting the server...
 start "EnderdragonAnthro server" cmd /k gradlew.bat runServer --console=plain
@@ -193,6 +165,18 @@ call :killall
 echo Done.
 popd
 exit /b 0
+
+REM Only ever reached by an explicit goto -- :cleanup above exits, so there is
+REM no falling into this.
+:noeula
+echo.
+echo run\eula.txt is missing or does not say eula=true, so the server will
+echo refuse to start. prepareMultiplayer normally writes it; if that block was
+echo removed from build.gradle, the line is yours to add:
+echo   %CD%\run\eula.txt
+popd
+call :held
+exit /b 1
 
 REM Double-clicking gives this script a console of its own, and `exit /b` then
 REM closes it instantly -- taking whatever it just printed with it. That is how
