@@ -36,6 +36,7 @@ pushd "%~dp0"
 if not exist "gradlew.bat" (
     echo ERROR: no gradlew.bat here. Run this from the repository root.
     popd
+    call :held
     exit /b 1
 )
 
@@ -72,7 +73,21 @@ if not exist "run\eula.txt" (
     echo correct: put  eula=true  in that file and run this again.
     echo.
     call gradlew.bat runServer --console=plain
+    echo.
+    if exist "run\eula.txt" (
+        REM Opened rather than described, because "run\eula.txt" is a subfolder
+        REM that git ignores, so it is not where anybody looks first. Typing the
+        REM line is still yours to do -- this only saves finding the file.
+        echo ^>^> Opening %CD%\run\eula.txt
+        echo    Change  eula=false  to  eula=true , save, and run this again.
+        start "" notepad "run\eula.txt"
+    ) else (
+        echo ^>^> The server stopped before it wrote run\eula.txt, so it did not
+        echo    get as far as the EULA. Scroll up for what it said instead.
+    )
+    echo.
     popd
+    call :held
     exit /b 0
 )
 findstr /i /c:"eula=true" "run\eula.txt" >nul
@@ -82,6 +97,7 @@ if errorlevel 1 (
     echo start. That line is yours to add, not this script's:
     echo   %CD%\run\eula.txt
     popd
+    call :held
     exit /b 1
 )
 
@@ -104,6 +120,7 @@ if !TRIES! GTR 150 (
     echo No answer on port 25565 after two and a half minutes. The server
     echo window is still open and it will say why.
     popd
+    call :held
     exit /b 1
 )
 REM ~1s a try, without needing a sleep binary.
@@ -175,6 +192,18 @@ echo Cleaning up...
 call :killall
 echo Done.
 popd
+exit /b 0
+
+REM Double-clicking gives this script a console of its own, and `exit /b` then
+REM closes it instantly -- taking whatever it just printed with it. That is how
+REM the EULA instructions came to be reported as "it ran, then it closed".
+REM
+REM cmdcmdline holds the command line that started this shell. Explorer starts
+REM it with /c, a person at a prompt does not -- so this holds the window that
+REM is about to vanish and stays out of the way of the one that is not.
+:held
+echo(%cmdcmdline%| find /i "/c" >nul
+if not errorlevel 1 pause
 exit /b 0
 
 REM Stop the daemon, then any java still holding a file under this folder --

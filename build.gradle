@@ -186,7 +186,7 @@ tasks.register('prepareMultiplayer') {
         run.mkdirs()
         def properties = new File(run, 'server.properties')
         if (properties.exists()) {
-            logger.lifecycle("kept ${properties} as it is")
+            println("kept ${properties} as it is")
         } else {
             properties.text = [
                 '# Written by ./gradlew prepareMultiplayer, for local testing only.',
@@ -199,15 +199,15 @@ tasks.register('prepareMultiplayer') {
                 'sync-chunk-writes=false',
                 ''
             ].join('\n')
-            logger.lifecycle("wrote ${properties} (online-mode=false)")
+            println("wrote ${properties} (online-mode=false)")
         }
         def eula = new File(run, 'eula.txt')
         if (!eula.exists() || !eula.text.contains('eula=true')) {
-            logger.lifecycle('')
-            logger.lifecycle('Now do this one thing yourself, because it is an agreement')
-            logger.lifecycle('and not a build step:')
-            logger.lifecycle("  put  eula=true  in  ${eula}")
-            logger.lifecycle('  (run ./gradlew runServer once and it will create the file)')
+            println('')
+            println('Now do this one thing yourself, because it is an agreement')
+            println('and not a build step:')
+            println("  put  eula=true  in  ${eula}")
+            println('  (run ./gradlew runServer once and it will create the file)')
         }
     }
 }
