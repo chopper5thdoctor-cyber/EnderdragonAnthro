@@ -579,9 +579,12 @@ def check_dev_skins():
     """
     with open(os.path.join(HERE, "build.gradle")) as fh:
         gradle = fh.read()
-    names = re.findall(r"programArg\s+'--username'\s*\n\s*programArg\s+'([^']+)'", gradle)
+    # One list, read where it is declared. The run configs and ops.json both
+    # index into it, so reading it here is reading what both of them use.
+    listed = re.search(r"project\.ext\.devPlayers\s*=\s*\[([^\]]*)\]", gradle)
+    names = re.findall(r"'([^']+)'", listed.group(1)) if listed else []
     if len(names) < 2:
-        print("FAIL: build.gradle no longer names two dev players by --username")
+        print("FAIL: build.gradle no longer declares two names in project.ext.devPlayers")
         sys.exit(1)
 
     seen = {}

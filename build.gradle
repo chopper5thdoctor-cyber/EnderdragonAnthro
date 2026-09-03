@@ -48,6 +48,14 @@ java {
 //
 //   ./gradlew runGametest
 //
+// The two dev players, named once.
+//
+// Used by the run configs below AND by prepareMultiplayer's ops.json. Named in
+// one place because the two have to agree: an offline server derives a UUID
+// from the name, so a rename that reached only one of them would op a player
+// who does not exist and leave the one who does without commands.
+project.ext.devPlayers = ['Jean_Wide', 'Jean_Slim']
+
 loom {
     runs {
         gametest {
@@ -152,7 +160,7 @@ loom {
             name = 'Minecraft Client 1 (wide)'
             runDir 'run'
             programArg '--username'
-            programArg 'Jean_Wide'
+            programArg project.ext.devPlayers[0]
             programArg '--quickPlayMultiplayer'
             programArg 'localhost'
         }
@@ -161,7 +169,7 @@ loom {
             name = 'Minecraft Client 2 (slim)'
             runDir 'run2'
             programArg '--username'
-            programArg 'Jean_Slim'
+            programArg project.ext.devPlayers[1]
             programArg '--quickPlayMultiplayer'
             programArg 'localhost'
         }
@@ -201,6 +209,28 @@ tasks.register('prepareMultiplayer') {
             ].join('\n')
             println("wrote ${properties} (online-mode=false)")
         }
+        // Both players opped, so either can /gamemode, /tp and /time.
+        //
+        // An offline server has no Mojang lookup to do, so the UUID is derived
+        // from the name -- UUIDUtil.createOfflinePlayerUUID is exactly
+        // nameUUIDFromBytes("OfflinePlayer:" + name), which is what this is.
+        // Computing it here means no copying hex around by hand.
+        def ops = new File(run, 'ops.json')
+        def wanted = project.ext.devPlayers.collect { who ->
+            [uuid: UUID.nameUUIDFromBytes(("OfflinePlayer:" + who).getBytes('UTF-8')).toString(),
+             name: who, level: 4, bypassesPlayerLimit: false]
+        }
+        // Rewritten unless it already ops both -- an ops.json the server wrote
+        // on its first run is an empty list, and skipping on "exists" would
+        // leave you with no commands and no clue why.
+        def already = ops.exists() ? ops.text : ''
+        if (project.ext.devPlayers.every { already.contains("\"${it}\"") }) {
+            println("kept ${ops}, which already ops " + project.ext.devPlayers.join(' and '))
+        } else {
+            ops.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(wanted))
+            println("wrote ${ops}, opping " + project.ext.devPlayers.join(' and ') + " at level 4")
+        }
+
         def eula = new File(run, 'eula.txt')
         if (!eula.exists() || !eula.text.contains('eula=true')) {
             println('')

@@ -136,7 +136,28 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                     .register(com.enderdragonanthro.client.smoke.SmokeTest::tick);
         }
 
+        // A button on the pause screen that gives the second client a clean
+        // window to point a camera at: no HUD, no menu, mouse released. See
+        // DragonCameraView for why the mouse has to be released every tick and
+        // not once.
+        net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register(
+                (client, screen, width, height) -> {
+                    if (!(screen instanceof net.minecraft.client.gui.screens.PauseScreen)) {
+                        return;
+                    }
+                    net.fabricmc.fabric.api.client.screen.v1.Screens.getButtons(screen).add(
+                            net.minecraft.client.gui.components.Button.builder(
+                                    net.minecraft.network.chat.Component.literal(
+                                            "Camera View  (Esc to end)"),
+                                    button -> DragonCameraView.enter(client))
+                            // Along the bottom, clear of the vanilla grid, which
+                            // fills the middle and moves between versions.
+                            .bounds(width / 2 - 102, height - 30, 204, 20)
+                            .build());
+                });
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            DragonCameraView.tick(client);
             DragonHud.tick();
             DragonWings.tick();
             DragonTail.tick();
