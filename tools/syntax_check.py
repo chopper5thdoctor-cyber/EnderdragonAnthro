@@ -57,6 +57,31 @@ ENUM_MEMBERS = {
 # Words that read like a variable but never are.
 NOT_A_VAR = {"new", "return", "this", "super", "case", "instanceof", "final"}
 
+#: A `Type name` declaration, capturing the type's head and the name.
+#:
+#: The head is enough: what this is for is noticing that one identifier is
+#: declared as two different things in a file, and `Set` differing from `Shade`
+#: settles that without parsing `Set<Map.Entry<K, V>>`. The optional generic and
+#: array parts are skipped rather than captured, so `List<Foo> bar` and
+#: `String[] bar` both land as ("List", "bar") and ("String", "bar").
+#:
+#: The array brackets ARE captured, and have to be: `DragonIntent[] all` makes
+#: `all` an array, not a DragonIntent, and `all.length` is the array's own field
+#: rather than a missing member. Keeping "[]" in the kind means such a name
+#: never matches a bare type and is simply left alone.
+DECLARATION = re.compile(
+    r"(?<![\w.])([A-Z]\w*)(?:\s*<[^;=(){}]*>)?((?:\s*\[\s*\])*)\s+([a-z]\w*)\s*[;=,):]")
+
+#: A lambda's parameters: `x -> ...` and `(x, y) -> ...`.
+#:
+#: Their types are inferred from the functional interface and are nowhere in
+#: the text, so the checker cannot know them. It matters because short names
+#: get reused: DragonMinions has `for (Shade s : court)` in one method and
+#: `withStyle(s -> s.withColor(tone))` in another, and without this the Style
+#: is read as a Shade and every call on it is reported missing.
+LAMBDA_ONE = re.compile(r"(?<![\w.])([a-z]\w*)\s*->")
+LAMBDA_MANY = re.compile(r"\(([^()]*)\)\s*->")
+
 BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
 LINE_COMMENT = re.compile(r"//[^\n]*")
 STRING = re.compile(r'"(?:\\.|[^"\\])*"')
@@ -188,17 +213,33 @@ def check_members(files, types):
     problems = []
     for path, src in files.items():
         lines = src.splitlines()
+        # Every `Type name` declaration in the file, keyed by the name.
+        #
+        # An identifier only counts as one of our types if EVERY declaration of
+        # it in the file agrees. This used to subtract names that carried
+        # another of OUR types and stop there, which left every foreign type
+        # invisible -- so in a file with a nested `Shade` record, a parameter
+        # `EnderMan shade` was read as a Shade and each of its six EnderMan
+        # calls was reported as a missing member. Ten false positives, and
+        # nothing real among them: the check was red for twenty-three pushes
+        # and had stopped being able to say anything at all.
+        declared = {}
+        for kind, arrays, var in DECLARATION.findall(src):
+            declared.setdefault(var, set()).add(kind + "".join(arrays.split()))
+
+        inferred = set(LAMBDA_ONE.findall(src))
+        for group in LAMBDA_MANY.findall(src):
+            for piece in group.split(","):
+                piece = piece.strip()
+                if re.fullmatch(r"[a-z]\w*", piece):
+                    inferred.add(piece)
+
         for name, members in known.items():
-            # every identifier declared with this type in this file
-            vars_ = set(re.findall(r"\b" + name + r"\s+([a-z]\w*)\s*[;=,):]", src))
+            vars_ = {var for var, kinds in declared.items() if kinds == {name}}
             vars_ -= NOT_A_VAR
+            vars_ -= inferred
             if not vars_:
                 continue
-            # an identifier that also carries another type here is ambiguous
-            for other in known:
-                if other == name:
-                    continue
-                vars_ -= set(re.findall(r"\b" + other + r"\s+([a-z]\w*)\s*[;=,):]", src))
             for var in vars_:
                 # `(?<![\w.])` so a dotted path like a.b.model.Thing is not read
                 # as a field `Thing` on a local called `model`.
