@@ -26,6 +26,38 @@ public final class DragonRig {
     /** Trimmed so the skull tops out level with the hitbox. */
     public static final float RENDER_SCALE = 1.8F * 16.0F / SKULL_HEIGHT;
 
+    /**
+     * How far the rig reaches SIDEWAYS from its pivot, in model units.
+     *
+     * Measured off the rig at conversion time, not typed in. The wings are the
+     * whole reason it exists: they overhang the hitbox by several blocks, and
+     * Minecraft culls an entity on its BOUNDING BOX -- so a dragon stopped
+     * being drawn the moment its narrow box left the view, with a wingspan of
+     * it still on screen. Reported from a second player looking slightly left.
+     */
+    public static final float REACH_UNITS = 103.85F;
+
+    /**
+     * The same reach in blocks, for the culling box to be inflated by.
+     *
+     * TWO scales, and missing either one is how this gets quietly wrong: the
+     * layer draws the model at TRUE_SCALE, and the renderer then multiplies
+     * everything again by the entity's own SCALE attribute, which is what makes
+     * a dragon eight blocks tall rather than two.
+     *
+     * TRUE_SCALE rather than RENDER_SCALE because it is the larger of the two
+     * and the config picks between them at runtime; the bigger box is right for
+     * both.
+     *
+     * Generous on purpose, by 1.35x. REACH_UNITS is the REST pose and the
+     * wingbeat swings past it. Culling too little is an entity that blinks out
+     * of existence; culling too much costs a few triangles that were off screen
+     * anyway. The asymmetry between those two mistakes is the whole argument.
+     */
+    public static float cullReach(float entityScale) {
+        return REACH_UNITS / 16.0F * TRUE_SCALE * entityScale * 1.35F;
+    }
+
     private DragonRig() {
     }
 

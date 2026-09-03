@@ -14,6 +14,14 @@ import os
 import re
 import sys
 
+import numpy as np
+
+# The verifier already reconstructs every cube's world-space corners the way
+# Minecraft will; borrowing it beats a second copy of the same walk that can
+# drift from it.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from verify_model import from_bbmodel   # noqa: E402
+
 from PIL import Image
 
 GROUND = 96.0          # bb y of the model's foot plane in the authoring rig
@@ -434,6 +442,38 @@ public final class DragonRig {{
     /** Trimmed so the skull tops out level with the hitbox. */
     public static final float RENDER_SCALE = 1.8F * 16.0F / SKULL_HEIGHT;
 
+    /**
+     * How far the rig reaches SIDEWAYS from its pivot, in model units.
+     *
+     * Measured off the rig at conversion time, not typed in. The wings are the
+     * whole reason it exists: they overhang the hitbox by several blocks, and
+     * Minecraft culls an entity on its BOUNDING BOX -- so a dragon stopped
+     * being drawn the moment its narrow box left the view, with a wingspan of
+     * it still on screen. Reported from a second player looking slightly left.
+     */
+    public static final float REACH_UNITS = {reach}F;
+
+    /**
+     * The same reach in blocks, for the culling box to be inflated by.
+     *
+     * TWO scales, and missing either one is how this gets quietly wrong: the
+     * layer draws the model at TRUE_SCALE, and the renderer then multiplies
+     * everything again by the entity's own SCALE attribute, which is what makes
+     * a dragon eight blocks tall rather than two.
+     *
+     * TRUE_SCALE rather than RENDER_SCALE because it is the larger of the two
+     * and the config picks between them at runtime; the bigger box is right for
+     * both.
+     *
+     * Generous on purpose, by {margin}x. REACH_UNITS is the REST pose and the
+     * wingbeat swings past it. Culling too little is an entity that blinks out
+     * of existence; culling too much costs a few triangles that were off screen
+     * anyway. The asymmetry between those two mistakes is the whole argument.
+     */
+    public static float cullReach(float entityScale) {{
+        return REACH_UNITS / 16.0F * TRUE_SCALE * entityScale * {margin}F;
+    }}
+
     private DragonRig() {{
     }}
 
@@ -708,8 +748,20 @@ def convert(path):
 
     os.makedirs(os.path.dirname(JAVA_OUT), exist_ok=True)
     open(JAVA_OUT, "w").write(java)
+    # The furthest any cube gets from the pivot, in the horizontal plane and
+    # upward -- what the culling box has to cover.
+    # HORIZONTAL reach, and only horizontal: it is what actually overhangs.
+    # The hitbox is as tall as the model is anyway -- the skull clears its top
+    # by about two blocks -- but it is only 0.6 wide before scale, while a wing
+    # goes out past six blocks. Inflating by the vertical figure would be more
+    # than twice what is needed and would read as a number nobody checked.
+    corners = np.vstack([c for _, c in from_bbmodel(path)])
+    reach = float(max(np.abs(corners[:, 0]).max(), np.abs(corners[:, 2]).max()))
     open(RIG_OUT, "w").write(RIG_TEMPLATE.format(
-        ground=f"{GROUND:.1f}", skull=f"{skull_height:.1f}", eye=f"{eye_y:.2f}"))
+        ground=f"{GROUND:.1f}", skull=f"{skull_height:.1f}", eye=f"{eye_y:.2f}",
+        reach=f"{reach:.2f}", margin="1.35"))
+    print(f"rig reaches {reach:.1f} units from the pivot "
+          f"({reach / 16.0 * 0.25:.2f} blocks at TRUE_SCALE)")
 
     print(f"{len(bb['elements'])} cubes -> {java.count('addOrReplaceChild')} parts")
     print(f"textures written ({lit} emissive pixels)")

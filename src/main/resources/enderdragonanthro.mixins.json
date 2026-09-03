@@ -26,6 +26,7 @@
     "BossOverlayAccessor",
     "CrystalBeamSmoothMixin",
     "DragonBurnFlameMixin",
+    "DragonCullingMixin",
     "DragonFireOverlayMixin",
     "DragonHeartsMixin",
     "DragonShadowMixin",
