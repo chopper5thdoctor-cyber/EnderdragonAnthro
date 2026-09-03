@@ -56,6 +56,30 @@ and passed happily against the broken build order.
 `tools/verify_model.py` is the cheap end of this and runs headless.
 `./gradlew runGametest` is the world. `./gradlew runSmoke` is the client.
 
+## Before pushing, run what CI runs — in CI's order
+
+```bash
+python3 tools/syntax_check.py     # FIRST, and the one that gets forgotten
+python3 tools/verify_model.py
+./gradlew build
+./gradlew runGametest
+```
+
+The first line is there because it was skipped for twenty-three pushes. CI runs
+`syntax_check.py` before anything else and a failure there **skips the compile
+entirely** — so the build went unverified against real Minecraft for a week
+while every commit message said the checks passed. They had: just not the same
+checks.
+
+`syntax_check.py` is the only one of these that has no obvious reason to exist
+locally, because `./gradlew build` compiles anyway. That is exactly why it gets
+dropped, and exactly why it has to be first here: it is a gate in CI, not an
+opinion.
+
+Green locally is not green on the runner. The runner is the only thing that
+compiles against real mapped Minecraft and resolves mixin targets, and it is
+worth actually looking at after a push rather than assuming.
+
 ## Running the client harness without a display
 
 There is no GPU here and none is needed — only a window and a GL context:
