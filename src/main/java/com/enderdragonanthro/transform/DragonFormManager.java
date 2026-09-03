@@ -1,7 +1,6 @@
 package com.enderdragonanthro.transform;
 
 import com.enderdragonanthro.ability.CrystalHealing;
-import com.enderdragonanthro.boss.DragonBossBars;
 import com.enderdragonanthro.config.DragonConfig;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ParticleTypes;
@@ -139,7 +138,6 @@ public final class DragonFormManager {
         ((TransformAccess) player).enderdragonanthro$setDragon(true);
         dress(player);
         player.setHealth(player.getMaxHealth());
-        DragonBossBars.add(player);
         transformBurst(player);
     }
 
@@ -147,7 +145,6 @@ public final class DragonFormManager {
         ((TransformAccess) player).enderdragonanthro$setDragon(false);
         undress(player);
         player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
-        DragonBossBars.remove(player);
         CrystalHealing.unlink(player);
         transformBurst(player);
     }
@@ -160,7 +157,6 @@ public final class DragonFormManager {
         if (isDragon(player)) {
             dress(player);
             resync(player);
-            DragonBossBars.add(player);
         }
     }
 
@@ -190,12 +186,10 @@ public final class DragonFormManager {
         if (isDragon(player)) {
             dress(player);
             player.setHealth(player.getMaxHealth());
-            DragonBossBars.add(player);
         }
     }
 
     public static void onLeave(ServerPlayer player) {
-        DragonBossBars.remove(player);
         CrystalHealing.unlink(player);
     }
 

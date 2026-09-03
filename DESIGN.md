@@ -63,7 +63,7 @@ All colors below are **pixel-sampled from the actual vanilla textures**
 | **Eyes (emissive)** | Glowing magenta-purple | edge `#9600BC`, core `#CC00FA`, bloom `#E079FA` |
 | Mouth interior | Same magenta family as the eye bloom | `#E079FA` |
 | Dragon's Breath / fireball VFX | Purple ramp | `#592463`, `#9C49AF`, `#DC75FA`, `#F3C5FF` |
-| Boss bar | Pink/magenta | vanilla `BossBarColor.PINK` |
+| Boss bar | Pink/magenta | fill `#CC00FA`, highlight row `#E079FA`, border `#474747` |
 
 **Countershading rule:** canon value ordering is `wing membrane (darkest) < body scales <
 horns/claws < belly plates (lightest)`. Every anthro texture must preserve that ordering.
@@ -106,7 +106,7 @@ Upright, bipedal, humanoid silhouette — a person-shaped dragon, not a dragon o
 |---|---|---|
 | Height / hitbox | 8.0 tall × ~2.67 wide (0.6 × 4.44) | `generic.scale` = 4.44 |
 | Max health | 200 HP | `generic.max_health` modifier |
-| Boss bar | Pink boss bar showing the player's name + health to nearby players | per-player `ServerBossEvent`, config toggle |
+| Boss bar | Pink bar with the player's name + health, to themself and to anyone in render distance | drawn client-side in `DragonHud`, off the synced health and scale attribute |
 | Damage model | Flat "body resilience": incoming damage × 0.25 + 1, **except** headshot-zone hits (top ~12% of hitbox) which take full damage — approximates the canon head/body split on a single hitbox | damage event hook |
 | Immunities | Fire/lava; all status effects (config: harmful only vs all) | damage/effect hooks |
 | Step height | 2.5 blocks | `generic.step_height` |
@@ -156,9 +156,18 @@ chat, advancements, death/respawn (keep inventory rules untouched).
 4. **First-person view at 7.2-block eye height.** The vanilla scale attribute moves the
    camera correctly, but leaves clip through nearby leaves/blocks, and the hand/claw
    first-person model needs full re-rendering at scale.
-5. **The boss bar is per-viewer.** Boss bars are a server→client UI channel, so *other*
-   players see yours; you see your own health normally (plus optionally your own bar).
-   Many transformed players = boss bar spam; needs range + count limits and a config.
+5. **The boss bar is per-viewer — and is not a `BossEvent`.** ~~Boss bars are a
+   server→client UI channel, so *other* players see yours.~~ Settled the other way: a
+   `ServerBossEvent` is drawn by vanilla's `BossHealthOverlay`, at vanilla's fixed
+   top-of-screen position, which put it exactly on top of the bar `DragonHud` was
+   already drawing there — two bars, same pixels, both illegible. Everything the bar
+   needs (health, and the scale modifier that marks the form) is already synced, so all
+   of it is drawn client-side now and the two stacks agree by construction. Ours also
+   starts *below* however many real boss events are up, so a wither fight does not
+   collide with it either. Many transformed players is still the thing to design for:
+   yours is a wide bar with the name above it, everyone else's is a compact
+   name-then-bar row, and those stack on a 9px step. Range is the client's own render
+   distance — in view, in the list.
 
 ### 5.2 World-interaction complications (being 8 blocks tall)
 

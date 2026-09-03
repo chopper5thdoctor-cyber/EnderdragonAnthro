@@ -139,6 +139,7 @@ public final class SmokeTest {
                 textures();
                 models(client);
                 clips();
+                bossBars();
                 if (!wantsWorld()) {
                     EnderdragonAnthro.LOGGER.info(
                             "[smoke] skipping the round trips: -D{} is not set", WORLD_FLAG);
@@ -396,6 +397,64 @@ public final class SmokeTest {
             SKIPPED.add(what);
             EnderdragonAnthro.LOGGER.info("[smoke] SKIP {}", what);
         }
+    }
+
+    /**
+     * No two boss bars on the same pixels, however many are up.
+     *
+     * ## The bug
+     *
+     * A dragon's bar was drawn at a hardcoded y=12, and vanilla starts its own
+     * boss bars at exactly 12. With a second dragon in the world -- which used
+     * to mean a {@code ServerBossEvent} vanilla drew for us -- the two landed on
+     * top of each other and both were illegible. The compass had the same fault
+     * from the other side: it counted the stack itself, got a different answer,
+     * and put a label over a bar.
+     *
+     * ## Why it is checked here rather than looked at
+     *
+     * The arrangement is arithmetic, so it can be asserted; the rest of the HUD
+     * is layout, which is why that one is a screenshot instead. Reproducing the
+     * real thing would need two clients, both transformed, in render distance of
+     * each other, with a wither up. {@link DragonHud#bossRowTops} is the one
+     * place that decides the geometry, so asking it directly covers the same
+     * ground for nothing.
+     *
+     * ## The numbers are vanilla's, written out
+     *
+     * 12 and 19 are {@code BossHealthOverlay}'s own -- first bar at y=12, each
+     * one 19 further down. Deliberately NOT read back from DragonHud: a check
+     * that asks the code under test what the right answer is agrees with the bug
+     * as happily as with the fix.
+     */
+    private static void bossBars() {
+        String clash = null;
+        for (int vanilla = 0; vanilla <= 3 && clash == null; vanilla++) {
+            // Bottom edge of vanilla's lowest bar, or the top of the screen
+            // area when it is drawing none.
+            int taken = vanilla == 0 ? 12 : 12 + (vanilla - 1) * 19 + 6;
+            for (int rows = 1; rows <= 4 && clash == null; rows++) {
+                int[] tops = DragonHud.bossRowTops(vanilla, rows);
+                if (tops.length != rows) {
+                    clash = "asked for " + rows + " rows and got " + tops.length;
+                    break;
+                }
+                if (tops[0] < taken) {
+                    clash = "with " + vanilla + " vanilla bar(s) up, the first row is at y="
+                            + tops[0] + " and vanilla's stack runs to y=" + taken;
+                    break;
+                }
+                for (int i = 1; i < rows; i++) {
+                    if (tops[i] - tops[i - 1] < DragonHud.BOSS_BAR_H) {
+                        clash = "rows " + (i - 1) + " and " + i + " are " + tops[i - 1]
+                                + " and " + tops[i] + ", closer than a bar is tall";
+                        break;
+                    }
+                }
+            }
+        }
+        check("no two boss bars share a row", clash == null,
+                clash == null ? "" : clash);
     }
 
     private static void check(String what, boolean ok, String why) {

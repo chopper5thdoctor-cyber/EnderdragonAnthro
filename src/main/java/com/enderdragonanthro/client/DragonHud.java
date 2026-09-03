@@ -3,11 +3,13 @@ package com.enderdragonanthro.client;
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.ability.AbilityAction;
 import com.enderdragonanthro.ability.DragonIntent;
+import com.enderdragonanthro.mixin.BossOverlayAccessor;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -113,10 +115,16 @@ public final class DragonHud {
      */
     public static void render(GuiGraphics graphics) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.options.hideGui || !isDragonForm(mc.player)) {
+        if (mc.player == null || mc.options.hideGui) {
             return;
         }
-        renderOwnBossBar(graphics, mc.player, mc);
+        // Before the early return, and deliberately: the bars are the one thing
+        // here a player who is NOT a dragon still has to see, because the whole
+        // point of somebody else's bar is that somebody else is looking at it.
+        renderBossBars(graphics, mc.player, mc);
+        if (!isDragonForm(mc.player)) {
+            return;
+        }
 
         List<Map.Entry<KeyMapping, AbilityAction>> all = new ArrayList<>(CHIPS.entrySet());
         if (all.isEmpty()) {
@@ -261,22 +269,226 @@ public final class DragonHud {
         return s.length() > 5 ? s.substring(0, 5) : s;
     }
 
-    /** Your own dragon boss bar, palette-styled, top centre like the real fight. */
-    private static void renderOwnBossBar(GuiGraphics graphics, LocalPlayer player, Minecraft mc) {
-        int barWidth = 182;
-        int x = (graphics.guiWidth() - barWidth) / 2;
-        int y = 12;
-        float fraction = Mth.clamp(player.getHealth() / player.getMaxHealth(), 0.0F, 1.0F);
+    /** Height of a bar, border included. */
+    private static final int BAR_H = 6;
+    /** A full-width bar: the same 182 vanilla uses. */
+    private static final int BAR_W = 182;
+    /**
+     * How far above a wide bar its name is written.
+     *
+     * Vanilla's number. {@code BossHealthOverlay} draws the bar at y and the
+     * name at y-9, which means our first bar's name lands exactly in the gap
+     * vanilla leaves under its own last one — the two stacks keep the same
+     * rhythm rather than one of them having its own idea of spacing.
+     */
+    private static final int NAME_H = 9;
+    /**
+     * One row to the next: the bar, and three clear pixels.
+     *
+     * Tighter than vanilla's 19 because none of our rows needs a name written
+     * above it — the wide one borrows the gap left by the stack above, and the
+     * compact ones put the name inline. Tight is the point: "multiple SPOV
+     * bars, tightly packed" is what was asked for.
+     */
+    private static final int ROW_STEP = 9;
+    /** Between a compact bar's name and its bar. */
+    private static final int NAME_GAP = 4;
+    /**
+     * How far off a dragon can be and still get a bar: as far as you can see.
+     *
+     * A flat 96 blocks was arbitrary and read as one — a dragon plainly visible
+     * on the horizon with no bar under a big render distance, and a bar for one
+     * you could not see at all under a small one. Tying it to the render
+     * distance makes the rule the obvious one instead: it comes into view, it
+     * gets a bar, and turning your chunks up buys you more warning.
+     *
+     * {@code getEffectiveRenderDistance} is already the smaller of your setting
+     * and the server's, so this cannot promise more than the server will send.
+     * It cannot promise less either: entities arrive on the client only inside
+     * the server's tracking range, so a dragon further out is not in
+     * {@code players()} to be measured in the first place. This is the visible
+     * half of a limit that exists whether or not it is written down.
+     */
+    private static double viewRange(Minecraft mc) {
+        return mc.options.getEffectiveRenderDistance() * 16.0;
+    }
+    /** Vanilla's first boss bar, and the top of its stack. */
+    private static final int VANILLA_TOP = 12;
+    /** Vanilla's spacing between boss bars, from BossHealthOverlay. */
+    private static final int VANILLA_STEP = 19;
 
-        graphics.fill(x - 1, y - 1, x + barWidth + 1, y + 6, BORDER);
-        graphics.fill(x, y, x + barWidth, y + 5, 0xFF141414);
-        int filled = (int) (fraction * barWidth);
+    /** How many real boss events vanilla is drawing above us right now. */
+    private static int vanillaBars(Minecraft mc) {
+        return mc.gui == null ? 0
+                : ((BossOverlayAccessor) mc.gui.getBossOverlay()).enderdragonanthro$events().size();
+    }
+
+    /**
+     * The top edge of every bar we are about to draw, in order.
+     *
+     * The whole geometry of the stack, and the only place it is decided. Three
+     * callers used to each do a version of this arithmetic -- the renderer, the
+     * compass looking for the first free row, and vanilla's own overlay, which
+     * did not know we existed -- and all three disagreed. The screenshot that
+     * started this had two bars on the same pixels.
+     *
+     * Starting under vanilla rather than at 12 is the other half of the fix.
+     * Deleting our {@code ServerBossEvent} stopped us colliding with ourselves;
+     * a real wither or a real ender dragon still puts a {@code BossEvent} in
+     * that space, and a bar drawn at a fixed 12 would land on it.
+     *
+     * Pure, static, and public so the harness can check it without needing a
+     * world, a second player and somebody to look at a screenshot.
+     */
+    public static int[] bossRowTops(int vanillaBars, int rows) {
+        int[] tops = new int[Math.max(rows, 0)];
+        int y = VANILLA_TOP + vanillaBars * VANILLA_STEP;
+        for (int i = 0; i < tops.length; i++) {
+            tops[i] = y;
+            y += ROW_STEP;
+        }
+        return tops;
+    }
+
+    /** Height of a bar, for anything laying out under the stack. */
+    public static final int BOSS_BAR_H = BAR_H;
+
+    /**
+     * The y just below our lowest bar; the top of the stack when we draw none.
+     *
+     * Reads the same {@link #bossRowTops} the renderer lays out from, so the
+     * two cannot drift apart. The compass hangs off this, and the last time it
+     * did its own counting it landed a label on top of a bar.
+     */
+    public static int bossStackBottom() {
+        Minecraft mc = Minecraft.getInstance();
+        int rows = 0;
+        if (mc.player != null && !mc.options.hideGui) {
+            rows = (isDragonForm(mc.player) ? 1 : 0) + dragonsInView(mc, mc.player).size();
+        }
+        int[] tops = bossRowTops(vanillaBars(mc), rows);
+        // The bottom of the LAST bar, not the top of the row that would come
+        // after it: with one bar up and nothing vanilla, y=18.
+        return tops.length == 0 ? VANILLA_TOP + vanillaBars(mc) * VANILLA_STEP
+                : tops[tops.length - 1] + BAR_H;
+    }
+
+    /**
+     * Every dragon on screen, yours first and anyone else's under it.
+     *
+     * ## Why there can be more than one
+     *
+     * Under normal play there is exactly one dragon and this is a single bar.
+     * The form is a keypress away today, and even once it is gated it will be
+     * gated per player rather than globally -- so creative mode, or a piston
+     * contraption clever enough to trip whatever the eventual cost is, can put
+     * two of them in the same world. Recorded because it is the sort of thing
+     * that gets called impossible right up until a screenshot arrives, and the
+     * screenshot that prompted this had two bars drawn exactly on top of each
+     * other, both illegible.
+     *
+     * ## Two layouts, on purpose
+     *
+     * Yours is the wide one with its name centred above it, because it is about
+     * you and there is only ever one of it. Everybody else's is a compact row --
+     * name on the left, bar on the right -- because there can be any number of
+     * those and they have to stack without eating the screen.
+     */
+    private static void renderBossBars(GuiGraphics graphics, LocalPlayer player, Minecraft mc) {
+        boolean mine = isDragonForm(player);
+        List<Player> others = dragonsInView(mc, player);
+        int[] tops = bossRowTops(vanillaBars(mc), (mine ? 1 : 0) + others.size());
+        if (tops.length == 0) {
+            return;
+        }
+        int row = 0;
+        if (mine) {
+            drawWideBar(graphics, mc, tops[row++]);
+        }
+        if (others.isEmpty()) {
+            return;
+        }
+        // Widest name first, so every compact bar starts at the same x and the
+        // column of them reads as one thing rather than as a ragged staircase.
+        int gutter = 0;
+        for (Player other : others) {
+            gutter = Math.max(gutter, mc.font.width(other.getGameProfile().getName()));
+        }
+        for (Player other : others) {
+            drawCompactBar(graphics, mc, other, tops[row++], gutter);
+        }
+    }
+
+    /**
+     * The other dragons close enough to draw a bar for.
+     *
+     * Read straight off the other player: health is synched entity data and the
+     * scale modifier is an attribute, so both are already on the client. This
+     * used to be a {@code ServerBossEvent} per dragon, which meant VANILLA drew
+     * it -- at vanilla's fixed top-of-screen position, on top of the bar this
+     * class was already drawing there. Doing both here is what makes them agree
+     * about where they are, and it deletes a piece of static server state at
+     * the same time.
+     */
+    private static List<Player> dragonsInView(Minecraft mc, Player player) {
+        List<Player> others = new ArrayList<>();
+        if (mc.level == null) {
+            return others;
+        }
+        // A client holds exactly one level, so being in this list is already the
+        // same-dimension test the server-side version had to make by hand.
+        //
+        // Measured flat. Render distance is a count of chunks around you and
+        // says nothing about height, and the case that matters most here is a
+        // dragon a long way UP — straight-line distance would drop the bar for
+        // one hanging directly overhead in plain sight.
+        double range = viewRange(mc);
+        double limit = range * range;
+        for (Player other : mc.level.players()) {
+            double dx = other.getX() - player.getX();
+            double dz = other.getZ() - player.getZ();
+            if (other != player && isDragonForm(other) && dx * dx + dz * dz < limit) {
+                others.add(other);
+            }
+        }
+        // players() is in whatever order people joined and left in, which is not
+        // stable across a relog. Sorting by name means a given player keeps their
+        // row instead of swapping with somebody else mid-recording.
+        others.sort(Comparator.comparing(other -> other.getGameProfile().getName()));
+        return others;
+    }
+
+    /** Yours: name centred over a full-width bar, as the real fight draws it. */
+    private static void drawWideBar(GuiGraphics graphics, Minecraft mc, int y) {
+        int x = (graphics.guiWidth() - BAR_W) / 2;
+        graphics.drawCenteredString(mc.font, "Ender Dragon",
+                graphics.guiWidth() / 2, y - NAME_H, 0xFFE079FA);
+        bar(graphics, x, y, BAR_W, health(mc.player));
+    }
+
+    /** Somebody else's: name left, bar right, one row tall. */
+    private static void drawCompactBar(GuiGraphics graphics, Minecraft mc,
+                                       Player dragon, int y, int gutter) {
+        int width = BAR_W - gutter - NAME_GAP;
+        int x = (graphics.guiWidth() - BAR_W) / 2;
+        graphics.drawString(mc.font, dragon.getGameProfile().getName(), x, y - 1,
+                0xFFE079FA, true);
+        bar(graphics, x + gutter + NAME_GAP, y, width, health(dragon));
+    }
+
+    private static float health(Player player) {
+        return player.getMaxHealth() <= 0.0F ? 0.0F
+                : Mth.clamp(player.getHealth() / player.getMaxHealth(), 0.0F, 1.0F);
+    }
+
+    private static void bar(GuiGraphics graphics, int x, int y, int width, float fraction) {
+        graphics.fill(x - 1, y - 1, x + width + 1, y + BAR_H, BORDER);
+        graphics.fill(x, y, x + width, y + BAR_H - 1, 0xFF141414);
+        int filled = (int) (fraction * width);
         if (filled > 0) {
-            graphics.fill(x, y, x + filled, y + 5, 0xFFCC00FA);
+            graphics.fill(x, y, x + filled, y + BAR_H - 1, 0xFFCC00FA);
             graphics.fill(x, y, x + filled, y + 2, 0xFFE079FA);
         }
-        graphics.drawCenteredString(mc.font, "Ender Dragon",
-                graphics.guiWidth() / 2, y - 11, 0xFFE079FA);
     }
 
     private static void drawBorder(GuiGraphics graphics, int x, int y, int w, int color) {

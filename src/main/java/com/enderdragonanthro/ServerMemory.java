@@ -10,7 +10,6 @@ import com.enderdragonanthro.ability.DragonPresence;
 import com.enderdragonanthro.ability.DragonSight;
 import com.enderdragonanthro.ability.EndermanAffection;
 import com.enderdragonanthro.ability.HomingCrystals;
-import com.enderdragonanthro.boss.DragonBossBars;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.minecraft.server.MinecraftServer;
 
@@ -38,8 +37,15 @@ import net.minecraft.server.MinecraftServer;
  *   catches up.
  * - {@code EndermanAffection} keys gazes by entity *id*, which are handed out
  *   again from 1 in every world. A stale one names a different creature.
- * - {@code DragonBossBars} holds {@code ServerBossEvent}s pointing at the
- *   players of a server that has stopped.
+ * - {@code CrystalHealing} links a dragon to the crystals healing them by UUID.
+ *   A link carried into the next save names a crystal that never existed there.
+ *
+ * There was a fourth, {@code DragonBossBars}, holding a {@code ServerBossEvent}
+ * per dragon that pointed at the players of a server which had stopped. It is
+ * gone rather than fixed: the bar is drawn on the client now, off health and an
+ * attribute that were already synced, so there is no server state left to leak.
+ * Deleting a holder is the better answer whenever it is available, because the
+ * list below is a thing somebody has to remember to add to.
  *
  * ## Both ends, deliberately
  *
@@ -75,7 +81,6 @@ public final class ServerMemory {
     public static void forgetWorld(MinecraftServer server) {
         DragonMinions.forget();
         DragonFormManager.forgetWorld();
-        DragonBossBars.forgetWorld();
         DragonSight.forgetWorld();
         DragonAbilities.forgetWorld();
         DragonFlight.forgetWorld();

@@ -7,7 +7,6 @@ import com.enderdragonanthro.ability.DragonFlight;
 import com.enderdragonanthro.ability.DragonMinions;
 import com.enderdragonanthro.ability.EndermanAffection;
 import com.enderdragonanthro.ability.HomingCrystals;
-import com.enderdragonanthro.boss.DragonBossBars;
 import com.enderdragonanthro.config.DragonConfig;
 import com.enderdragonanthro.block.ModBlocks;
 import com.enderdragonanthro.item.ModItems;
@@ -156,7 +155,6 @@ public class EnderdragonAnthro implements ModInitializer {
             CrystalHealing.tick(server);
             HomingCrystals.tick(server);
             EndermanAffection.tick(server);
-            DragonBossBars.tick(server);
         });
 
         // Crater punch: a left-click on a block while the toggle is armed blows
