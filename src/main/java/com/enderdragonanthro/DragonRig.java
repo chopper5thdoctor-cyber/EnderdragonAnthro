@@ -30,6 +30,20 @@ public final class DragonRig {
      */
     public static final float HEART_RIG_Y = 99.00F;
 
+    /**
+     * The wingbeat, and the tick within it at which the stroke lands.
+     *
+     * On the common side because the Buffet is a wing sweep and the SERVER
+     * decides when it hits — the damage used to go out on the keypress, which
+     * put the knockback most of a wingbeat before the wings moved.
+     *
+     * BEAT_IMPACT is measured rather than chosen: it is the sample at which the
+     * root wings are furthest from rest, which is the bottom of the power
+     * stroke. Retime the flap in Blockbench and the blow follows it.
+     */
+    public static final int BEAT_TICKS = 16;
+    public static final int BEAT_IMPACT = 9;
+
     /** The model is authored at four times life size on the sheet. */
     public static final float AUTHORED_SCALE = 4.0F;
     /** Exactly as drawn: the head rides above the hitbox, as the canon dragon's does. */

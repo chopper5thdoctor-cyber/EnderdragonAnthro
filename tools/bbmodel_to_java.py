@@ -270,6 +270,37 @@ WAG_DOC = """    /**
 """
 
 
+def measure_impact(baked):
+    """The tick in the wingbeat at which the stroke lands.
+
+    A buffet is the wings hitting the air, so the blow has to land when they
+    do. That instant is a fact about the animation, not a number to pick: it is
+    the sample at which the wing is furthest from rest, which is the bottom of
+    the power stroke -- everything after it is the recovery.
+
+    ROOT wings only, deliberately. Summing the tips in moves the answer six
+    samples later, because they carry on curling after the big surface has
+    stopped; that flourish is follow-through and it is not what displaces the
+    air. Rotation only, for the plain reason that radians and model units
+    cannot be added together.
+
+    Returns 0 if the rig has no flap, which puts the blow back on the keypress
+    -- the old behaviour, and the right thing to fall back to.
+    """
+    if baked is None:
+        return 0
+    ticks, tracks = baked
+    roots = ("wing_left", "wing_right")
+    best, at = -1.0, 0
+    for sample in range(CLIP_SAMPLES):
+        swing = sum(abs(row[sample])
+                    for (bone, channel, _axis), row in tracks.items()
+                    if bone in roots and channel == "rotation")
+        if swing > best:
+            best, at = swing, sample
+    return int(at / CLIP_SAMPLES * ticks + 0.5)
+
+
 def clip_java(name, const, bones, baked, fallback=""):
     """The tables for one clip, plus the constant naming its length."""
     if baked is None:
@@ -445,6 +476,20 @@ public final class DragonRig {{
      * beam follows it.
      */
     public static final float HEART_RIG_Y = {heart}F;
+
+    /**
+     * The wingbeat, and the tick within it at which the stroke lands.
+     *
+     * On the common side because the Buffet is a wing sweep and the SERVER
+     * decides when it hits — the damage used to go out on the keypress, which
+     * put the knockback most of a wingbeat before the wings moved.
+     *
+     * BEAT_IMPACT is measured rather than chosen: it is the sample at which the
+     * root wings are furthest from rest, which is the bottom of the power
+     * stroke. Retime the flap in Blockbench and the blow follows it.
+     */
+    public static final int BEAT_TICKS = {beat_ticks};
+    public static final int BEAT_IMPACT = {beat_impact};
 
     /** The model is authored at four times life size on the sheet. */
     public static final float AUTHORED_SCALE = 4.0F;
@@ -801,7 +846,10 @@ def convert(path):
     reach = float(max(np.abs(corners[:, 0]).max(), np.abs(corners[:, 2]).max()))
     open(RIG_OUT, "w").write(RIG_TEMPLATE.format(
         ground=f"{GROUND:.1f}", skull=f"{skull_height:.1f}", eye=f"{eye_y:.2f}",
-        heart=f"{heart_y:.2f}", reach=f"{reach:.2f}", margin="1.35"))
+        heart=f"{heart_y:.2f}", reach=f"{reach:.2f}", margin="1.35",
+        beat_ticks=beat[0] if beat else 0, beat_impact=measure_impact(beat)))
+    print(f"wingbeat: {beat[0] if beat else 0} ticks, the stroke lands on "
+          f"{measure_impact(beat)}")
     print(f"rig reaches {reach:.1f} units from the pivot "
           f"({reach / 16.0 * 0.25:.2f} blocks at TRUE_SCALE)")
 

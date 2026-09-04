@@ -1,5 +1,7 @@
 package com.enderdragonanthro.ability;
 
+import com.enderdragonanthro.DragonRig;
+
 /**
  * Every client-initiated action, sent over one C2S payload.
  * Cooldowns are in ticks (20 = 1 second).
@@ -8,7 +10,11 @@ public enum AbilityAction {
     TRANSFORM(0, "Form"),
     BREATH(80, "Breath"),
     FIREBALL(60, "Fireball"),
-    BUFFET(100, "Buffet", false, true),
+    // Five seconds, less the wingbeat the blow now waits out. The delay is
+    // paid back rather than added: DragonRig.BEAT_IMPACT is the same number
+    // DragonAbilities counts down before the sweep lands, so retiming the
+    // flap in Blockbench moves both ends of it at once.
+    BUFFET(100 - DragonRig.BEAT_IMPACT, "Buffet", false, true),
     CHARGE(80, "Charge"),
     CRATER(0, "Intent: "),
     // evasive jump is the escape button, so it is the expensive one

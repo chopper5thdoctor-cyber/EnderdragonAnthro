@@ -1,6 +1,7 @@
 package com.enderdragonanthro.ability;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.enderdragonanthro.DragonRig;
 import com.enderdragonanthro.network.DragonWingbeatPayload;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.minecraft.ChatFormatting;
@@ -45,6 +46,8 @@ import java.util.UUID;
 public final class DragonAbilities {
     private static final Map<UUID, Map<AbilityAction, Long>> COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Integer> ACTIVE_CHARGES = new HashMap<>();
+    /** Wing sweeps in flight: ticks left before each one lands. */
+    private static final Map<UUID, Integer> PENDING_BUFFET = new HashMap<>();
 
     /** How far the breath will look for ground before giving up. */
     private static final double BREATH_REACH = 100.0;
@@ -64,6 +67,7 @@ public final class DragonAbilities {
     public static void forgetWorld() {
         COOLDOWNS.clear();
         ACTIVE_CHARGES.clear();
+        PENDING_BUFFET.clear();
         JETS.clear();
         LAST_CRATER.clear();
     }
@@ -122,7 +126,10 @@ public final class DragonAbilities {
         switch (action) {
             case BREATH -> breath(player);
             case FIREBALL -> fireball(player);
-            case BUFFET -> wingBuffet(player);
+            // Scheduled, not swung. The wings start moving on this tick and
+            // the air they push does not arrive for another BEAT_IMPACT of
+            // them -- see wingBuffet.
+            case BUFFET -> PENDING_BUFFET.put(player.getUUID(), DragonRig.BEAT_IMPACT);
             case CHARGE -> beginCharge(player);
             case CRATER -> DragonIntent.cycle(player);
             case EVADE -> evade(player);
@@ -166,6 +173,7 @@ public final class DragonAbilities {
 
     public static void tick(MinecraftServer server) {
         drawJets(server);
+        landBuffets(server.getPlayerList().getPlayers());
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (DragonFormManager.isDragon(player) && player.isSprinting()) {
                 chargeContactDamage(player);
@@ -187,6 +195,41 @@ public final class DragonAbilities {
                 player.connection.send(new ClientboundSetEntityMotionPacket(player));
             }
             chargeContactDamage(player);
+        }
+    }
+
+    /**
+     * Swing the wing sweeps that were waiting for the wings.
+     *
+     * A dragon who stopped being one, or logged out, mid-stroke simply does not
+     * connect. Dropped rather than delivered: the knockback belongs to a body
+     * that is no longer eight blocks of dragon, and the alternative is a blow
+     * landing out of a clear sky.
+     *
+     * Takes the dragons rather than reaching for the player list, so the
+     * gametest can hand it a FakeDragon -- GameTest runs with an empty player
+     * list, and code that only ever looks there cannot be tested at all.
+     */
+    public static void landBuffets(List<ServerPlayer> dragons) {
+        Map<UUID, ServerPlayer> here = new HashMap<>();
+        for (ServerPlayer dragon : dragons) {
+            here.put(dragon.getUUID(), dragon);
+        }
+        Iterator<Map.Entry<UUID, Integer>> it = PENDING_BUFFET.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, Integer> entry = it.next();
+            ServerPlayer player = here.get(entry.getKey());
+            if (player == null || !DragonFormManager.isDragon(player)) {
+                it.remove();
+                continue;
+            }
+            int left = entry.getValue();
+            if (left > 0) {
+                entry.setValue(left - 1);
+                continue;
+            }
+            it.remove();
+            wingBuffet(player);
         }
     }
 
@@ -322,6 +365,10 @@ public final class DragonAbilities {
 
     private static void wingBuffet(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
+        // Reached from landBuffets a wingbeat after the key, never straight
+        // from the keypress. The sound is inside here rather than at the press
+        // for the same reason the damage is: it is the sound of the wings
+        // hitting the air, and they have not yet.
         AABB area = player.getBoundingBox().inflate(6.0, 3.0, 6.0);
         // Restrained is what it shipped with, a wooden sword swung in a circle.
         // Boss is a six-block wing sweep off something eight blocks tall on a

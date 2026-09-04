@@ -1,6 +1,8 @@
 package com.enderdragonanthro.gametest;
 
 import com.enderdragonanthro.DragonAnatomy;
+import com.enderdragonanthro.DragonRig;
+import com.enderdragonanthro.ability.AbilityAction;
 import com.enderdragonanthro.ability.CrystalHealing;
 import com.enderdragonanthro.ability.DragonAbilities;
 import com.enderdragonanthro.ability.DragonFire;
@@ -632,6 +634,62 @@ public class DragonGameTests implements FabricGameTest {
             helper.fail(String.format(
                     "the beam aims at %.2f on a %.2f block dragon, which is off the top of it",
                     heart, height));
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The wing sweep lands when the wings do, not when the key goes down.
+     *
+     * Buffet used to hurt everything around it on the press, most of a wingbeat
+     * before the wings moved -- and for a while before that, before they moved
+     * at all. Two assertions, because "it hits later" and "it still hits" are
+     * different ways to get this wrong and only one of them is visible in play.
+     *
+     * The impact tick is DragonRig.BEAT_IMPACT, measured off the flap clip at
+     * conversion time rather than named here: retime the animation and the test
+     * follows it, which is the only way it can stay true.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void theBuffetLandsWithTheWings(GameTestHelper helper) {
+        floor(helper, 12);
+        FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(2, 1, 2));
+        Zombie zombie = helper.spawn(EntityType.ZOMBIE, new BlockPos(4, 1, 2));
+        float full = zombie.getHealth();
+
+        DragonAbilities.trigger(dragon, AbilityAction.BUFFET);
+        if (zombie.getHealth() < full) {
+            helper.fail("the buffet landed on the keypress, "
+                    + DragonRig.BEAT_IMPACT + " ticks before the wings reach the air");
+        }
+        // One tick short of the stroke: still nothing.
+        for (int tick = 0; tick < DragonRig.BEAT_IMPACT; tick++) {
+            DragonAbilities.landBuffets(List.of(dragon));
+        }
+        if (zombie.getHealth() < full) {
+            helper.fail("the buffet landed early, before tick " + DragonRig.BEAT_IMPACT);
+        }
+        DragonAbilities.landBuffets(List.of(dragon));
+        if (zombie.getHealth() >= full) {
+            helper.fail("the buffet never landed: the zombie is still on "
+                    + zombie.getHealth() + " a full stroke later");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * ...and the cooldown pays the delay back rather than adding it on.
+     *
+     * A blow that arrives half a second late and is gated for the same five
+     * seconds afterwards is strictly worse than the one it replaced. This is
+     * the arithmetic, asserted, so a later edit to either number has to move
+     * the other.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void theBuffetCooldownRepaysTheWait(GameTestHelper helper) {
+        if (AbilityAction.BUFFET.cooldownTicks + DragonRig.BEAT_IMPACT != 100) {
+            helper.fail("press to press is " + (AbilityAction.BUFFET.cooldownTicks
+                    + DragonRig.BEAT_IMPACT) + " ticks, not the 100 it was");
         }
         helper.succeed();
     }
