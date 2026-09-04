@@ -167,8 +167,28 @@ public final class DragonMinions {
      * the chunk at level 31, which is entity-ticking, so the shade keeps mining
      * and Recall can still reach it from a thousand blocks out.
      */
-    private static final TicketType<ChunkPos> SHADE_TICKET =
-            TicketType.create("edanthro_shade", Comparator.comparingLong(ChunkPos::toLong));
+    /**
+     * Keyed by the SHADE, not by the chunk she is standing in.
+     *
+     * SHIPPED BUG, and the sort that only shows up with two dragons in a world.
+     * Ticket.equals is (type, level, key), so a ticket keyed by ChunkPos made
+     * every shade in one chunk the SAME ticket: SortedArraySet.addOrGet kept one
+     * of them, and the first shade to walk out of that chunk removed it for
+     * everybody. The chunk then unloaded with somebody still standing in it, and
+     * Recall answered "cannot be found at all".
+     *
+     * Two players' Vaelles two metres apart is how it was noticed, but it was
+     * never about two owners -- a court of four stands together by design and
+     * has been sharing one ticket between the four of them all along. The bug
+     * needed a second dragon only to become visible.
+     *
+     * A UUID per shade, held for her lifetime, so no two shades can collide
+     * however close they stand. Deliberately NOT the entity's own UUID:
+     * changeDimension replaces the entity and hands back a new one, and a key
+     * that changed between the add and the remove would leak the chunk forever.
+     */
+    private static final TicketType<UUID> SHADE_TICKET =
+            TicketType.create("edanthro_shade", Comparator.<UUID>naturalOrder());
     private static final int TICKET_RADIUS = 2;
     private static final ResourceLocation SCALE_ID = id("minion_scale");
     private static final ResourceLocation HEALTH_ID = id("minion_health");
@@ -213,7 +233,7 @@ public final class DragonMinions {
     private static final String OWNER_TAG = "edanthro_owner_";
     private static final String SLOT_TAG = "edanthro_slot_";
 
-    private static final class Shade {
+    public static final class Shade {
         UUID entity;
         int slot;
         Order order = Order.DEFEND;
@@ -236,6 +256,14 @@ public final class DragonMinions {
         Dig dig;
         /** The chunk we are currently holding open for it. */
         ChunkPos ticket;
+        /**
+         * What her chunk hold is filed under. Hers alone, for her whole life.
+         *
+         * Not persisted, and does not need to be: a ticket is a live hold on a
+         * running server, so a court read back out of a save holds nothing
+         * until the next holdChunk gives it a key and a chunk together.
+         */
+        UUID ticketKey;
         /** The crystal this shade raised, and the block it stands on. */
         UUID crystal;
         BlockPos bedrock;
@@ -523,14 +551,41 @@ public final class DragonMinions {
             return;
         }
         releaseChunk(level, shade);
-        level.getChunkSource().addRegionTicket(SHADE_TICKET, now, TICKET_RADIUS, now);
+        if (shade.ticketKey == null) {
+            shade.ticketKey = UUID.randomUUID();
+        }
+        level.getChunkSource().addRegionTicket(SHADE_TICKET, now, TICKET_RADIUS,
+                shade.ticketKey);
         shade.ticket = now;
     }
 
+    /**
+     * Test seams for the chunk hold, and the only way to see one at all.
+     *
+     * A hold is invisible from every angle the game offers -- the chunk stays
+     * loaded while anything else is looking at it -- so the gametest counts the
+     * tickets directly. These go through the real holdChunk and releaseChunk
+     * rather than reimplementing them, which is the whole point of a seam.
+     */
+    public static Shade holdFor(ServerLevel level, EnderMan minion) {
+        Shade shade = new Shade();
+        shade.entity = minion.getUUID();
+        holdChunk(level, shade, minion);
+        return shade;
+    }
+
+    public static void releaseFor(ServerLevel level, Shade shade) {
+        releaseChunk(level, shade);
+    }
+
+    public static TicketType<?> shadeTicketType() {
+        return SHADE_TICKET;
+    }
+
     private static void releaseChunk(ServerLevel level, Shade shade) {
-        if (shade.ticket != null) {
+        if (shade.ticket != null && shade.ticketKey != null) {
             level.getChunkSource().removeRegionTicket(
-                    SHADE_TICKET, shade.ticket, TICKET_RADIUS, shade.ticket);
+                    SHADE_TICKET, shade.ticket, TICKET_RADIUS, shade.ticketKey);
             shade.ticket = null;
         }
     }

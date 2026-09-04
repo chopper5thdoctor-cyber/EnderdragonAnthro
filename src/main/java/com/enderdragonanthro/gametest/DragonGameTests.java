@@ -30,6 +30,7 @@ import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 
 import java.util.HashSet;
@@ -737,6 +738,73 @@ public class DragonGameTests implements FabricGameTest {
                     + " of " + shade.getMaxHealth());
         }
         helper.succeed();
+    }
+
+    /**
+     * SHIPPED BUG: two shades in one chunk shared a single chunk hold.
+     *
+     * Ticket.equals is (type, level, key), and the hold was keyed by the CHUNK
+     * the shade stood in -- so every shade in one chunk was the same ticket,
+     * SortedArraySet kept one of them, and the first to walk out removed it for
+     * all of them. The chunk unloaded with somebody still in it and Recall
+     * answered "cannot be found at all".
+     *
+     * Reported as two players' Vaelles: "recall of Jean_Slim's Vaelle did not
+     * work because Jean_Wide's Vaelle was close by". It was never about two
+     * owners -- a court of four stands together by design and had been sharing
+     * one ticket the whole time. A second dragon only made it visible.
+     *
+     * Counted rather than inferred, because there is no other angle on it: the
+     * chunk stays loaded while anything else is looking, so a hold that was
+     * quietly taken away reads as nothing until the shade is a thousand blocks
+     * off and gone.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void twoShadesInOneChunkHoldItSeparately(GameTestHelper helper) {
+        floor(helper, 12);
+        ServerLevel level = helper.getLevel();
+        EnderMan hers = helper.spawn(EntityType.ENDERMAN, new BlockPos(3, 1, 3));
+        EnderMan theirs = helper.spawn(EntityType.ENDERMAN, new BlockPos(4, 1, 3));
+        ChunkPos chunk = new ChunkPos(hers.blockPosition());
+        if (!chunk.equals(new ChunkPos(theirs.blockPosition()))) {
+            helper.fail("the two shades are not in the same chunk; the test proves nothing");
+        }
+
+        int before = enderdragonanthro$shadeTickets(level, chunk);
+        DragonMinions.Shade one = DragonMinions.holdFor(level, hers);
+        DragonMinions.Shade two = DragonMinions.holdFor(level, theirs);
+        int both = enderdragonanthro$shadeTickets(level, chunk);
+        if (both - before != 2) {
+            helper.fail("two shades in one chunk left " + (both - before)
+                    + " hold(s) on it, not 2 -- one of them is standing in a chunk"
+                    + " that nothing is keeping loaded");
+        }
+
+        DragonMinions.releaseFor(level, one);
+        int left = enderdragonanthro$shadeTickets(level, chunk);
+        if (left - before != 1) {
+            helper.fail("one shade left and " + (left - before)
+                    + " hold(s) remain, not 1 -- her leaving took the other's with it");
+        }
+        DragonMinions.releaseFor(level, two);
+        helper.succeed();
+    }
+
+    /** How many of our chunk holds are on this chunk right now. */
+    private static int enderdragonanthro$shadeTickets(ServerLevel level, ChunkPos chunk) {
+        var tickets = ((com.enderdragonanthro.mixin.ChunkTicketAccessor)
+                level.getChunkSource().chunkMap.getDistanceManager())
+                .enderdragonanthro$tickets().get(chunk.toLong());
+        if (tickets == null) {
+            return 0;
+        }
+        int count = 0;
+        for (var ticket : tickets) {
+            if (ticket.getType() == DragonMinions.shadeTicketType()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
