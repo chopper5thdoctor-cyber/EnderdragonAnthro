@@ -1,5 +1,8 @@
 package com.enderdragonanthro.ability;
 
+import com.enderdragonanthro.DragonAnatomy;
+import com.enderdragonanthro.network.CrystalBeamsPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import com.enderdragonanthro.transform.DragonFormManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -10,8 +13,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.level.Level;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -27,7 +35,17 @@ public final class CrystalHealing {
     private record Link(ResourceKey<Level> dimension, int crystalId) {
     }
 
+    /** One crystal, named the way an entity id has to be: with its world. */
+    private record Fed(ResourceKey<Level> dimension, int crystalId) {
+    }
+
     private static final Map<UUID, Link> LINKS = new HashMap<>();
+    /** The crystals this mod pointed last tick, so it can unpoint its own. */
+    private static final Set<Fed> AIMED = new HashSet<>();
+    /** Who is feeding whom right now: crystal, dragon, crystal, dragon. */
+    private static List<Integer> PAIRS = List.of();
+    /** ...and the last one actually put on the wire, so a still scene is quiet. */
+    private static List<Integer> SENT = List.of();
 
     /**
      * Drop everything held for a world that is no longer loaded.
@@ -38,13 +56,41 @@ public final class CrystalHealing {
      */
     public static void forgetWorld() {
         LINKS.clear();
+        AIMED.clear();
+        PAIRS = List.of();
+        SENT = List.of();
     }
 
     private CrystalHealing() {
     }
 
+    /**
+     * Every dragon healed, and every beam that says so.
+     *
+     * The beams are worked out in a second pass on purpose. A crystal's beam
+     * target is ONE field, and the first version wrote it from inside the
+     * per-dragon loop -- so two dragons on one crystal wrote it twice and the
+     * last one won, and worse, a dragon walking out of range called
+     * setBeamTarget(null) on a crystal the other one was still drinking from.
+     * Collecting first and aiming after is what makes "who is this crystal
+     * feeding" a question with an answer.
+     */
     public static void tick(MinecraftServer server) {
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+        tickFor(server, server.getPlayerList().getPlayers());
+    }
+
+    /**
+     * The same, over a list somebody else chose.
+     *
+     * Public for the gametest and for nothing else. GameTest hands you a world
+     * with an empty player list, so a FakeDragon is never in
+     * getPlayerList().getPlayers() and this code could not be reached at all --
+     * which is exactly why the one-beam-for-two-dragons bug had to be found by
+     * standing next to somebody.
+     */
+    public static void tickFor(MinecraftServer server, List<ServerPlayer> dragons) {
+        Map<Fed, List<ServerPlayer>> beams = new HashMap<>();
+        for (ServerPlayer player : dragons) {
             if (!DragonFormManager.isDragon(player)) {
                 unlink(player);
                 continue;
@@ -85,19 +131,13 @@ public final class CrystalHealing {
             }
 
             if (nearest == null) {
-                if (previous != null) {
-                    previous.setBeamTarget(null);
-                }
                 LINKS.remove(player.getUUID());
                 continue;
             }
 
-            if (previous != null && previous != nearest) {
-                previous.setBeamTarget(null);
-            }
             LINKS.put(player.getUUID(), new Link(level.dimension(), nearest.getId()));
-            nearest.setBeamTarget(BlockPos.containing(
-                    player.getX(), player.getY() + player.getBbHeight() * 0.5, player.getZ()));
+            beams.computeIfAbsent(new Fed(level.dimension(), nearest.getId()),
+                    key -> new ArrayList<>()).add(player);
 
             if (level.getGameTime() % HEAL_PERIOD_TICKS == 0
                     && player.getHealth() < player.getMaxHealth()) {
@@ -108,17 +148,99 @@ public final class CrystalHealing {
                 player.getFoodData().eat(1, 0.4F);
             }
         }
+        aim(server, beams);
     }
 
-    public static void unlink(ServerPlayer player) {
-        Link link = LINKS.remove(player.getUUID());
-        if (link == null) {
+    /**
+     * Point every crystal at what it is feeding, and say so on the wire.
+     *
+     * Vanilla's single target still gets set, at the first dragon in a fixed
+     * order. It is doing two jobs nothing else can: EndCrystalRenderer's
+     * shouldRender consults it, so a crystal with none is culled the moment its
+     * own tiny box leaves the view and takes every beam with it -- and in the
+     * real End fight it is the only target there is, aimed at a dragon that is
+     * not a player at all.
+     *
+     * The rest is sent. See CrystalBeamsPayload for why the whole pairing goes
+     * rather than the extras.
+     */
+    private static void aim(MinecraftServer server, Map<Fed, List<ServerPlayer>> beams) {
+        Set<Fed> aimed = new HashSet<>();
+        List<Integer> pairs = new ArrayList<>();
+        // Sorted, both levels of it: the payload is compared against the last
+        // one to decide whether to send at all, so an ordering that wanders
+        // with the player list would resend every tick and prove nothing.
+        List<Fed> order = new ArrayList<>(beams.keySet());
+        order.sort(Comparator.<Fed>comparingInt(fed -> fed.crystalId())
+                .thenComparing(fed -> fed.dimension().location().toString()));
+        for (Fed fed : order) {
+            EndCrystal crystal = crystalAt(server, fed);
+            if (crystal == null) {
+                continue;
+            }
+            List<ServerPlayer> dragons = beams.get(fed);
+            dragons.sort(Comparator.comparingInt(Entity::getId));
+            crystal.setBeamTarget(BlockPos.containing(DragonAnatomy.heart(dragons.get(0))));
+            aimed.add(fed);
+            for (ServerPlayer dragon : dragons) {
+                pairs.add(crystal.getId());
+                pairs.add(dragon.getId());
+            }
+        }
+
+        // Anything we aimed last tick and no longer do. Only ours are cleared:
+        // a crystal this mod never pointed at is the vanilla fight's business.
+        for (Fed fed : AIMED) {
+            if (aimed.contains(fed)) {
+                continue;
+            }
+            EndCrystal crystal = crystalAt(server, fed);
+            if (crystal != null) {
+                crystal.setBeamTarget(null);
+            }
+        }
+        AIMED.clear();
+        AIMED.addAll(aimed);
+
+        PAIRS = List.copyOf(pairs);
+        // On change, and once a second regardless -- the resend is what syncs
+        // somebody who joined into a scene that has not changed since.
+        if (PAIRS.equals(SENT) && server.getTickCount() % 20 != 0) {
             return;
         }
-        ServerLevel level = player.getServer() != null
-                ? player.getServer().getLevel(link.dimension()) : null;
-        if (level != null && level.getEntity(link.crystalId()) instanceof EndCrystal crystal) {
-            crystal.setBeamTarget(null);
+        SENT = PAIRS;
+        CrystalBeamsPayload payload = new CrystalBeamsPayload(SENT);
+        for (ServerPlayer viewer : server.getPlayerList().getPlayers()) {
+            ServerPlayNetworking.send(viewer, payload);
         }
+    }
+
+    /**
+     * Every beam standing right now, flattened: crystal, dragon, crystal, dragon.
+     *
+     * The same list the client is sent, so a test that reads this is reading
+     * what will be drawn rather than a parallel account of it.
+     */
+    public static List<Integer> beamPairs() {
+        return PAIRS;
+    }
+
+    private static EndCrystal crystalAt(MinecraftServer server, Fed fed) {
+        ServerLevel level = server.getLevel(fed.dimension());
+        return level != null && level.getEntity(fed.crystalId()) instanceof EndCrystal crystal
+                ? crystal : null;
+    }
+
+    /**
+     * Forget this dragon's crystal.
+     *
+     * The beam is NOT cleared here, deliberately. It used to be, and that is
+     * the bug in miniature: the crystal may still be feeding somebody else, and
+     * turning the beam off because one drinker left took the other's with it.
+     * aim() sweeps the crystals nobody claimed, which is the only place that
+     * knows whether anybody did.
+     */
+    public static void unlink(ServerPlayer player) {
+        LINKS.remove(player.getUUID());
     }
 }

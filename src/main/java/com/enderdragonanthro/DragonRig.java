@@ -19,6 +19,17 @@ public final class DragonRig {
      */
     public static final float EYE_RIG_Y = 123.50F;
 
+    /**
+     * Centre of the chest, in model units above the foot plane.
+     *
+     * Measured off the cube named "chest" at conversion time, for the same
+     * reason the eye is measured off the paint: half the hitbox height is a
+     * number that refers to nothing about the model, and on a body eight blocks
+     * tall it lands on the pelvis. Move the chest in Blockbench and the crystal
+     * beam follows it.
+     */
+    public static final float HEART_RIG_Y = 99.00F;
+
     /** The model is authored at four times life size on the sheet. */
     public static final float AUTHORED_SCALE = 4.0F;
     /** Exactly as drawn: the head rides above the hitbox, as the canon dragon's does. */
@@ -81,5 +92,16 @@ public final class DragonRig {
      */
     public static double eyeRatio(float renderScale) {
         return EYE_RIG_Y * renderScale / (16.0 * 1.8);
+    }
+
+    /**
+     * The heart's height, as a fraction of hitbox height.
+     *
+     * Same derivation as {@link #eyeRatio} and the same cancellation: the
+     * entity scale drops out, because the point is a fraction of the hitbox and
+     * the model is a multiple of the same scale.
+     */
+    public static double heartRatio(float renderScale) {
+        return HEART_RIG_Y * renderScale / (16.0 * 1.8);
     }
 }

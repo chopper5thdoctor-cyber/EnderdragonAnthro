@@ -435,6 +435,17 @@ public final class DragonRig {{
      */
     public static final float EYE_RIG_Y = {eye}F;
 
+    /**
+     * Centre of the chest, in model units above the foot plane.
+     *
+     * Measured off the cube named "chest" at conversion time, for the same
+     * reason the eye is measured off the paint: half the hitbox height is a
+     * number that refers to nothing about the model, and on a body eight blocks
+     * tall it lands on the pelvis. Move the chest in Blockbench and the crystal
+     * beam follows it.
+     */
+    public static final float HEART_RIG_Y = {heart}F;
+
     /** The model is authored at four times life size on the sheet. */
     public static final float AUTHORED_SCALE = 4.0F;
     /** Exactly as drawn: the head rides above the hitbox, as the canon dragon's does. */
@@ -498,8 +509,38 @@ public final class DragonRig {{
     public static double eyeRatio(float renderScale) {{
         return EYE_RIG_Y * renderScale / (16.0 * 1.8);
     }}
+
+    /**
+     * The heart's height, as a fraction of hitbox height.
+     *
+     * Same derivation as {{@link #eyeRatio}} and the same cancellation: the
+     * entity scale drops out, because the point is a fraction of the hitbox and
+     * the model is a multiple of the same scale.
+     */
+    public static double heartRatio(float renderScale) {{
+        return HEART_RIG_Y * renderScale / (16.0 * 1.8);
+    }}
 }}
 '''
+
+
+def measure_chest(bb, skull_height):
+    """Where the heart is, in model units above the foot plane.
+
+    A bbmodel y coordinate IS a height above the foot plane: the converter maps
+    bb y to Java y with GROUND - v, and heights above the plane are FOOT_PLANE
+    minus that, which cancels back to v exactly. So the cube's own y centre is
+    the answer with no arithmetic.
+
+    Falls back to the middle of the body rather than failing the conversion --
+    a rig without a cube named "chest" is a rig somebody is part way through,
+    and half height is what the beam did before any of this.
+    """
+    for e in bb["elements"]:
+        if e.get("name") == "chest":
+            return (e["from"][1] + e["to"][1]) / 2.0
+    print("  note: no cube named 'chest'; the beam will aim at half height")
+    return skull_height * 0.5
 
 
 def measure_eyes(bb, glow):
@@ -745,6 +786,7 @@ def convert(path):
 
     eyes = measure_eyes(bb, glow)
     eye_y = sum(eyes) / 2 if eyes else skull_height * 0.9
+    heart_y = measure_chest(bb, skull_height)
 
     os.makedirs(os.path.dirname(JAVA_OUT), exist_ok=True)
     open(JAVA_OUT, "w").write(java)
@@ -759,7 +801,7 @@ def convert(path):
     reach = float(max(np.abs(corners[:, 0]).max(), np.abs(corners[:, 2]).max()))
     open(RIG_OUT, "w").write(RIG_TEMPLATE.format(
         ground=f"{GROUND:.1f}", skull=f"{skull_height:.1f}", eye=f"{eye_y:.2f}",
-        reach=f"{reach:.2f}", margin="1.35"))
+        heart=f"{heart_y:.2f}", reach=f"{reach:.2f}", margin="1.35"))
     print(f"rig reaches {reach:.1f} units from the pivot "
           f"({reach / 16.0 * 0.25:.2f} blocks at TRUE_SCALE)")
 

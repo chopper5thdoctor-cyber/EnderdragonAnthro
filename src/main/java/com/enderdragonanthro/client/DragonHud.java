@@ -83,10 +83,16 @@ public final class DragonHud {
         return at == null || clientTicks >= at;
     }
 
-    /** The scale modifier is synced to the client, so it doubles as the form flag. */
+    /**
+     * The scale modifier is synced to the client, so it doubles as the form flag.
+     *
+     * The test itself lives in {@link com.enderdragonanthro.DragonAnatomy}, on
+     * the common side, because the server asks the same question of the same
+     * attribute when it decides where a crystal beam lands. Kept here as the
+     * name every client caller already uses.
+     */
     public static boolean isDragonForm(net.minecraft.world.entity.player.Player player) {
-        AttributeInstance scale = player.getAttribute(Attributes.SCALE);
-        return scale != null && scale.getModifier(EnderdragonAnthro.id("dragon_scale")) != null;
+        return com.enderdragonanthro.DragonAnatomy.isDragonForm(player);
     }
 
     /** Width of a key cap. */

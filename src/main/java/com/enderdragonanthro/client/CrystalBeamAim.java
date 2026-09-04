@@ -1,5 +1,6 @@
 package com.enderdragonanthro.client;
 
+import com.enderdragonanthro.DragonAnatomy;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -77,7 +78,7 @@ public final class CrystalBeamAim {
             return null;
         }
         HELD.put(crystal.getId(), best.getUUID());
-        return best.getPosition(partialTick).add(0.0, best.getBbHeight() * 0.5, 0.0);
+        return DragonAnatomy.heart(best, partialTick);
     }
 
     /** The player this crystal was last matched to, if they are still about. */
@@ -94,10 +95,13 @@ public final class CrystalBeamAim {
     }
 
     /**
-     * The middle of the body, not the feet — the same point the server aimed
-     * at, or a dragon eight blocks tall reads as four blocks off.
+     * The point the server aimed at, so the search looks where the answer is.
+     *
+     * The feet would be four blocks out on a dragon eight blocks tall, which is
+     * further than the CLAIM radius — the match would simply never be made and
+     * the beam would fall back to vanilla's blocky aim for good.
      */
     private static Vec3 middle(Player player) {
-        return player.position().add(0.0, player.getBbHeight() * 0.5, 0.0);
+        return DragonAnatomy.heart(player);
     }
 }

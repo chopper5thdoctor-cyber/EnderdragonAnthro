@@ -1,13 +1,21 @@
 package com.enderdragonanthro.mixin;
 
+import com.enderdragonanthro.DragonAnatomy;
 import com.enderdragonanthro.client.CrystalBeamAim;
+import com.enderdragonanthro.client.CrystalBeamsClient;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EndCrystalRenderer;
 import net.minecraft.client.renderer.entity.EnderDragonRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.ArrayList;
+import java.util.List;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -110,16 +118,37 @@ public abstract class CrystalBeamSmoothMixin {
         poseStack.translate((float) (cx - blocky.x), (float) (cy - blocky.y),
                 (float) (cz - blocky.z));
 
-        Vec3 aim = CrystalBeamAim.of(crystal, outerPartialTick);
-        Vec3 end = aim != null ? aim : blocky;
+        // One beam per dragon this crystal is feeding, and the server said which
+        // -- see CrystalBeamsPayload. A crystal has ONE beam target on the wire,
+        // so two dragons at one crystal were both healed and only one was drawn,
+        // with the beam flicking between them as they took turns writing it.
+        //
+        // Falls through to the single beam when the list is empty, which is the
+        // ordinary case and the vanilla one: in the real End fight the target is
+        // an ender dragon rather than a player, and nothing here knows about it.
+        List<Vec3> ends = new ArrayList<>();
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level != null) {
+            for (int dragonId : CrystalBeamsClient.targets(crystal.getId())) {
+                if (level.getEntity(dragonId) instanceof Player dragon) {
+                    ends.add(DragonAnatomy.heart(dragon, outerPartialTick));
+                }
+            }
+        }
+        if (ends.isEmpty()) {
+            Vec3 aim = CrystalBeamAim.of(crystal, outerPartialTick);
+            ends.add(aim != null ? aim : blocky);
+        }
 
-        poseStack.pushPose();
-        poseStack.translate(0.0, bob, 0.0);          // ride the crystal's bob
-        EnderDragonRenderer.renderCrystalBeams(
-                (float) (end.x - cx),
-                (float) (end.y - cy - bob - LIFT),
-                (float) (end.z - cz),
-                partialTick, age, poseStack, buffers, light);
-        poseStack.popPose();
+        for (Vec3 end : ends) {
+            poseStack.pushPose();
+            poseStack.translate(0.0, bob, 0.0);       // ride the crystal's bob
+            EnderDragonRenderer.renderCrystalBeams(
+                    (float) (end.x - cx),
+                    (float) (end.y - cy - bob - LIFT),
+                    (float) (end.z - cz),
+                    partialTick, age, poseStack, buffers, light);
+            poseStack.popPose();
+        }
     }
 }

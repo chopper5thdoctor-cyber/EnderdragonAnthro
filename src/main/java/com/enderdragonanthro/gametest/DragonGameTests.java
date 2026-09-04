@@ -1,5 +1,7 @@
 package com.enderdragonanthro.gametest;
 
+import com.enderdragonanthro.DragonAnatomy;
+import com.enderdragonanthro.ability.CrystalHealing;
 import com.enderdragonanthro.ability.DragonAbilities;
 import com.enderdragonanthro.ability.DragonFire;
 import com.enderdragonanthro.ability.DragonIntent;
@@ -19,6 +21,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.EnderMan;
@@ -556,6 +559,79 @@ public class DragonGameTests implements FabricGameTest {
         if (back.get(0).slot() != 0) {
             helper.fail("she came back in slot " + back.get(0).slot()
                     + " rather than the one she was summoned into");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * SHIPPED BUG: one crystal, two dragons, one beam.
+     *
+     * A vanilla End Crystal carries exactly ONE beam target, because the fight
+     * it was written for has one dragon. Both dragons were healed -- the
+     * healing is worked out per dragon -- and both wrote that single field, so
+     * the last one won and only one beam was ever drawn. Reported as "end
+     * crystal heals both of us but no second beam".
+     *
+     * Asserted on the pairing the client is actually sent, so this is what will
+     * be drawn rather than a second account of it. Both dragons have to appear
+     * against the same crystal; the old behaviour can only ever name one,
+     * whichever happened to be processed last.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void aCrystalBeamsAtEveryDragonItFeeds(GameTestHelper helper) {
+        floor(helper, 12);
+        FakeDragon first = FakeDragon.transformed(helper, new BlockPos(2, 1, 2));
+        FakeDragon second = FakeDragon.transformed(helper, new BlockPos(8, 1, 8));
+        EndCrystal crystal = helper.spawn(EntityType.END_CRYSTAL, new BlockPos(5, 1, 5));
+
+        CrystalHealing.tickFor(helper.getLevel().getServer(), List.of(first, second));
+
+        List<Integer> pairs = CrystalHealing.beamPairs();
+        Set<Integer> fed = new HashSet<>();
+        for (int i = 0; i + 1 < pairs.size(); i += 2) {
+            if (pairs.get(i) == crystal.getId()) {
+                fed.add(pairs.get(i + 1));
+            }
+        }
+        if (!fed.contains(first.getId()) || !fed.contains(second.getId())) {
+            helper.fail("the crystal feeds two dragons and beams at " + fed.size()
+                    + ": pairs=" + pairs + ", wanted " + first.getId()
+                    + " and " + second.getId());
+        }
+        // ...and vanilla's own single target still has to be set, or
+        // EndCrystalRenderer.shouldRender culls the crystal and takes every
+        // beam with it.
+        if (crystal.getBeamTarget() == null) {
+            helper.fail("no vanilla beam target: the crystal will be culled"
+                    + " the moment its own box leaves the view");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * ...and the beam lands on the chest rather than halfway up the body.
+     *
+     * Half the hitbox height is a number that refers to nothing about the
+     * model, and on a body eight blocks tall it is the pelvis. The heart is
+     * measured off the cube named "chest" at conversion time, so this asserts
+     * the aim is above the middle and inside the body rather than a constant,
+     * which would just be the same number typed twice.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void theBeamLandsOnTheHeart(GameTestHelper helper) {
+        floor(helper, 12);
+        FakeDragon dragon = FakeDragon.transformed(helper, new BlockPos(2, 1, 2));
+        double height = dragon.getBbHeight();
+        double heart = DragonAnatomy.heartHeight(dragon);
+        if (heart <= height * 0.5) {
+            helper.fail(String.format(
+                    "the beam aims at %.2f of %.2f blocks -- the pelvis, not the chest",
+                    heart, height));
+        }
+        if (heart >= height) {
+            helper.fail(String.format(
+                    "the beam aims at %.2f on a %.2f block dragon, which is off the top of it",
+                    heart, height));
         }
         helper.succeed();
     }

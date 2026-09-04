@@ -74,6 +74,9 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                 (payload, context) -> ShadeCourtClient.accept(payload));
         ClientPlayNetworking.registerGlobalReceiver(HomingCrystalPayload.TYPE,
                 (payload, context) -> HomingCrystalsClient.accept(payload));
+        ClientPlayNetworking.registerGlobalReceiver(
+                com.enderdragonanthro.network.CrystalBeamsPayload.TYPE,
+                (payload, context) -> CrystalBeamsClient.accept(payload));
         ClientPlayNetworking.registerGlobalReceiver(EndermanHappyPayload.TYPE,
                 (payload, context) -> EndermanHappyClient.accept(payload));
         // Somebody else's wingbeat. The local player's own is started on
@@ -100,6 +103,7 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                     DragonWings.clear();
                     DragonBurnClient.clear();
                     CrystalBeamAim.clear();
+                    CrystalBeamsClient.clear();
                     DragonSightClient.clear();
                 });
 
@@ -227,6 +231,14 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                         : clicked || (rawDown && !wasDown);
                 if (fire && inGame) {
                     DragonHud.notePress(action);
+                    // A wing stroke starts here rather than after a round trip,
+                    // which for something this short is the difference between
+                    // a flap and a stutter. Which actions are one is the enum's
+                    // to say, so this and the server read the same flag and
+                    // cannot disagree -- see AbilityAction#flapsWings.
+                    if (action.flapsWings && DragonHud.isDragonForm(client.player)) {
+                        DragonWings.beat(client.player);
+                    }
                     ClientPlayNetworking.send(new AbilityActionPayload(action));
                 }
             });

@@ -110,6 +110,15 @@ public final class DragonAbilities {
         }
         cds.put(action, now + action.cooldownTicks);
 
+        // Before the switch, and from the flag rather than from a line in
+        // whichever cases somebody remembered. Buffet is a wing sweep and went
+        // its whole life without moving a wing, because the beat lived inside
+        // Glide's case and a second case is easy not to write. See
+        // AbilityAction#flapsWings.
+        if (action.flapsWings) {
+            wingbeat(player);
+        }
+
         switch (action) {
             case BREATH -> breath(player);
             case FIREBALL -> fireball(player);
@@ -119,12 +128,7 @@ public final class DragonAbilities {
             case EVADE -> evade(player);
             case WARP -> warpToPlayer(player);
             case RETURN -> HomingCrystals.returnHome(player);
-            case GLIDE -> {
-                DragonFlight.start(player);
-                // The flier already flapped, locally, the moment the key went
-                // down. This is the only thing that tells anybody else.
-                wingbeat(player);
-            }
+            case GLIDE -> DragonFlight.start(player);
             case SIGHT -> DragonSight.toggle(player);
             case DRAGONFIRE -> DragonFire.breathe(player);
             case SUMMON -> DragonMinions.summon(player);
@@ -145,6 +149,11 @@ public final class DragonAbilities {
      * To viewers and not to the flier -- the flier already started the beat
      * locally on the keypress, which is what keeps it instant, and sending it
      * back would only ever arrive late enough to restart a stroke in flight.
+     *
+     * Sent by GLIDE and by BUFFET, which are the two things in the kit that
+     * are literally a stroke of the wings. Buffet went without one for its
+     * whole life: it is a six-block wing sweep that knocks everything nearby
+     * off its feet, and the wings stayed folded while it happened.
      */
     private static void wingbeat(ServerPlayer flier) {
         DragonWingbeatPayload payload = new DragonWingbeatPayload(flier.getId());

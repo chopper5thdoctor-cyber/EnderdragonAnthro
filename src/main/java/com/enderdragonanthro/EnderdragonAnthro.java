@@ -14,6 +14,7 @@ import com.enderdragonanthro.command.ShadeCommand;
 import com.enderdragonanthro.network.AbilityActionPayload;
 import com.enderdragonanthro.network.DragonBurnPayload;
 import com.enderdragonanthro.network.EndermanHappyPayload;
+import com.enderdragonanthro.network.CrystalBeamsPayload;
 import com.enderdragonanthro.network.HomingCrystalPayload;
 import com.enderdragonanthro.network.ShadeOrderPayload;
 import com.enderdragonanthro.network.ShadeStatePayload;
@@ -61,6 +62,7 @@ public class EnderdragonAnthro implements ModInitializer {
                 com.enderdragonanthro.network.DragonIntentPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ShadeStatePayload.TYPE, ShadeStatePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(HomingCrystalPayload.TYPE, HomingCrystalPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(CrystalBeamsPayload.TYPE, CrystalBeamsPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(EndermanHappyPayload.TYPE, EndermanHappyPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(
                 com.enderdragonanthro.network.DragonWingbeatPayload.TYPE,
