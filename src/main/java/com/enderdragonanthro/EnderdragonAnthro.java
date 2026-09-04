@@ -152,6 +152,7 @@ public class EnderdragonAnthro implements ModInitializer {
             DragonAbilities.tick(server);
             DragonFlight.tick(server);
             com.enderdragonanthro.ability.DragonSight.tick(server);
+            com.enderdragonanthro.ability.DragonFire.spread(server);
             DragonMinions.tick(server);
             com.enderdragonanthro.ability.DragonPresence.tick(server);
             CrystalHealing.tick(server);

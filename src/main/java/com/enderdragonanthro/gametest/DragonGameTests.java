@@ -6,6 +6,7 @@ import com.enderdragonanthro.ability.AbilityAction;
 import com.enderdragonanthro.ability.CrystalHealing;
 import com.enderdragonanthro.ability.DragonAbilities;
 import com.enderdragonanthro.ability.DragonFire;
+import com.enderdragonanthro.ability.DragonFire;
 import com.enderdragonanthro.ability.DragonIntent;
 import com.enderdragonanthro.ability.DragonMinions;
 import com.enderdragonanthro.ability.DragonPresence;
@@ -805,6 +806,66 @@ public class DragonGameTests implements FabricGameTest {
             }
         }
         return count;
+    }
+
+    /**
+     * A burning creature carries the fire, and does not carry it into water.
+     *
+     * Vanilla fire does not spread off a burning mob at all -- a sheep alight
+     * in a forest sets nothing -- and dragonfire should, because the whole
+     * point of the stream is that it is worse than fire.
+     *
+     * The fluid half is the one that would have shipped broken. canBeReplaced()
+     * says yes to a water source, so "put a flame wherever one fits" quietly
+     * turns a river into a firebreak of burning tiles.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void burningThingsSetTheGroundAlightButNotWater(GameTestHelper helper) {
+        floor(helper, 12);
+        ServerLevel level = helper.getLevel();
+        Zombie dry = helper.spawn(EntityType.ZOMBIE, new BlockPos(2, 1, 2));
+        dry.igniteForTicks(200);
+        DragonFire.mark(level, dry, 200);
+
+        // The fluid case, and LAVA rather than water on purpose. Water is the
+        // same rule and cannot show it: water douses the victim, so the spread
+        // stops at "is it still alight" and the fluid test is never reached --
+        // which is exactly how the first version of this test passed with the
+        // fluid check deleted. A zombie in lava stays lit, so the only thing
+        // between the spread and replacing a fluid block is the rule itself.
+        //
+        // Planks beside it so the fire block's own canSurvive would say yes:
+        // without the rule there is nothing else to stop the placement.
+        BlockPos fluid = new BlockPos(6, 1, 6);
+        helper.setBlock(fluid, Blocks.LAVA);
+        helper.setBlock(new BlockPos(7, 1, 6), Blocks.OAK_PLANKS);
+        Zombie standing = helper.spawn(EntityType.ZOMBIE, fluid);
+        standing.igniteForTicks(200);
+        DragonFire.mark(level, standing, 200);
+
+        helper.runAfterDelay(40, () -> {
+            if (!enderdragonanthro$burnt(helper, new BlockPos(2, 1, 2))) {
+                helper.fail("the burning zombie left no fire behind it");
+            }
+            // The fluid tile itself, not the neighbourhood: fire ABOVE lava is
+            // fine and is not what this is about.
+            if (helper.getBlockState(fluid).is(
+                    com.enderdragonanthro.block.ModBlocks.DRAGON_FIRE)) {
+                helper.fail("a burning zombie standing in a fluid replaced it with fire");
+            }
+            helper.succeed();
+        });
+    }
+
+    /** Is our flame at this spot, or in the tile under it? */
+    private static boolean enderdragonanthro$burnt(GameTestHelper helper, BlockPos at) {
+        for (BlockPos pos : new BlockPos[] {at, at.below(), at.above()}) {
+            if (helper.getBlockState(pos).is(
+                    com.enderdragonanthro.block.ModBlocks.DRAGON_FIRE)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

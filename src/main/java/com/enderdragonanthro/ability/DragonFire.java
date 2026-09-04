@@ -228,13 +228,110 @@ public final class DragonFire {
      * To viewers rather than to the victim: the flames on a burning entity are
      * drawn by whoever is looking at it, and the victim may well be a mob that
      * is not looking at anything.
+     *
+     * The same call is what puts the victim on the server's own list, so a
+     * burning thing carries the fire rather than only wearing it -- see
+     * {@link #spread}. One entry point for both, because a burn nobody told the
+     * client about and a burn nobody told the world about are the same mistake
+     * twice, and this project has made it before.
      */
     public static void mark(ServerLevel level, LivingEntity victim, int ticks) {
+        BURNING.put(victim.getUUID(), level.getGameTime() + ticks);
         DragonBurnPayload payload = new DragonBurnPayload(victim.getId(), ticks);
         for (ServerPlayer viewer : level.players()) {
             if (viewer.distanceToSqr(victim) < 128.0 * 128.0) {
                 net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(viewer, payload);
             }
         }
+    }
+
+    /**
+     * Who is carrying our fire, and until when.
+     *
+     * See {@link com.enderdragonanthro.ServerMemory}: static is per process
+     * rather than per world, and the times in here are getGameTime, which is
+     * per world. Carried into a younger save they read as thousands of ticks in
+     * the future and every mob in it would smoulder.
+     */
+    private static final java.util.Map<java.util.UUID, Long> BURNING = new java.util.HashMap<>();
+
+    public static void forgetWorld() {
+        BURNING.clear();
+    }
+
+    /** How often a burning thing drops fire behind it. */
+    private static final int SPREAD_PERIOD = 10;
+
+    /**
+     * A burning creature sets what it runs through alight.
+     *
+     * Vanilla fire does not do this -- a burning sheep runs through a forest
+     * and nothing happens -- and for dragonfire it should: the whole point of
+     * the stream is that it is worse than fire. So the burn is carried, and
+     * every half second it tries to leave a flame where the victim is standing.
+     *
+     * <p><b>Not into water.</b> canBeReplaced() says yes to a water source,
+     * which is how "put it wherever it fits" would quietly drain a lake into
+     * flames. Fluids are asked about directly rather than left to the fire
+     * block's own canSurvive, because the rule wanted here is about the SPREAD
+     * -- a flame that would survive on the far bank is still not something a
+     * burning cow should be able to start from the middle of a river.
+     *
+     * <p>The victim's own tile and the one below it, which is the same pair
+     * light() tries: a mob standing on the ground is inside the air block above
+     * it, and a mob wading through tall grass is inside the grass.
+     */
+    public static void spread(net.minecraft.server.MinecraftServer server) {
+        if (BURNING.isEmpty()) {
+            return;
+        }
+        for (ServerLevel level : server.getAllLevels()) {
+            long now = level.getGameTime();
+            if (now % SPREAD_PERIOD != 0) {
+                continue;
+            }
+            for (net.minecraft.world.entity.Entity entity : level.getAllEntities()) {
+                if (!(entity instanceof LivingEntity victim)) {
+                    continue;
+                }
+                Long until = BURNING.get(victim.getUUID());
+                if (until == null || now >= until) {
+                    continue;
+                }
+                // Still actually alight. A victim keeps its entry until the
+                // burn times out, and water or rain puts the fire out long
+                // before that -- getRemainingFireTicks is what knows.
+                //
+                // Deliberately NOT also isInWaterOrRain(): that was here first,
+                // and it made the fluid test below unreachable, so the rule the
+                // whole feature turns on was never actually exercised. The
+                // gametest passed with the fluid check deleted, which is worse
+                // than having no test at all.
+                if (!victim.isAlive() || victim.getRemainingFireTicks() <= 0) {
+                    continue;
+                }
+                BlockPos at = victim.blockPosition();
+                if (!wet(level, at) && !wet(level, at.below())) {
+                    light(level, at);
+                }
+            }
+        }
+        // Only after every world has been walked: an entry names an entity that
+        // may be standing in any of them.
+        BURNING.values().removeIf(until -> until <= oldest(server));
+    }
+
+    /** The furthest-behind clock among the loaded worlds. */
+    private static long oldest(net.minecraft.server.MinecraftServer server) {
+        long oldest = Long.MAX_VALUE;
+        for (ServerLevel level : server.getAllLevels()) {
+            oldest = Math.min(oldest, level.getGameTime());
+        }
+        return oldest == Long.MAX_VALUE ? 0L : oldest;
+    }
+
+    /** Water, lava, waterlogged stairs -- anything a flame has no business in. */
+    private static boolean wet(ServerLevel level, BlockPos at) {
+        return !level.getFluidState(at).isEmpty();
     }
 }

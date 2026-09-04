@@ -2,6 +2,7 @@ package com.enderdragonanthro;
 
 import com.enderdragonanthro.ability.CrystalHealing;
 import com.enderdragonanthro.ability.DragonAbilities;
+import com.enderdragonanthro.ability.DragonFire;
 import com.enderdragonanthro.ability.DragonFlight;
 import com.enderdragonanthro.ability.DragonIntent;
 import com.enderdragonanthro.ability.DragonMinions;
@@ -82,6 +83,7 @@ public final class ServerMemory {
         DragonMinions.forget();
         DragonFormManager.forgetWorld();
         DragonSight.forgetWorld();
+        DragonFire.forgetWorld();
         DragonAbilities.forgetWorld();
         DragonFlight.forgetWorld();
         DragonIntent.forgetWorld();
