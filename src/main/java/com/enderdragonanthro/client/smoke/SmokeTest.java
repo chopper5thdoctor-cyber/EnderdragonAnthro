@@ -2,6 +2,7 @@ package com.enderdragonanthro.client.smoke;
 
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.ability.AbilityAction;
+import com.enderdragonanthro.client.DragonCameraView;
 import com.enderdragonanthro.client.DragonHearts;
 import com.enderdragonanthro.client.DragonHud;
 import com.enderdragonanthro.ability.DragonIntent;
@@ -213,10 +214,47 @@ public final class SmokeTest {
             case 9 -> inventoryButton(client);
             case 10 -> check("the pick-up switch starts on", DragonPickupClient.picksUp(),
                     "the client was never told which way the switch is");
-            case 11 -> shot(client);
-            case 12 -> shotLanded(client);
+            case 11 -> cameraView(client);
+            case 12 -> shot(client);
+            case 13 -> shotLanded(client);
             default -> finish(client);
         }
+    }
+
+    /**
+     * Camera view survives the thing that kept ending it.
+     *
+     * ## The bug
+     *
+     * The window whose whole job is to have nothing on it kept showing the pause
+     * menu. {@code GameRenderer.render} calls {@code Minecraft.pauseGame} half a
+     * second after the window loses focus -- which is what clicking on the other
+     * client is -- and DragonCameraView answered by closing the screen again on
+     * the next tick. That is a fight, not a fix: the check runs every frame and
+     * the menu came straight back.
+     *
+     * ## Why calling pauseGame directly is the honest test
+     *
+     * The real trigger is losing window focus, and a harness cannot lose focus
+     * on a machine with no window manager to take it away. But focus is not the
+     * mechanism -- it is the reason vanilla reaches for the mechanism, and the
+     * mechanism is this one method. Calling it is the same event the renderer
+     * raises, minus the 500ms and the GLFW.
+     *
+     * Put back exactly as it was found afterwards, because the screenshot step
+     * runs next and camera view hides the HUD it is there to photograph.
+     */
+    private static void cameraView(Minecraft client) {
+        boolean hidGui = client.options.hideGui;
+        DragonCameraView.enter(client);
+        client.pauseGame(false);
+        String screen = client.screen == null ? "none" : client.screen.getClass().getSimpleName();
+        boolean held = client.screen == null && DragonCameraView.active();
+        DragonCameraView.leave(client);
+        client.options.hideGui = hidGui;
+        check("camera view is not paused out of shot", held,
+                "asked to pause while in camera view and got " + screen
+                        + (DragonCameraView.active() ? "" : ", and camera view ended"));
     }
 
     /**
@@ -393,7 +431,8 @@ public final class SmokeTest {
         for (String what : new String[] {
             "transform reaches the client", "Dragonsight reaches the client",
             "the Intent dial reaches the client",
-            "the pick-up switch is on the inventory", "the pick-up switch starts on"}) {
+            "the pick-up switch is on the inventory", "the pick-up switch starts on",
+            "camera view is not paused out of shot"}) {
             SKIPPED.add(what);
             EnderdragonAnthro.LOGGER.info("[smoke] SKIP {}", what);
         }

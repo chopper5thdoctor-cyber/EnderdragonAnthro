@@ -23,6 +23,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.EntityModelLayerRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import org.lwjgl.glfw.GLFW;
 
@@ -234,6 +235,11 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register((graphics, tickDelta) -> {
             DragonHud.render(graphics);
             com.enderdragonanthro.client.render.DragonSightCompass.render(graphics);
+            // After the rest, and outside their hideGui check: camera view hides
+            // the HUD itself, and the one label saying how to get back out has
+            // to survive that. Fabric's hook is a TAIL inject on Gui.render, so
+            // it runs whether or not vanilla drew anything.
+            DragonCameraView.render(graphics, Minecraft.getInstance());
         });
 
 
