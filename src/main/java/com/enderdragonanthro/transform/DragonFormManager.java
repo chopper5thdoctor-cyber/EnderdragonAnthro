@@ -41,6 +41,42 @@ public final class DragonFormManager {
     /** The one modifier DragonIntent rewrites, so both ends agree on its name. */
     private static final ResourceLocation ATTACK_ID = id("dragon_attack");
 
+    /**
+     * What the form is worth, as totals rather than as bonuses.
+     *
+     * Public because the court is balanced against them: a shade is never
+     * allowed to be stronger than the dragon she is defending, and the only
+     * way to keep that true through a rebalance is for her ceiling to be
+     * derived from these rather than typed next to them. See
+     * DragonMinions#COURT_CEILING.
+     */
+    public static final double HEALTH_BONUS = 180.0;
+    /** Where the claw starts; DragonIntent rewrites it the moment the dial moves. */
+    public static final double ATTACK_BONUS = 34.0;
+    /** Vanilla player base, which the bonus above is added to. */
+    public static final double DRAGON_HEALTH = 20.0 + HEALTH_BONUS;
+
+    /**
+     * The hardest this form can hit, whatever the dial currently says.
+     *
+     * A CEILING rather than the live value, and the distinction is the whole
+     * point of it. The claw is DragonIntent: 10 on Passive, 35 on Alert and
+     * Hostile. Passive is a dragon choosing to hold back, not a dragon who has
+     * become weak -- so the court is measured against what she can do, and four
+     * shades do not get feebler because their dragon put the dial down.
+     *
+     * Read off the enum rather than repeated here, so a stop added or retuned
+     * moves the bar with it.
+     */
+    public static double dragonAttack() {
+        double best = 0.0;
+        for (com.enderdragonanthro.ability.DragonIntent stop
+                : com.enderdragonanthro.ability.DragonIntent.values()) {
+            best = Math.max(best, stop.attackBonus());
+        }
+        return 1.0 + best;
+    }
+
     private record Mod(ResourceLocation id, Holder<Attribute> attribute, double amount,
                        AttributeModifier.Operation operation) {
     }
@@ -60,7 +96,7 @@ public final class DragonFormManager {
             new Mod(id("dragon_scale"), Attributes.SCALE, DragonConfig.scaleFactor() - 1.0,
                     AttributeModifier.Operation.ADD_VALUE),
             // 20 -> 200 HP, canon
-            new Mod(id("dragon_health"), Attributes.MAX_HEALTH, 180.0,
+            new Mod(id("dragon_health"), Attributes.MAX_HEALTH, HEALTH_BONUS,
                     AttributeModifier.Operation.ADD_VALUE),
             // base 0.6 -> 2.5: an 8-block dragon does not hop up single blocks
             new Mod(id("dragon_step"), Attributes.STEP_HEIGHT, 1.9 * size,
@@ -102,7 +138,7 @@ public final class DragonFormManager {
              * 34 puts a bare claw at 35, above the Warden, and a weapon still
              * stacks on top of it.
              */
-            new Mod(ATTACK_ID, Attributes.ATTACK_DAMAGE, 34.0,
+            new Mod(ATTACK_ID, Attributes.ATTACK_DAMAGE, ATTACK_BONUS,
                     AttributeModifier.Operation.ADD_VALUE),
             // dragon hits launch people
             new Mod(id("dragon_attack_knockback"), Attributes.ATTACK_KNOCKBACK, 1.5,

@@ -1,5 +1,6 @@
 package com.enderdragonanthro.ability;
 
+import com.enderdragonanthro.transform.DragonFormManager;
 import com.enderdragonanthro.network.ShadeStatePayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
@@ -170,6 +171,45 @@ public final class DragonMinions {
             TicketType.create("edanthro_shade", Comparator.comparingLong(ChunkPos::toLong));
     private static final int TICKET_RADIUS = 2;
     private static final ResourceLocation SCALE_ID = id("minion_scale");
+    private static final ResourceLocation HEALTH_ID = id("minion_health");
+    private static final ResourceLocation DAMAGE_ID = id("minion_damage");
+
+    /**
+     * A shade is twice the enderman she was made from, and never a rival.
+     *
+     * The doubling is the ask; the ceiling is the constraint that came with it.
+     * She is an elite guard, so 40 HP and a 7-damage hit were not worth
+     * defending anybody with -- but the court exists to protect the dragon, and
+     * a bodyguard who outfights her charge is a different story than the one
+     * this is.
+     *
+     * Derived from DragonFormManager rather than typed beside it, so a rebalance
+     * of the form drags the ceiling with it instead of quietly leaving four
+     * shades stronger than the thing they kneel to. At today's numbers the
+     * doubling binds and the ceiling is slack -- 80 against a cap of 100, 14
+     * against 17.5 -- which is the right way round: the cap is a guard rail, not
+     * the design.
+     *
+     * The dragon's side of that comparison is her CEILING, not her current dial.
+     * On Passive she hits for 10 and a shade hits for 14, and that is meant:
+     * Passive is a dragon choosing to hold back, and her guards have no reason
+     * to hold back with her. Measured against a stop she is standing on rather
+     * than one she can reach, the court would get weaker every time she turned
+     * the dial down, which is the opposite of what a guard is for.
+     */
+    private static final double BASE_HEALTH = 40.0;      // vanilla enderman
+    private static final double BASE_DAMAGE = 7.0;       // vanilla enderman, Normal
+    private static final double COURT_CEILING = 0.5;     // of the dragon's own
+
+    public static double shadeHealth() {
+        return Math.min(BASE_HEALTH * 2.0,
+                DragonFormManager.DRAGON_HEALTH * COURT_CEILING);
+    }
+
+    public static double shadeDamage() {
+        return Math.min(BASE_DAMAGE * 2.0,
+                DragonFormManager.dragonAttack() * COURT_CEILING);
+    }
     private static final String OWNER_TAG = "edanthro_owner_";
     private static final String SLOT_TAG = "edanthro_slot_";
 
@@ -666,11 +706,13 @@ public final class DragonMinions {
             return null;                          // away on an errand; there is no entity
         }
         if (level.getEntity(shade.entity) instanceof EnderMan found) {
+            dress(found);                         // idempotent; see dress()
             return found;
         }
         if (shade.lastPos != null) {
             level.getChunk(shade.lastPos);
             if (level.getEntity(shade.entity) instanceof EnderMan loaded) {
+                dress(loaded);
                 return loaded;
             }
         }
@@ -774,11 +816,7 @@ public final class DragonMinions {
         Vec3 look = owner.getLookAngle();
         Vec3 at = owner.position().add(look.x * 5.0, 0.0, look.z * 5.0);
         minion.moveTo(at.x, at.y, at.z, owner.getYRot(), 0.0F);
-        AttributeInstance scale = minion.getAttribute(Attributes.SCALE);
-        if (scale != null) {
-            scale.addPermanentModifier(new AttributeModifier(
-                    SCALE_ID, SCALE - 1.0, AttributeModifier.Operation.ADD_VALUE));
-        }
+        dress(minion);
         minion.setPersistenceRequired();
         minion.setCustomNameVisible(true);
         minion.addTag(OWNER_TAG + owner.getUUID().toString().replace("-", ""));
@@ -786,6 +824,41 @@ public final class DragonMinions {
         level.addFreshEntity(minion);
         burst(level, minion);
         return minion;
+    }
+
+    /**
+     * Give a shade her size and her strength, once.
+     *
+     * Idempotent, and reached from the load path as well as the spawn path,
+     * because a shade is a persisted entity: one summoned before this existed
+     * comes back out of the save at vanilla enderman weight, and nothing about
+     * her says so. Adding the modifier only at spawn would have left every
+     * court already in a world permanently weaker than every court raised after
+     * it -- the sort of split that gets reported as "the buff did nothing".
+     */
+    public static void dress(EnderMan minion) {
+        addOnce(minion, Attributes.SCALE, SCALE_ID, SCALE - 1.0);
+        boolean grew = addOnce(minion, Attributes.MAX_HEALTH, HEALTH_ID,
+                shadeHealth() - BASE_HEALTH);
+        addOnce(minion, Attributes.ATTACK_DAMAGE, DAMAGE_ID, shadeDamage() - BASE_DAMAGE);
+        // Raising the ceiling does not fill what is under it, so a shade who
+        // gained the modifier on load would stand at 40 of 80 with no wound to
+        // explain it.
+        if (grew) {
+            minion.setHealth(minion.getMaxHealth());
+        }
+    }
+
+    private static boolean addOnce(EnderMan minion, net.minecraft.core.Holder<
+            net.minecraft.world.entity.ai.attributes.Attribute> attribute,
+            ResourceLocation id, double amount) {
+        AttributeInstance instance = minion.getAttribute(attribute);
+        if (instance == null || instance.getModifier(id) != null) {
+            return false;
+        }
+        instance.addPermanentModifier(new AttributeModifier(
+                id, amount, AttributeModifier.Operation.ADD_VALUE));
+        return true;
     }
 
     private static int freeSlot(List<Shade> court) {

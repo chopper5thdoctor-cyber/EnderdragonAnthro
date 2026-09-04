@@ -695,6 +695,51 @@ public class DragonGameTests implements FabricGameTest {
     }
 
     /**
+     * A shade is twice the enderman she was, and never a rival to her dragon.
+     *
+     * Two assertions from one ask. The doubling is easy to see and easy to
+     * check; the ceiling is the half nobody would notice going wrong, because a
+     * court that quietly outfights the thing it kneels to still looks fine in
+     * every screenshot. Measured against DragonFormManager's own totals rather
+     * than against numbers repeated here, so a rebalance of the form is what
+     * moves the bar.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void aShadeIsStrongerButNotStrongerThanTheDragon(GameTestHelper helper) {
+        floor(helper, 12);
+        FakeDragon owner = FakeDragon.transformed(helper, new BlockPos(2, 1, 2));
+        EnderMan shade = helper.spawn(EntityType.ENDERMAN, new BlockPos(4, 1, 4));
+        double before = shade.getMaxHealth();
+        DragonMinions.dress(shade);
+
+        if (shade.getMaxHealth() <= before) {
+            helper.fail("a shade is still a plain enderman at " + shade.getMaxHealth()
+                    + " health");
+        }
+        if (shade.getMaxHealth() >= owner.getMaxHealth()) {
+            helper.fail("a shade has " + shade.getMaxHealth() + " health against her"
+                    + " dragon's " + owner.getMaxHealth() + " -- she outlives what"
+                    + " she is defending");
+        }
+        // Her strongest stop, because that is what the court is measured
+        // against -- on Passive she deliberately hits for 10, and her guards do
+        // not get weaker because she chose to.
+        cycleTo(helper, owner, DragonIntent.HOSTILE);
+        double hit = shade.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        double dragon = owner.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        if (hit >= dragon) {
+            helper.fail("a shade hits for " + hit + " against her dragon's " + dragon
+                    + " -- she outfights what she is defending");
+        }
+        // Raising the ceiling does not fill what is under it.
+        if (shade.getHealth() < shade.getMaxHealth()) {
+            helper.fail("she came out of dressing wounded: " + shade.getHealth()
+                    + " of " + shade.getMaxHealth());
+        }
+        helper.succeed();
+    }
+
+    /**
      * Turn the dial until it reads what the test needs, whatever it started on.
      *
      * Bounded by the number of stops, so a cycle that stopped cycling fails here
