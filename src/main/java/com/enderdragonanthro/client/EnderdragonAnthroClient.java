@@ -79,6 +79,9 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                 (payload, context) -> CrystalBeamsClient.accept(payload));
         ClientPlayNetworking.registerGlobalReceiver(EndermanHappyPayload.TYPE,
                 (payload, context) -> EndermanHappyClient.accept(payload));
+        ClientPlayNetworking.registerGlobalReceiver(
+                com.enderdragonanthro.network.ShadeHoldsPayload.TYPE,
+                (payload, context) -> ShadeHoldsClient.accept(payload));
         // Somebody else's wingbeat. The local player's own is started on
         // the keypress and never comes back through here.
         ClientPlayNetworking.registerGlobalReceiver(
@@ -100,6 +103,7 @@ public class EnderdragonAnthroClient implements ClientModInitializer {
                 .register((handler, client) -> {
                     HomingCrystalsClient.clear();
                     EndermanHappyClient.clear();
+                    ShadeHoldsClient.clear();
                     DragonWings.clear();
                     DragonBurnClient.clear();
                     CrystalBeamAim.clear();

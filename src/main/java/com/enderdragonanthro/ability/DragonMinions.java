@@ -1,5 +1,6 @@
 package com.enderdragonanthro.ability;
 
+import com.enderdragonanthro.network.ShadeHoldsPayload;
 import com.enderdragonanthro.transform.DragonFormManager;
 import com.enderdragonanthro.network.ShadeStatePayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -1558,13 +1559,38 @@ public final class DragonMinions {
         minion.setDeltaMovement(Vec3.ZERO);
         minion.fallDistance = 0.0F;
         face(minion, at);
-        // The swing is the whole reason this reads as building. LivingEntity
-        // drives the same arm animation a player's does.
+        // The swing is the whole reason this reads as building. It is synced
+        // entity state, so ShadeLayer can drive her arm off it without a packet
+        // of its own -- see ShadeLayer#placing.
         minion.swing(InteractionHand.MAIN_HAND, true);
+        // ...and she is holding what she is about to put down. Told to viewers
+        // rather than to the owner, who is usually behind her.
+        holds(level, minion, Blocks.OBSIDIAN.defaultBlockState());
 
         if (!level.getBlockState(at).is(Blocks.OBSIDIAN)) {
             level.setBlockAndUpdate(at, Blocks.OBSIDIAN.defaultBlockState());
             level.playSound(null, at, SoundEvents.STONE_PLACE, SoundSource.BLOCKS, 0.7F, 0.6F);
+        }
+    }
+
+    /**
+     * Put a block in a shade's hand, or take it out of it.
+     *
+     * Deliberately not setCarriedBlock. That one is drawn by vanilla's
+     * CarriedBlockLayer against the chest with both hands, and it is what a
+     * shade hauling a load home uses; it would also start the CARRY clip, which
+     * lifts both arms and is exactly the wrong pose for somebody laying a
+     * course of obsidian one block at a time.
+     */
+    private static void holds(ServerLevel level, EnderMan minion,
+                              net.minecraft.world.level.block.state.BlockState state) {
+        ShadeHoldsPayload payload = new ShadeHoldsPayload(minion.getId(),
+                state == null ? 0
+                        : net.minecraft.world.level.block.Block.getId(state));
+        for (ServerPlayer viewer : level.players()) {
+            if (viewer.distanceToSqr(minion) < 128.0 * 128.0) {
+                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(viewer, payload);
+            }
         }
     }
 
@@ -1617,6 +1643,7 @@ public final class DragonMinions {
 
         minion.fallDistance = 0.0F;
         shade.build = null;
+        holds(level, minion, null);            // hands empty; the gate is up
         // Back beside the dragon rather than left standing at the top of what
         // she just built.
         blink(level, minion, owner.getX(), owner.getY(), owner.getZ(), 8);

@@ -17,6 +17,7 @@ until the next conversion; put it in TEMPLATE below.
 """
 
 import json
+import math
 import os
 import sys
 
@@ -197,6 +198,43 @@ def clips(bb, bones):
     return "\n".join(out)
 
 
+def measure_hand(bb):
+    """Where her left hand is, in the left forearm's own space.
+
+    Measured off the rig for the same reason the dragon's heart is: a block
+    held in a hand has to be AT the hand, and a number typed here drifts the
+    first time anybody nudges an elbow.
+
+    The far end of the cube named `left_forearm` -- its bottom face centre,
+    which in a bbmodel is the low y -- swung by the cube's own rotation about
+    its own origin, then expressed relative to the forearm GROUP's origin,
+    which is the pivot the generated ModelPart hangs off. Java flips y and
+    leaves x and z alone, which is the same mapping every offset in the emitted
+    model already uses.
+
+    Returns (0, 0, 0) if the rig has no such cube, which puts the block at the
+    elbow rather than failing a conversion over a hand.
+    """
+    group = next((g for g in bb.get("groups", []) if g.get("name") == "left_forearm"), None)
+    cube = next((e for e in bb.get("elements", []) if e.get("name") == "left_forearm"), None)
+    if group is None or cube is None:
+        print("  note: no left_forearm cube; the held block will sit at the elbow")
+        return (0.0, 0.0, 0.0)
+
+    pivot = cube.get("origin", [0.0, 0.0, 0.0])
+    low = cube["from"]
+    high = cube["to"]
+    # Bottom face centre: the wrist end of a limb that hangs downward.
+    tip = [(low[0] + high[0]) / 2.0, low[1], (low[2] + high[2]) / 2.0]
+    angle = math.radians((cube.get("rotation") or [0.0, 0.0, 0.0])[2])
+    dx, dy = tip[0] - pivot[0], tip[1] - pivot[1]
+    swung = [pivot[0] + dx * math.cos(angle) - dy * math.sin(angle),
+             pivot[1] + dx * math.sin(angle) + dy * math.cos(angle),
+             tip[2]]
+    origin = group.get("origin", [0.0, 0.0, 0.0])
+    return (swung[0] - origin[0], -(swung[1] - origin[1]), swung[2] - origin[2])
+
+
 TEMPLATE = '''package com.enderdragonanthro.client.model;
 
 import com.enderdragonanthro.EnderdragonAnthro;
@@ -327,6 +365,38 @@ public class ShadeModel {{
     public ModelPart head() {{
         return this.head;
     }}
+
+    /**
+     * The bones a held thing and a swung arm need.
+     *
+     * Her LEFT, and that is a fact about Vaelle rather than a convention: her
+     * idle keeps the right forearm bent at 77.5 degrees and the left almost
+     * straight, so the left is the one that can reach out and put a block
+     * down. Exposed rather than animated from in here because a swing is
+     * something the world does to her, not a clip the rig carries.
+     */
+    public ModelPart body() {{
+        return this.body;
+    }}
+
+    public ModelPart leftArm() {{
+        return this.leftArm;
+    }}
+
+    public ModelPart leftForearm() {{
+        return this.leftForearm;
+    }}
+
+    /**
+     * Her left hand, in the forearm's own space, measured off the rig.
+     *
+     * The far end of the forearm cube, swung by that cube's own rotation. A
+     * block held here sits IN the hand and follows it through the swing,
+     * where a typed offset drifts the first time anybody nudges an elbow.
+     */
+    public static final float HAND_X = {handx}F;
+    public static final float HAND_Y = {handy}F;
+    public static final float HAND_Z = {handz}F;
 
     private static void rot(ModelPart target, ModelPart source) {{
         target.xRot = source.xRot;
@@ -563,10 +633,13 @@ def main():
     # curve cannot end up played on the wrong bone.
     bonelist = ", ".join("this." + FIELD[n] for n in bones)
 
+    hand = measure_hand(bb)
     out = TEMPLATE.format(parts="\n".join(lines), tw=res["width"], th=res["height"],
                           author=int(AUTHOR_SCALE), foot=f"{foot:.3f}",
                           clips=clips(bb, bones), samples=CLIP_SAMPLES,
-                          fields=fields, lookups=gets, bonelist=bonelist)
+                          fields=fields, lookups=gets, bonelist=bonelist,
+                          handx=f"{hand[0]:.3f}", handy=f"{hand[1]:.3f}",
+                          handz=f"{hand[2]:.3f}")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w") as f:
         f.write(out)

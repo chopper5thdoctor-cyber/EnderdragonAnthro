@@ -141,6 +141,7 @@ public final class SmokeTest {
                 models(client);
                 clips();
                 bossBars();
+                placingArm(client);
                 if (!wantsWorld()) {
                     EnderdragonAnthro.LOGGER.info(
                             "[smoke] skipping the round trips: -D{} is not set", WORLD_FLAG);
@@ -494,6 +495,47 @@ public final class SmokeTest {
         }
         check("no two boss bars share a row", clash == null,
                 clash == null ? "" : clash);
+    }
+
+    /**
+     * The block-placing swing survives the pose it is applied on top of.
+     *
+     * A shade laying a course of obsidian swings her LEFT arm -- Vaelle's idle
+     * keeps the right forearm bent and the left nearly straight, so the left is
+     * the one that can reach. The swing goes on AFTER the clips, which means
+     * anything that poses the arm afterwards silently erases it: the arm stops
+     * moving, nothing throws, nothing logs, and the only symptom is a shade
+     * building with her hands at her sides. That is the exact shape of every
+     * bug this project keeps having.
+     *
+     * So the clips are played first, exactly as the layer plays them, and then
+     * the swing, and the arm has to have moved from where the clip left it.
+     * Both ends checked: mid-stroke moves it, and a stroke that has not started
+     * leaves it alone.
+     */
+    private static void placingArm(Minecraft client) {
+        ShadeModel model;
+        try {
+            model = new ShadeModel(client.getEntityModels().bakeLayer(ShadeModel.LAYER));
+        } catch (RuntimeException e) {
+            check("the placing swing moves her left arm", false, e.toString());
+            return;
+        }
+        // Vaelle's idle, at some phase, so the arm starts where a clip put it
+        // rather than at zero.
+        model.play(ShadeModel.clip(0, ShadeModel.Clip.IDLE), 0.25F, 1.0F);
+        float posed = model.leftArm().xRot;
+
+        ShadeLayer.swingLeftArm(model, 0.0F);
+        check("a swing that has not started leaves the arm alone",
+                model.leftArm().xRot == posed,
+                "the arm moved to " + model.leftArm().xRot + " on a zero swing");
+
+        ShadeLayer.swingLeftArm(model, 0.5F);
+        check("the placing swing moves her left arm",
+                Math.abs(model.leftArm().xRot - posed) > 0.1F,
+                "half way through the stroke the arm is still at " + posed
+                        + " -- the clips or something after them ate the swing");
     }
 
     private static void check(String what, boolean ok, String why) {

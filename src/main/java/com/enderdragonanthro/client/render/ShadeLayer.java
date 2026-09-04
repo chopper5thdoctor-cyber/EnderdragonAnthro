@@ -3,8 +3,10 @@ package com.enderdragonanthro.client.render;
 import com.enderdragonanthro.EnderdragonAnthro;
 import com.enderdragonanthro.ability.ShadeIdentity;
 import com.enderdragonanthro.client.EndermanHappyClient;
+import com.enderdragonanthro.client.ShadeHoldsClient;
 import com.enderdragonanthro.client.model.ShadeModel;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EndermanModel;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.model.geom.ModelLayerLocation;
@@ -20,7 +22,9 @@ import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.monster.EnderMan;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Draws a shade over the enderman that is really standing there.
@@ -204,6 +208,94 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
         }
     }
 
+    /**
+     * The arm that puts a block down, swung the way a player's is.
+     *
+     * Her LEFT, and that is Vaelle rather than a convention: her idle keeps the
+     * right forearm bent at 77.5 degrees and the left nearly straight, so the
+     * left is the one that can reach out. The other three inherit it for now
+     * and will get their own answer when they get their own idles.
+     *
+     * Applied AFTER the clips, on top of whatever pose they left, because that
+     * is what a swing is -- an interruption of the stance, not a stance. The
+     * clips run first and set the arm; this bends it from there.
+     *
+     * The shape is vanilla's own, from HumanoidModel.setupAttackAnimation: the
+     * arm lifts and comes down on a curve that eases at both ends rather than
+     * sweeping linearly, and the body turns a little into it. Copied rather
+     * than invented so a shade laying a block reads the same as a player laying
+     * one, which is the whole request.
+     *
+     * <p>Nothing is sent for this. attackAnim is synced entity state -- the
+     * server calls swing() when it places -- so every viewer already has it.
+     */
+    private void placing(EnderMan enderman, float partialTick) {
+        swingLeftArm(this.model, enderman.getAttackAnim(partialTick));
+    }
+
+    /**
+     * The swing itself, as a function of how far through it is.
+     *
+     * Static and taking the model so the smoke harness can bake one, hand it a
+     * mid-stroke value and check the arm actually moved. That is not ceremony:
+     * this is applied ON TOP of the clips and would be silently undone by
+     * anything that posed the arm afterwards -- which is the shape of every bug
+     * this project keeps having, and it announces nothing when it happens.
+     */
+    public static void swingLeftArm(ShadeModel model, float swing) {
+        if (swing <= 0.0F) {
+            return;
+        }
+        ModelPart arm = model.leftArm();
+        ModelPart body = model.body();
+        // Vanilla's curve: 1 - (1-t)^4, which starts fast and settles.
+        float eased = 1.0F - swing;
+        eased *= eased;
+        eased *= eased;
+        eased = 1.0F - eased;
+        float down = Mth.sin(eased * (float) Math.PI);
+        float lean = Mth.sin(swing * (float) Math.PI)
+                * -(model.head().xRot - 0.7F) * 0.75F;
+
+        body.yRot += Mth.sin(Mth.sqrt(swing) * ((float) Math.PI * 2.0F)) * 0.2F;
+        arm.xRot -= down * 1.2F + lean;
+        arm.yRot += body.yRot * 2.0F;
+        arm.zRot += Mth.sin(swing * (float) Math.PI) * -0.4F;
+    }
+
+    /**
+     * The block in her hand, if she is carrying one to put down.
+     *
+     * Walked down the same bones the model draws with -- body is not in the
+     * chain, because the rig hangs the arms off the root rather than off the
+     * torso, and translating through it would put the block a body's width to
+     * one side. The pose the arm is in at this moment is the pose the clips and
+     * the swing above left it in, so the block follows the stroke rather than
+     * hanging where the hand used to be.
+     *
+     * Quarter size, which is what a held block is: vanilla's ItemInHandLayer
+     * draws one at 0.375 of a block on a person, and this hand is a shade's.
+     */
+    private void held(EnderMan enderman, PoseStack poseStack, MultiBufferSource buffers,
+                      int light) {
+        BlockState state = ShadeHoldsClient.heldBy(enderman);
+        if (state == null || state.isAir()) {
+            return;
+        }
+        poseStack.pushPose();
+        this.model.leftArm().translateAndRotate(poseStack);
+        this.model.leftForearm().translateAndRotate(poseStack);
+        poseStack.translate(ShadeModel.HAND_X / 16.0F, ShadeModel.HAND_Y / 16.0F,
+                ShadeModel.HAND_Z / 16.0F);
+        poseStack.scale(0.75F, 0.75F, 0.75F);
+        // renderSingleBlock draws from a corner, so it is walked back by half
+        // its own size to sit centred in the hand.
+        poseStack.translate(-0.5F, -0.5F, -0.5F);
+        Minecraft.getInstance().getBlockRenderer().renderSingleBlock(
+                state, poseStack, buffers, light, OverlayTexture.NO_OVERLAY);
+        poseStack.popPose();
+    }
+
     /** One clip, at whatever phase its own length puts that tick at. */
     private void play(int slot, ShadeModel.Clip which, float ticks, float weight) {
         int length = ShadeModel.ticks(slot, which);
@@ -248,6 +340,7 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
         }
         this.model.copyPose(getParentModel());
         animate(slot, enderman, limbSwing, limbSwingAmount, ageInTicks);
+        placing(enderman, partialTick);
 
         poseStack.pushPose();
         // Lift first, then shrink: groundOffset is already measured in the
@@ -256,6 +349,7 @@ public class ShadeLayer extends RenderLayer<EnderMan, EndermanModel<EnderMan>> {
         poseStack.scale(ShadeModel.TRUE_SCALE, ShadeModel.TRUE_SCALE, ShadeModel.TRUE_SCALE);
         this.model.render(poseStack,
                 buffers.getBuffer(RenderType.entityCutoutNoCull(SKINS[slot])), light);
+        held(enderman, poseStack, buffers, light);
 
         ResourceLocation mood = mood(enderman);
         if (mood == null) {

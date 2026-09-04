@@ -823,8 +823,7 @@ public class DragonGameTests implements FabricGameTest {
     public void burningThingsSetTheGroundAlightButNotWater(GameTestHelper helper) {
         floor(helper, 12);
         ServerLevel level = helper.getLevel();
-        Zombie dry = helper.spawn(EntityType.ZOMBIE, new BlockPos(2, 1, 2));
-        dry.igniteForTicks(200);
+        Zombie dry = enderdragonanthro$kindling(helper, new BlockPos(2, 1, 2));
         DragonFire.mark(level, dry, 200);
 
         // The fluid case, and LAVA rather than water on purpose. Water is the
@@ -839,8 +838,7 @@ public class DragonGameTests implements FabricGameTest {
         BlockPos fluid = new BlockPos(6, 1, 6);
         helper.setBlock(fluid, Blocks.LAVA);
         helper.setBlock(new BlockPos(7, 1, 6), Blocks.OAK_PLANKS);
-        Zombie standing = helper.spawn(EntityType.ZOMBIE, fluid);
-        standing.igniteForTicks(200);
+        Zombie standing = enderdragonanthro$kindling(helper, fluid);
         DragonFire.mark(level, standing, 200);
 
         helper.runAfterDelay(40, () -> {
@@ -855,6 +853,24 @@ public class DragonGameTests implements FabricGameTest {
             }
             helper.succeed();
         });
+    }
+
+    /**
+     * A burning thing that will still be there, and still burning, in a second.
+     *
+     * Both halves of the spread test read a NAMED tile, so a zombie that walks
+     * off it fails the test for a reason that has nothing to do with fire --
+     * and one that burns to death in lava stops spreading, which would make the
+     * negative half pass for the wrong reason. Neither is a thing this is
+     * trying to find out. AI off so she stays put, invulnerable so she lives,
+     * and lit by hand so the burn does not depend on what she is standing in.
+     */
+    private static Zombie enderdragonanthro$kindling(GameTestHelper helper, BlockPos at) {
+        Zombie zombie = helper.spawn(EntityType.ZOMBIE, at);
+        zombie.setNoAi(true);
+        zombie.setInvulnerable(true);
+        zombie.igniteForTicks(400);
+        return zombie;
     }
 
     /** Is our flame at this spot, or in the tile under it? */

@@ -530,6 +530,7 @@ def check_hearts():
     print("PASS: every derived heart matches the sprite it comes from")
     check_clip_channels()
     check_world_state()
+    check_shade_hand()
     check_dev_skins()
 
 
@@ -651,6 +652,45 @@ _STATIC_STATE = re.compile(
 #: Where the mod keeps that state. Anything under here is server-side and dies
 #: with the world; the client packages are per-connection and reset themselves.
 _STATE_ROOTS = ("ability", "transform", "boss", "block", "item", "command")
+
+
+def check_shade_hand():
+    """The hand the block is drawn in has to be ON the forearm.
+
+    HAND_* is measured off the rig at conversion time and used as a raw offset
+    in the forearm's own space, so nothing at runtime would notice it pointing
+    into thin air -- the block would simply hang somewhere near her, every
+    frame, with no error.
+
+    Checked against the cube rather than against a remembered number: the point
+    has to be about a forearm's length from the elbow pivot and no further. The
+    generator's own fallback for a rig with no such cube is (0, 0, 0), which is
+    the elbow, and that is exactly what this rejects.
+    """
+    bb = json.load(open(os.path.join(HERE, "art/shade_base.bbmodel")))
+    cube = next((e for e in bb["elements"] if e.get("name") == "left_forearm"), None)
+    if cube is None:
+        sys.exit("FAIL: the shade rig has no cube named left_forearm")
+    length = abs(cube["to"][1] - cube["from"][1])
+
+    java = open(os.path.join(HERE,
+            "src/main/java/com/enderdragonanthro/client/model/ShadeModel.java")).read()
+    hand = []
+    for axis in ("X", "Y", "Z"):
+        found = re.search(r"HAND_" + axis + r" = (-?[\d.]+)F", java)
+        if not found:
+            sys.exit(f"FAIL: ShadeModel has no HAND_{axis}; the held block has nowhere to go")
+        hand.append(float(found.group(1)))
+
+    reach = math.sqrt(hand[0] ** 2 + hand[1] ** 2)
+    if reach < length * 0.7:
+        sys.exit(f"FAIL: her hand is {reach:.2f} from the elbow on a {length:.0f}-unit "
+                 f"forearm — the block would be drawn inside her arm")
+    if reach > length * 1.3:
+        sys.exit(f"FAIL: her hand is {reach:.2f} from the elbow on a {length:.0f}-unit "
+                 f"forearm — the block would hang off the end of it")
+    print(f"PASS: the held block sits at her hand, {reach:.1f} units down a "
+          f"{length:.0f}-unit forearm")
 
 
 def check_world_state():

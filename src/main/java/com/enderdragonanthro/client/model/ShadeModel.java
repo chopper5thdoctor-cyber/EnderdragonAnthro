@@ -281,6 +281,38 @@ public class ShadeModel {
         return this.head;
     }
 
+    /**
+     * The bones a held thing and a swung arm need.
+     *
+     * Her LEFT, and that is a fact about Vaelle rather than a convention: her
+     * idle keeps the right forearm bent at 77.5 degrees and the left almost
+     * straight, so the left is the one that can reach out and put a block
+     * down. Exposed rather than animated from in here because a swing is
+     * something the world does to her, not a clip the rig carries.
+     */
+    public ModelPart body() {
+        return this.body;
+    }
+
+    public ModelPart leftArm() {
+        return this.leftArm;
+    }
+
+    public ModelPart leftForearm() {
+        return this.leftForearm;
+    }
+
+    /**
+     * Her left hand, in the forearm's own space, measured off the rig.
+     *
+     * The far end of the forearm cube, swung by that cube's own rotation. A
+     * block held here sits IN the hand and follows it through the swing,
+     * where a typed offset drifts the first time anybody nudges an elbow.
+     */
+    public static final float HAND_X = 1.961F;
+    public static final float HAND_Y = 18.303F;
+    public static final float HAND_Z = -4.000F;
+
     private static void rot(ModelPart target, ModelPart source) {
         target.xRot = source.xRot;
         target.yRot = source.yRot;
