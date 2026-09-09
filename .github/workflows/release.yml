@@ -1,34 +1,45 @@
 name: release
 
-# Cut a release from a tag, with the jar attached.
+# Cut a release, with the jar attached.
 #
 # This exists because a release cannot be made from the machine the mod is
-# written on: that session is allowed to push commits and tags and is refused
-# outright on releases ("Creating, editing, or deleting releases is not
-# permitted for this session type"). A runner has no such restriction, so
-# pushing a tag is the way to ask for one.
+# written on. That session is allowed to push COMMITS and nothing else about a
+# release: the API refuses outright --
 #
-# The jar is BUILT here rather than uploaded from anywhere. A release asset is
-# the one artefact people actually run, and one built on the author's machine
-# is the one thing in this project nothing else verifies -- the whole reason
-# build.yml exists is that the local box cannot reach Fabric's maven. So the
-# thing attached to a release is the thing a runner compiled against real
-# mapped Minecraft, or there is no release.
+#   Creating, editing, or deleting releases is not permitted for this
+#   session type
 #
-#   git tag -a v0.1.0-prealpha -m "..." && git push origin v0.1.0-prealpha
+# -- and pushing a tag is refused too, as a dropped connection rather than as
+# an error, four attempts running, while branch pushes and ref reads go
+# through fine. So neither half can be done from there, and a runner does both
+# instead.
 #
-# A tag containing a hyphenated suffix -- prealpha, alpha, beta, rc -- is
-# marked as a pre-release, so it does not become the repository's "latest" and
-# does not go out to anybody who is watching for stable builds.
+#   gh workflow run release.yml --ref <branch> -f tag=v0.1.0-prealpha
+#
+# The TAG IS CREATED HERE, by `gh release create --target`, pointing at the
+# commit this run checked out. That is the whole reason the workflow takes a
+# branch rather than a tag: if a tag could be pushed, none of this would need
+# to exist.
+#
+# The jar is BUILT here rather than uploaded from anywhere, and that is the
+# point rather than convenience. A release asset is the one artefact somebody
+# else actually runs, and one built on the author's machine is the single
+# thing in this project that nothing verifies -- build.yml exists precisely
+# because that box cannot reach Fabric's maven. So what hangs off a release is
+# what a runner compiled against real mapped Minecraft, or there is no release.
+#
+# A tag with a suffix after the version -- prealpha, alpha, beta, rc -- is
+# marked as a pre-release, so it does not become the repository's "latest".
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to build a release from'
+        description: 'Tag to create, e.g. v0.1.0-prealpha'
         required: true
+        default: 'v0.1.0-prealpha'
+  push:
+    tags: ['v*']
 
 permissions:
   contents: write
@@ -38,8 +49,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -49,8 +58,8 @@ jobs:
       - name: Install tool dependencies
         run: python3 -m pip install --quiet numpy pillow
 
-      # The same gates a push gets, in the same order. A tag is not a reason to
-      # skip them -- it is the one build somebody else is going to run.
+      # The same gates a push gets, in the same order. A release is not a
+      # reason to skip them -- it is the one build a stranger is going to run.
       - name: Static checks
         run: |
           python3 tools/syntax_check.py
@@ -79,8 +88,8 @@ jobs:
           set -o pipefail
           ./gradlew build --no-daemon --stacktrace 2>&1 | tee build.log
 
-      # Green with a broken mixin is the failure mode build.yml was written for;
-      # a release must not be the one build that skips the check.
+      # Green with a broken mixin is the failure build.yml was written for. A
+      # release must not be the one build that skips the check.
       - name: Check mixins resolved
         run: |
           if grep -n "Cannot remap" build.log; then
@@ -107,11 +116,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
-          # Anything with a suffix after the version is a pre-release.
           pre=""
           case "$TAG" in *-*) pre="--prerelease" ;; esac
           gh release create "$TAG" "${{ steps.jar.outputs.path }}" \
             --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
             --title "$TAG" \
             --notes-file .github/release-notes.md \
             $pre
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url
